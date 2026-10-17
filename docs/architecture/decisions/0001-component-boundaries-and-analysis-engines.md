@@ -147,7 +147,7 @@ implements orchestration over prepared contexts; F04 provides workspace context 
 
 Workspace loading belongs to this engine. It requires explicit trust before SDK
 discovery or design-time build execution. No automatic restore runs. Workspace
-warnings, compiler errors, missing restore assets and loading exceptions yield
+warnings, compiler/generator errors, generator failures, missing restore assets and loading exceptions yield
 incomplete coverage; cancellation stays distinct. CLI `load` maps unfinished coverage
 to exit 2 without claiming a rule scan. Framework selection is explicit for
 multi-targeted projects, and coverage applies to one configuration/framework per run.
@@ -161,6 +161,11 @@ references (`Microsoft.Build`, `Microsoft.Build.Framework`, `Microsoft.NET.Strin
 exclude runtime assets and remain private so SDK-provided assemblies load only after
 registration. No new project or dependency toward Core is introduced; workspace
 results expose Roslyn context only inside the Analysis adapter pending F05 normalization.
+Reference validation retains the workspace's effective global properties, including
+solution context, and matches Roslyn's design-time defaults. Generator errors require
+an additional pass through Roslyn's public generator driver because the pinned
+workspace API does not expose generator diagnostics publicly; original source trees
+and generator inputs are preserved for that pass.
 
 ### Compiler-hosted engine
 

@@ -53,7 +53,8 @@ Windows and macOS for pull requests and pushes to `main`. Tests cover diagnostic
 identity and ordering, YAML validation, policy references, portable globs, inventory
 resolution, rule selection, severity gates, analysis outcomes and cancellation, plus
 workspace loading for all three input formats, framework selection, conditional
-compilation, missing SDKs/references, failed restores and CLI loading exit codes.
+compilation, solution-conditioned references, source-generator diagnostics, missing
+SDKs/references, failed restores and CLI loading exit codes.
 They also cover evaluated MSBuild references in both Debug and Release, solution membership, Core's independence
 from external packages and adapters, and CLI process behavior. Warnings fail the build.
 Builds emit XML API documentation; missing documentation for public types or members

@@ -9,6 +9,9 @@ public sealed class WorkspaceFixture : IAsyncLifetime
     /// <summary>Gets the isolated fixture root.</summary>
     public string Root { get; } = Path.Combine(Path.GetTempPath(), "arch-guard-workspaces-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>Gets the checkout containing the built CLI and the checked-in fixtures.</summary>
+    public string RepositoryRoot { get; private set; } = "";
+
     /// <summary>Copies checked-in inputs and restores the supported fixture contexts.</summary>
     /// <returns>A task completing when restore prerequisites are available.</returns>
     public async Task InitializeAsync()
@@ -20,6 +23,7 @@ public sealed class WorkspaceFixture : IAsyncLifetime
         }
 
         Assert.NotNull(repository);
+        RepositoryRoot = repository.FullName;
         var source = Path.Combine(repository.FullName, "tests", "Fixtures", "Workspaces");
         foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
         {
@@ -37,6 +41,11 @@ public sealed class WorkspaceFixture : IAsyncLifetime
         File.Copy(Path.Combine(repository.FullName, "global.json"), Path.Combine(Root, "global.json"));
         await RestoreAsync("Fixture.slnx");
         await RestoreAsync("Multi/Multi.csproj");
+        await RestoreAsync("SolutionReference.slnx");
+        await RestoreAsync("Generators/FixtureGenerator.csproj");
+        await RestoreAsync("GeneratorConsumer/GeneratorConsumer.csproj");
+        var build = await DotnetAsync("build", "Generators/FixtureGenerator.csproj", "--configuration", "Debug", "--no-restore");
+        Assert.True(build.ExitCode == 0, build.Output + build.Error);
     }
 
     /// <summary>Runs a bounded restore using direct process arguments and captures failures.</summary>
@@ -45,6 +54,25 @@ public sealed class WorkspaceFixture : IAsyncLifetime
     /// <returns>The combined restore output for assertions.</returns>
     public async Task<string> RestoreAsync(string input, bool expectedSuccess = true)
     {
+        var arguments = new List<string> { "restore", Path.Combine(Root, input), "--ignore-failed-sources", "--disable-parallel" };
+        if (!expectedSuccess)
+        {
+            var emptySource = Path.Combine(Root, "empty-feed");
+            Directory.CreateDirectory(emptySource);
+            arguments.AddRange(["--source", emptySource]);
+        }
+
+        var result = await DotnetAsync(arguments.ToArray());
+        var text = result.Output + result.Error;
+        Assert.True((result.ExitCode == 0) == expectedSuccess, text);
+        return text;
+    }
+
+    /// <summary>Runs a bounded .NET command in the isolated fixture directory and captures both streams.</summary>
+    /// <param name="arguments">Arguments passed without shell interpretation.</param>
+    /// <returns>The exit code and separate standard output and error streams.</returns>
+    public async Task<(int ExitCode, string Output, string Error)> DotnetAsync(params string[] arguments)
+    {
         var start = new ProcessStartInfo("dotnet")
         {
             WorkingDirectory = Root,
@@ -52,17 +80,9 @@ public sealed class WorkspaceFixture : IAsyncLifetime
             RedirectStandardError = true,
             UseShellExecute = false,
         };
-        foreach (var argument in new[] { "restore", Path.Combine(Root, input), "--ignore-failed-sources", "--disable-parallel" })
+        foreach (var argument in arguments)
         {
             start.ArgumentList.Add(argument);
-        }
-
-        if (!expectedSuccess)
-        {
-            var emptySource = Path.Combine(Root, "empty-feed");
-            Directory.CreateDirectory(emptySource);
-            start.ArgumentList.Add("--source");
-            start.ArgumentList.Add(emptySource);
         }
 
         using var process = Process.Start(start)!;
@@ -76,12 +96,10 @@ public sealed class WorkspaceFixture : IAsyncLifetime
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
-            throw new TimeoutException("Fixture restore timed out.");
+            throw new TimeoutException("Fixture .NET command timed out.");
         }
 
-        var text = await output + await error;
-        Assert.True((process.ExitCode == 0) == expectedSuccess, text);
-        return text;
+        return (process.ExitCode, await output, await error);
     }
 
     /// <summary>Removes the temporary fixture and all of its intermediate outputs.</summary>

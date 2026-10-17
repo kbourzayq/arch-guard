@@ -82,7 +82,8 @@ public sealed class MSBuildWorkspaceLoader
                     continue;
                 }
 
-                WorkspaceProjectValidator.Validate(project.FilePath, request, compilation, issues);
+                WorkspaceProjectValidator.Validate(project.FilePath, request, workspace.Properties, compilation, issues);
+                await WorkspaceGeneratorValidator.ValidateAsync(project, compilation, issues, cancellationToken).ConfigureAwait(false);
                 foreach (var diagnostic in compilation.GetDiagnostics(cancellationToken).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
                 {
                     issues.Add(new("compilation-error", $"{project.FilePath}: {diagnostic.ToString()}"));
