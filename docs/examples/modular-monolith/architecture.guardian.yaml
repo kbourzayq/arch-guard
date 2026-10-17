@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../../schema/architecture.guardian.v1.schema.json
+version: 1
+modules:
+  - id: Orders
+    projects: ["src/Orders/**/*.csproj"]
+    allowedDependencies: ["contract:Billing/api"]
+  - id: Billing
+    projects: ["src/Billing/**/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["src/Billing/Billing.Contracts.csproj"]
+layers:
+  - id: Contracts
+    projects: ["src/**/Billing.Contracts.csproj"]
+  - id: Application
+    projects: ["src/**/Orders.Application.csproj"]
+    allowedDependencies: [Contracts]
+  - id: Infrastructure
+    projects: ["src/**/Billing.Infrastructure.csproj"]
+    allowedDependencies: [Contracts]
+rules:
+  AG001: error
+  AG002: warning
+  AG003: error
+gate:
+  failOn: warning

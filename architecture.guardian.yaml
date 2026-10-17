@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=./docs/schema/architecture.guardian.v1.schema.json
+version: 1
+modules:
+  - id: Guardian
+    projects: ["src/**/*.csproj"]
+  - id: Tests
+    projects: ["tests/**/*.csproj"]
+    allowedDependencies: ["module:Guardian"]
+layers:
+  - id: Core
+    projects: ["src/ArchitectureGuardian.Core/*.csproj"]
+  - id: Analysis
+    projects: ["src/ArchitectureGuardian.Analysis/*.csproj"]
+    allowedDependencies: [Core]
+  - id: Configuration
+    projects: ["src/ArchitectureGuardian.Configuration/*.csproj"]
+    allowedDependencies: [Core]
+  - id: Cli
+    projects: ["src/ArchitectureGuardian.Cli/*.csproj"]
+    allowedDependencies: [Analysis]
+  - id: Tests
+    projects: ["tests/**/*.csproj"]
+    allowedDependencies: [Core, Analysis, Configuration, Cli]
+rules:
+  AG001: error
+  AG002: error
+  AG003: error
+gate:
+  failOn: error

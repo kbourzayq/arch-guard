@@ -3,7 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Delivery: [F01](https://github.com/kbourzayq/arch-guard/issues/1),
-  [F02](https://github.com/kbourzayq/arch-guard/issues/2)
+  [F02](https://github.com/kbourzayq/arch-guard/issues/2),
+  [F03](https://github.com/kbourzayq/arch-guard/issues/3)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -18,11 +19,14 @@ does not have the same repository view or lifecycle as a standalone scan.
 
 ## Decision: dependencies point toward Core
 
-Start with three .NET 10 projects and a separate architecture test project:
+F01 started with three .NET 10 projects. F03 adds Configuration as an inward-facing
+adapter. The current production references are:
 
 ```text
 ArchitectureGuardian.Cli --> ArchitectureGuardian.Analysis --> ArchitectureGuardian.Core
      console/composition        solution application services       pure policy/evaluation
+ArchitectureGuardian.Configuration -------------------------> ArchitectureGuardian.Core
+     YAML loading/validation
 ```
 
 An arrow means a project reference. CLI can consume Core types through Analysis's
@@ -37,13 +41,19 @@ and conversion of Roslyn/MSBuild data into neutral Core inputs. It may acquire t
 external dependencies in F04. CLI composes the services, handles arguments and maps
 results to console output and exit codes. It contains no rule evaluation.
 
-Add configuration, reporting, compiler-analyzer and MCP adapters only with the
-features that use them. They depend inward on Core contracts; driving adapters may
+Configuration now implements Core's `IPolicyLoader` port and references only Core.
+YamlDotNet 16.3.0 is confined to this adapter: the base library has no YAML parser,
+and a mature parser preserves source marks and detects malformed documents without
+introducing serializer types into Core. Strict schema checks run before constructing
+neutral policy. No workspace or rule-discovery dependency is introduced.
+
+Add reporting, compiler-analyzer and MCP adapters only with the features that use
+them. They depend inward on Core contracts; driving adapters may
 also reference Analysis to invoke solution-wide services. Analysis must not reference
 CLI, MCP, reporting or the compiler adapter. Core must not depend on any adapter.
 
 The dependency tests evaluate MSBuild items, including imported references, in Debug
-and Release. They enforce the three-project graph and Core's lack of external
+and Release. They enforce the four-project graph and Core's lack of external
 dependencies. New production projects require an explicit entry in those checks and
 an update to this decision. This establishes a checkable boundary before rules exist.
 
@@ -51,8 +61,9 @@ an update to this decision. This establishes a checkable boundary before rules e
 
 F01 established the following ownership decisions. F02 implements the shared rule,
 diagnostic, severity policy, request and result contracts in Core, with host-independent
-orchestration in Analysis. Subsequent features introduce the remaining ports when
-their use cases exist.
+orchestration in Analysis. F03 implements the neutral architecture-policy contracts,
+pure resolution and loading port. Subsequent features introduce remaining ports
+when their use cases exist.
 
 | Port or contract | Owner and direction | Adapter responsibility |
 | --- | --- | --- |
@@ -96,6 +107,30 @@ baseline fingerprints and movement/rename matching; F02 does not promise identit
 stability across changed source, wording or contract versions. See the
 [shared contracts guide](../../shared-contracts.md) for the complete behavior.
 
+### F03 policy and configuration decisions
+
+`ArchitecturePolicy` snapshots module and layer declarations, whole-project public
+contracts, selected canonical rule IDs, reporting severities and a severity gate.
+`YamlPolicyLoader` implements the Core loading port in Configuration. It accepts
+an explicit file path, validates the strict v1 document, and preserves read,
+configuration and cancellation failures. The published JSON Schema supports editor
+validation; Core validates unique identities and declared dependency references.
+
+`ResolvedPolicy` takes a complete project inventory from the caller and performs
+no I/O. Identities are project paths relative to the policy directory. Globs use
+ordinal case-sensitive matching across operating systems. Every project must have
+exactly one module and layer; contracts must be disjoint subsets of their module.
+Unknown references, unmatched projects, unused selectors and ownership overlaps fail
+instead of weakening coverage. See the [policy guide](../../policy.md) for the exact grammar.
+
+Dependency permission checks consume discovered project edges without discovering
+violations themselves. Module and contract references are explicitly distinguished;
+permissions are direct and directional. Rule selection rejects missing selected
+implementations. Severity remains a reporting decision after discovery. `GatePolicy`
+checks an inclusive severity threshold and always rejects incomplete, failed or
+cancelled coverage. Baseline-aware gates remain F22. CLI composition and scanning
+remain F10; adding Configuration does not introduce a working scan command.
+
 ## Decision: separate solution-wide and compiler-hosted analysis
 
 ### Solution-wide engine
@@ -135,7 +170,8 @@ project or host-compatibility claim is introduced by F01.
 
 ## Consequences
 
-- The repository builds without Roslyn, MCP, YAML or reporting packages in production.
+- The repository builds without Roslyn, MCP or reporting packages in production;
+  only Configuration depends on the YAML package.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
 - Extra adapters and concrete port APIs are deferred until required, avoiding unused
