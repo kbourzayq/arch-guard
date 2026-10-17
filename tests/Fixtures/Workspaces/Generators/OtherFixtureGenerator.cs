@@ -8,5 +8,5 @@ public sealed class OtherFixtureGenerator : IIncrementalGenerator
 {
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context) => context.RegisterPostInitializationOutput(
-        output => output.AddSource("Contract.g.cs", "namespace Generated { file class LocalHelper { } }"));
+        output => output.AddSource("Contract.g.cs", "namespace Generated { file class LocalHelper { public System.Text.StringBuilder Value => new(); } }"));
 }

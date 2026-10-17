@@ -26,8 +26,8 @@ public sealed class FixtureGenerator : IIncrementalGenerator
                 throw new InvalidOperationException("The fixture generator failed.");
             }
 
-            production.AddSource("Contract.g.cs", "namespace Generated { public class Contract { } file class LocalHelper { public class Nested { } } }");
-            production.AddSource("Helpers/Other.g.cs", "namespace Generated { file class LocalHelper { } }");
+            production.AddSource("Contract.g.cs", "namespace Generated { public class Contract { } file class LocalHelper { public System.Text.StringBuilder Value => new(); public class Nested { } } }");
+            production.AddSource("Helpers/Other.g.cs", "namespace Generated { file class LocalHelper { public System.Text.StringBuilder Value => new(); } }");
             if (mode is "error" or "warning")
             {
                 var descriptor = new DiagnosticDescriptor("FIXTURE001", "Fixture generation problem",

@@ -6,10 +6,10 @@ the YAML loader and pure policy resolution. The [repository policy](../architect
 maps this solution's six projects. The [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
 illustrates public contracts. Both are loaded and resolved by tests.
 
-The loader and policy APIs and [trusted workspace loading](workspace-loading.md) are
-usable today. Dependency discovery, rule implementations and CLI scanning follow in
-F06–F10. Loading a valid policy is not an architecture scan, and the CLI does not
-yet consume this file.
+The loader and policy APIs, [trusted workspace loading](workspace-loading.md) and
+[dependency extraction](dependency-graph.md) are usable today. Rule implementations
+and CLI scanning follow in F07–F10. Loading a valid policy is not an architecture
+scan, and the CLI does not yet consume this file.
 
 ## Document shape
 
