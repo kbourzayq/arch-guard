@@ -41,6 +41,11 @@ before changing component responsibilities or dependencies.
 - Use file-scoped namespaces and explicit accessibility. Use PascalCase for types
   and public members, camelCase for parameters and locals, and `_camelCase` for
   private instance fields. Prefix interfaces with `I`.
+- Group types by scope and responsibility, with namespaces matching the project
+  root namespace plus the relative folder path. Use plural nouns for groups such
+  as `Policies`, `Rules` and `Diagnostics`. Keep each top-level type in its own
+  matching file; nested implementation helpers may stay with their owning type.
+  Keep the CLI entry point at the project root.
 - Prefer small, cohesive types and straightforward control flow. Use immutable
   records for value-like contracts where appropriate; avoid exposing mutable
   collections that callers could use to corrupt evaluation inputs or results.

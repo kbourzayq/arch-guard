@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kbourzayq/arch-guard/blob/main/docs/schema/architecture.guardian.v1.schema.json",
+  "title": "Architecture Guardian policy v1",
+  "description": "Structural schema. Loading additionally checks unique identities and declared references; inventory resolution checks selector coverage and overlaps.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "modules", "layers", "rules"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/module" }
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/layer" }
+    },
+    "rules": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "AG001": { "$ref": "#/$defs/severity" },
+        "AG002": { "$ref": "#/$defs/severity" },
+        "AG003": { "$ref": "#/$defs/severity" },
+        "AG004": { "$ref": "#/$defs/severity" },
+        "AG005": { "$ref": "#/$defs/severity" },
+        "AG006": { "$ref": "#/$defs/severity" }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failOn"],
+      "properties": { "failOn": { "$ref": "#/$defs/severity" } }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$" },
+    "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+    "selectors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "not": {
+          "pattern": "(^\\s*$|^/|/$|//|(^|/)\\.{1,2}(/|$)|[\\\\:\\[\\]{}!\\t\\r\\n]|(^|/)(?!\\*\\*(/|$))[^/]*\\*\\*)"
+        }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "projects"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "projects": { "$ref": "#/$defs/selectors" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "projects"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "projects": { "$ref": "#/$defs/selectors" },
+        "contracts": { "type": "array", "items": { "$ref": "#/$defs/contract" } },
+        "allowedDependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(module:[A-Za-z][A-Za-z0-9_.-]*|contract:[A-Za-z][A-Za-z0-9_.-]*/[A-Za-z][A-Za-z0-9_.-]*)$" }
+        }
+      }
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "projects"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "projects": { "$ref": "#/$defs/selectors" },
+        "allowedDependencies": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
+      }
+    }
+  }
+}

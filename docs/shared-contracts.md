@@ -3,7 +3,9 @@
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) supplies contracts in
 `ArchitectureGuardian.Core` and orchestration in `ArchitectureGuardian.Analysis`.
 Core uses only the .NET base library. These APIs do not load solutions, parse YAML,
-implement the six rules, render reports or calculate quality gates.
+implement the six rules or render reports. F03 adds the separate architecture policy,
+resolver and `GatePolicy` described in the [policy guide](policy.md); YAML stays in
+the Configuration adapter.
 
 Start with the [architecture overview](architecture/overview.md) for component
 responsibilities and the planned solution/compiler integration paths.
@@ -25,12 +27,13 @@ required. The rule descriptor provides an absolute HTTP/HTTPS documentation URL.
 `SeverityPolicy` supplies per-rule overrides and a default severity (`Error` unless
 configured otherwise). The supported severities are `Info`, `Warning` and `Error`.
 Rule IDs use ordinal, case-sensitive matching. Changing severity does not rerun or
-change a rule finding's identity. Policy files and suppression/baseline behavior
-belong to later features.
+change a rule finding's identity. F03 policy files explicitly select rule IDs and
+their severities. Suppression/baseline behavior belongs to later features.
 
 A completed run may contain error diagnostics. A consumer must check coverage
-status before applying its own quality-gate policy. F02 deliberately provides no
-combined success flag or CLI exit code.
+status before applying quality-gate policy. `GatePolicy.Passes` from F03 fails
+noncompleted results and applies an inclusive severity threshold to completed results.
+`AnalysisResult` itself has no combined success flag or CLI exit code.
 
 ## Reusable service
 
@@ -39,8 +42,11 @@ future MCP composition. It accepts registered rules and an `AnalysisRequest<TCon
 with the prepared context and severity policy. For example, a host can compose:
 
 ```csharp
-using ArchitectureGuardian.Analysis;
-using ArchitectureGuardian.Core;
+using ArchitectureGuardian.Analysis.Orchestration;
+using ArchitectureGuardian.Core.Analysis;
+using ArchitectureGuardian.Core.Diagnostics;
+using ArchitectureGuardian.Core.Policies;
+using ArchitectureGuardian.Core.Rules;
 
 static Task<AnalysisResult> AnalyzeAsync<TContext>(
     TContext snapshot,

@@ -93,10 +93,22 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "16.3.0",
+        "contentHash": "SgMOdxbz8X65z8hraIs6hOEdnkH6hESTAIUa7viEngHOYaH+6q5XJmwr1+yb9vJpNQ19hCQY69xbFsLtXpobQA=="
+      },
       "architectureguardian.analysis": {
         "type": "Project",
         "dependencies": {
           "ArchitectureGuardian.Core": "[0.1.0, )"
+        }
+      },
+      "architectureguardian.configuration": {
+        "type": "Project",
+        "dependencies": {
+          "ArchitectureGuardian.Core": "[0.1.0, )",
+          "YamlDotNet": "[16.3.0, )"
         }
       },
       "architectureguardian.core": {
