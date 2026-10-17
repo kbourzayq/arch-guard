@@ -118,6 +118,8 @@ including unresolved types and metadata, rather than silently reducing semantic 
 The fixtures under `tests/Fixtures/Workspaces` cover the three input formats,
 project references, conditional source inclusion and compilation, two frameworks,
 missing SDKs/references, solution-conditioned references, generator diagnostics and
-failed restore. The generator fixture has its own locked restore. Integration tests copy them to isolated
-temporary directories. The loader validates the current evaluated snapshot; it does
-not guarantee that restore assets are fresh after arbitrary repository edits.
+failed restore. The generator fixture has its own locked restore. Integration tests
+copy inputs to isolated temporary directories and stage generator DLLs with test
+build artifacts: Roslyn's process-lifetime loader can keep those DLLs locked on
+Windows. The loader validates the current evaluated snapshot; it does not guarantee
+that restore assets are fresh after arbitrary repository edits.

@@ -9,4 +9,7 @@
       <HintPath>design-time-unavailable.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <Target Name="ReportFixtureSolutionReferences" BeforeTargets="ResolveAssemblyReferences">
+    <Message Importance="High" Text="Fixture solution references: @(Reference)" />
+  </Target>
 </Project>
