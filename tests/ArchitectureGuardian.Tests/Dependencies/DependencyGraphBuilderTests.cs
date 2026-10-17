@@ -167,6 +167,122 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         }
     }
 
+    /// <summary>Recognizes intrinsic nameof without discarding argument dependencies or real methods with that name.</summary>
+    [Fact]
+    public async Task Nameof_keeps_complete_coverage_and_argument_dependencies()
+    {
+        var root = Path.Combine(fixture.Root, "ModularMonolith");
+        var sourcePath = Path.Combine(root, "src/Billing/Billing.Application/Names.cs");
+        var callPath = Path.Combine(root, "src/Billing/Billing.Application/NamedCalls.cs");
+        var targetPath = Path.Combine(root, "src/Billing/Billing.Domain/Names.cs");
+        try
+        {
+            await File.WriteAllTextAsync(targetPath, """
+                namespace Helpers;
+                public class Referenced { public int Value => 0; }
+                public static class NameFunctions { public static string @nameof() => "method"; }
+                """);
+            await File.WriteAllTextAsync(sourcePath, """
+                namespace Billing.Application;
+                public class NameConsumer
+                {
+                    public string M() => nameof(M);
+                    public string Argument() => nameof(Helpers.Referenced.Value);
+                }
+                """);
+            await File.WriteAllTextAsync(callPath, """
+                using static Helpers.NameFunctions;
+                namespace Billing.Application;
+                public class NamedCallConsumer { public string OrdinaryCall() => @nameof(); }
+                """);
+            var result = await BuildAsync();
+            Complete(result);
+            var edges = result.Graph!.Edges.Where(edge => edge.Kind == DependencyKind.Type
+                && edge.Source.Name == "Billing.Application.NameConsumer").ToArray();
+            Assert.Contains(edges, edge => edge.Target.Name == "Helpers.Referenced"
+                && edge.Evidence.Any(evidence => evidence.TargetSymbol == "Helpers.Referenced.Value"));
+            Assert.Contains(result.Graph.Edges, edge => edge.Kind == DependencyKind.Type
+                && edge.Source.Name == "Billing.Application.NamedCallConsumer" && edge.Target.Name == "Helpers.NameFunctions"
+                && edge.Evidence.Any(evidence => evidence.TargetSymbol == "Helpers.NameFunctions.nameof()"));
+        }
+        finally
+        {
+            File.Delete(sourcePath);
+            File.Delete(callPath);
+            File.Delete(targetPath);
+        }
+    }
+
+    /// <summary>Records selected extension Deconstruct methods, including nested, foreach and positional-pattern bindings.</summary>
+    /// <param name="statement">A successfully bound deconstruction form.</param>
+    /// <param name="nested">Whether a second compiler-selected Deconstruct method is required.</param>
+    [Theory]
+    [InlineData("var (first, second) = \"x\";", false)]
+    [InlineData("int first, second; (first, second) = \"x\";", false)]
+    [InlineData("var (first, (second, third)) = \"x\";", true)]
+    [InlineData("foreach (var (first, second) in new[] { \"x\" }) { }", false)]
+    [InlineData("foreach (var (first, (second, third)) in new[] { \"x\" }) { }", true)]
+    [InlineData("var matched = \"x\" is (var first, var second);", false)]
+    [InlineData("var matched = \"x\" is (var first, (var second, var third));", true)]
+    public async Task Deconstruction_preserves_compiler_selected_methods_and_evidence(string statement, bool nested)
+    {
+        var root = Path.Combine(fixture.Root, "ModularMonolith");
+        var sourcePath = Path.Combine(root, "src/Billing/Billing.Application/Deconstruction.cs");
+        var targetPath = Path.Combine(root, "src/Billing/Billing.Domain/Deconstruction.cs");
+        try
+        {
+            await File.WriteAllTextAsync(targetPath, """
+                namespace Helpers;
+                public static class Extensions
+                {
+                    public static void Deconstruct(this string value, out int first, out int second) { first = 1; second = 2; }
+                }
+                public static class NestedExtensions
+                {
+                    public static void Deconstruct(this int value, out long first, out long second) { first = 1; second = 2; }
+                }
+                public static class UnusedExtensions
+                {
+                    public static void Deconstruct(this double value, out int first, out int second) { first = 1; second = 2; }
+                }
+                """);
+            await File.WriteAllTextAsync(sourcePath, $$"""
+                using Helpers;
+                namespace Billing.Application;
+                public class DeconstructionConsumer
+                {
+                    public void Run() { {{statement}} }
+                }
+                """);
+            var result = await BuildAsync();
+            Complete(result);
+            var graph = result.Graph!;
+            foreach (var target in nested ? new[] { "Helpers.Extensions", "Helpers.NestedExtensions" } : new[] { "Helpers.Extensions" })
+            {
+                var edge = Assert.Single(graph.Edges, edge => edge.Kind == DependencyKind.Type
+                    && edge.Source.Name == "Billing.Application.DeconstructionConsumer" && edge.Target.Name == target);
+                var evidence = edge.Evidence.First(evidence => evidence.TargetSymbol?.Contains(".Deconstruct(", StringComparison.Ordinal) == true);
+                Assert.Contains("DeconstructionConsumer.Run", evidence.SourceSymbol);
+                Assert.Equal("src/Billing/Billing.Application/Deconstruction.cs", evidence.Fact.Location!.Path);
+                Assert.Equal(5, evidence.Fact.Location.StartLine);
+                Assert.Equal("src/Billing/Billing.Domain/Billing.Domain.csproj", evidence.TargetProject);
+                Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Namespace
+                    && edge.Source.Name == "Billing.Application" && edge.Target.Name == "Helpers" && edge.Evidence.Contains(evidence));
+                Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Assembly && edge.Evidence.Contains(evidence));
+                Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Layer
+                    && edge.Source.Name == "Application" && edge.Target.Name == "Domain" && edge.Evidence.Contains(evidence));
+            }
+
+            Assert.DoesNotContain(graph.Edges, edge => edge.Kind == DependencyKind.Type
+                && edge.Source.Name == "Billing.Application.DeconstructionConsumer" && edge.Target.Name == "Helpers.UnusedExtensions");
+        }
+        finally
+        {
+            File.Delete(sourcePath);
+            File.Delete(targetPath);
+        }
+    }
+
     /// <summary>Retains project ownership and source evidence for top-level statements without requiring an authored type.</summary>
     [Fact]
     public async Task Top_level_statements_preserve_cross_project_evidence()
