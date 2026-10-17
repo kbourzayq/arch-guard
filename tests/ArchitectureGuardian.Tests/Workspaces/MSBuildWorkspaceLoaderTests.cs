@@ -147,7 +147,9 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
     public async Task Reference_validation_uses_solution_and_design_time_properties(string input)
     {
         var build = await fixture.DotnetAsync("build", input, "--configuration", "Release", "--no-restore");
-        Assert.Contains("MSB3245", build.Output);
+        Assert.True(build.ExitCode == 0, build.Output + build.Error);
+        // SDK patches can change unresolved-reference warnings; assert the actual evaluated fixture items.
+        Assert.Contains("Fixture solution references:", build.Output);
         Assert.Contains("SolutionScoped.Unavailable.Assembly", build.Output);
 
         using var result = await LoadAsync(input, configuration: "Release");

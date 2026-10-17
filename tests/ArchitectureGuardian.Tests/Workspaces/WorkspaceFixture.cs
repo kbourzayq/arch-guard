@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Xml.Linq;
 using Xunit;
 
 namespace ArchitectureGuardian.Tests.Workspaces;
@@ -46,6 +47,17 @@ public sealed class WorkspaceFixture : IAsyncLifetime
         await RestoreAsync("GeneratorConsumer/GeneratorConsumer.csproj");
         var build = await DotnetAsync("build", "Generators/FixtureGenerator.csproj", "--configuration", "Debug", "--no-restore");
         Assert.True(build.ExitCode == 0, build.Output + build.Error);
+
+        // Roslyn loads generators into a process-lifetime context and can lock their DLLs on Windows.
+        // Keep the loaded binary with test build artifacts so the temporary fixture can still be deleted.
+        var generatorDirectory = Path.Combine(AppContext.BaseDirectory, "WorkspaceFixtures", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(generatorDirectory);
+        var generatorPath = Path.Combine(generatorDirectory, "FixtureGenerator.dll");
+        File.Copy(Path.Combine(Root, "Generators", "bin", "Debug", "netstandard2.0", "FixtureGenerator.dll"), generatorPath);
+        var consumerPath = Path.Combine(Root, "GeneratorConsumer", "GeneratorConsumer.csproj");
+        var consumer = XDocument.Load(consumerPath);
+        consumer.Descendants("Analyzer").Single().SetAttributeValue("Include", generatorPath);
+        consumer.Save(consumerPath);
     }
 
     /// <summary>Runs a bounded restore using direct process arguments and captures failures.</summary>
