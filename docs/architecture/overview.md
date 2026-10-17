@@ -13,13 +13,13 @@ records the decisions and constraints behind them.
 | Area | Current implementation | Planned work |
 | --- | --- | --- |
 | Core contracts | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests and coverage outcomes | Repository and graph models; rule implementations |
-| Analysis | `AnalysisService<TContext>` over a caller-prepared context and registered rules | Solution loading and dependency extraction |
-| CLI | Help, version and explicit rejection of unsupported commands | Scan, inspect and explain commands |
+| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader` | Repository normalization and dependency extraction |
+| CLI | Help, version and `load` with explicit trust, coverage errors and cancellation | Scan, inspect and explain commands |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Host/CLI composition |
 | Other adapters | None | Compiler analyzer, MCP and reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines and host exit-code mapping |
 
-F01–F03 establish the current implementation. The
+F01–F04 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -31,7 +31,7 @@ Arrows in this diagram mean direct production project references, not runtime ca
 ```mermaid
 flowchart LR
     Cli["ArchitectureGuardian.Cli<br/>Arguments and composition<br/>Console and exit codes"]
-    Analysis["ArchitectureGuardian.Analysis<br/>Orchestration<br/>Workspace integration: planned"]
+    Analysis["ArchitectureGuardian.Analysis<br/>Orchestration and workspace loading"]
     Core["ArchitectureGuardian.Core<br/>Neutral contracts and metadata<br/>Pure policy"]
     Configuration["ArchitectureGuardian.Configuration<br/>YAML parsing and validation"]
 
@@ -54,6 +54,7 @@ The service interface and its implementation live on opposite sides of this boun
 | --- | --- | --- |
 | Describe the analysis use case | Core | [`IAnalysisService<TContext>`](../../src/ArchitectureGuardian.Core/Analysis/IAnalysisService.cs) |
 | Coordinate registered rules and severity policy | Analysis | [`AnalysisService<TContext>`](../../src/ArchitectureGuardian.Analysis/Orchestration/AnalysisService.cs) |
+| Load trusted workspace context and report loading coverage | Analysis | [`MSBuildWorkspaceLoader`](../../src/ArchitectureGuardian.Analysis/Workspaces/MSBuildWorkspaceLoader.cs), [`WorkspaceLoadResult`](../../src/ArchitectureGuardian.Analysis/Workspaces/WorkspaceLoadResult.cs) |
 | Define a check over neutral input | Core | [`IArchitectureRule<TContext>`](../../src/ArchitectureGuardian.Core/Rules/IArchitectureRule.cs) |
 | Identify built-in checks and their help URLs | Core | [`RuleCatalog`](../../src/ArchitectureGuardian.Core/Rules/RuleCatalog.cs) |
 | Load YAML through a neutral port | Core / Configuration | [`IPolicyLoader`](../../src/ArchitectureGuardian.Core/Policies/IPolicyLoader.cs), [`YamlPolicyLoader`](../../src/ArchitectureGuardian.Configuration/Yaml/YamlPolicyLoader.cs) |
@@ -82,12 +83,14 @@ nested implementation helpers stay with their owner.
 | Core | `Policies` | Architecture declarations, loading port, matching, resolution, permissions, severity and gate policy |
 | Core | `Canonicalization` | Internal deterministic encoding, hashing and collection ordering |
 | Analysis | `Orchestration` | Reusable analysis service implementation |
+| Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
 | Configuration | `Yaml` | YAML parsing and loading |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
-Unit tests use `Analysis`, `Diagnostics` and `Policies` folders and matching
-namespaces. Architecture tests group dependency checks under `Dependencies`,
+Unit tests use `Analysis`, `Diagnostics`, `Policies` and `Workspaces` folders and
+matching namespaces. Workspace fixtures live under `tests/Fixtures/Workspaces` and
+are copied to temporary directories for integration tests. Architecture tests group dependency checks under `Dependencies`,
 process smoke tests under `Cli`, and repository/process helpers under `Infrastructure`.
 This organization does not change the project dependencies or component ownership.
 
@@ -100,8 +103,8 @@ remain separate from architecture violations.
 
 The [service sequence](../shared-contracts.md#service-execution-flow) shows the calls,
 and the [outcome flow](../shared-contracts.md#outcome-flow) shows how completion,
-missing coverage, failure and cancellation affect the result. The CLI scaffold does
-not invoke this pipeline yet; the current tests exercise it with test rules.
+missing coverage, failure and cancellation affect the result. CLI `load` validates
+workspace context separately; rule orchestration is exercised with test rules until F10.
 
 The [catalog and documentation flow](../rule-catalog.md#how-catalog-metadata-reaches-a-diagnostic)
 explains how metadata reaches a diagnostic. Catalog access is entirely local;
@@ -111,13 +114,14 @@ opening a documentation URL is an optional browser action after reporting.
 
 This flow will be assembled by later features. F02 supplies reusable orchestration
 and contracts; F03 supplies YAML loading, policy resolution, rule selection and
-severity gates. Workspace loading, rule discovery and host composition remain planned.
+severity gates. F04 supplies trusted workspace loading; rule discovery and scanning
+composition remain planned.
 
 ```mermaid
 flowchart TD
     Host["CLI or MCP host<br/>Planned commands and protocol tools"]
     Configuration["Configuration adapter — implemented<br/>Read and validate YAML policy — F03"]
-    Workspace["Analysis workspace integration<br/>Load solution or projects — F04"]
+    Workspace["Analysis workspace integration — implemented<br/>Load solution or projects — F04"]
     Context["Neutral repository model and dependency graph<br/>F05–F06"]
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
     Rules["Core rule implementations<br/>AG001–AG003 — F07–F09"]
@@ -145,9 +149,10 @@ severity policy selects reporting levels; quality gates determine whether an
 evaluated result is acceptable. A completed run can contain error diagnostics.
 Incomplete coverage must never become a successful clean scan.
 
-Workspace loading can execute repository MSBuild tasks. F04 must establish its trust
-and isolation behavior before loading untrusted inputs. Loading failures and missing
-projects must propagate as coverage problems rather than disappear from the graph.
+Workspace loading requires explicit trust because design-time builds can execute
+repository MSBuild tasks. See [workspace loading](../workspace-loading.md) for isolation,
+framework selection and restore behavior. Loading failures and missing projects remain
+coverage problems rather than disappearing from the graph.
 
 ## Planned compiler-hosted flow
 

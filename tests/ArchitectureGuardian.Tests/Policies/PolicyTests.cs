@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using ArchitectureGuardian.Analysis.Orchestration;
 using ArchitectureGuardian.Configuration.Validation;
 using ArchitectureGuardian.Configuration.Yaml;
@@ -211,8 +212,8 @@ public sealed class PolicyTests
         var root = RepositoryRoot();
         var loader = new YamlPolicyLoader();
         var repositoryPolicy = await loader.LoadAsync(Path.Combine(root, "architecture.guardian.yaml"));
-        var projects = new[] { "src", "tests" }.SelectMany(folder => Directory.GetFiles(Path.Combine(root, folder), "*.csproj", SearchOption.AllDirectories))
-            .Select(path => Path.GetRelativePath(root, path));
+        var projects = XDocument.Load(Path.Combine(root, "ArchitectureGuardian.slnx")).Descendants("Project")
+            .Select(project => project.Attribute("Path")!.Value);
         Assert.Equal(6, new ResolvedPolicy(repositoryPolicy, projects).Projects.Count);
         var example = await loader.LoadAsync(Path.Combine(root, "docs", "examples", "modular-monolith", "architecture.guardian.yaml"));
         Assert.Equal(3, new ResolvedPolicy(example, ProjectPaths).Projects.Count);
