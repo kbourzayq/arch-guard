@@ -1,0 +1,3 @@
+interface:
+  display_name: "Commit, Push, and Open PR"
+  short_description: "Conventional commits, branch pushes, and pull requests"
