@@ -170,6 +170,14 @@ public sealed class DependencyGraphBuilder
                     continue;
                 }
 
+                // nameof is represented as invocation syntax, but its intrinsic callee has an error-type
+                // sentinel rather than a referenced type. Keep scanning the bound argument normally.
+                if (node is IdentifierNameSyntax { Identifier.ValueText: "nameof", Parent: InvocationExpressionSyntax nameOf }
+                    && nameOf.Expression == node && semantic.GetOperation(nameOf, _cancellationToken) is INameOfOperation)
+                {
+                    continue;
+                }
+
                 if (node is ExpressionSyntax or AttributeSyntax or ConstructorInitializerSyntax)
                 {
                     var symbol = semantic.GetSymbolInfo(node, _cancellationToken).Symbol;
@@ -188,6 +196,11 @@ public sealed class DependencyGraphBuilder
                     }
                 }
 
+                if (node is AssignmentExpressionSyntax assignment)
+                {
+                    AddDeconstruction(context, Origin(semantic, node), semantic.GetDeconstructionInfo(assignment), node.GetLocation());
+                }
+
                 if (node is CommonForEachStatementSyntax loop)
                 {
                     var info = semantic.GetForEachStatementInfo(loop);
@@ -198,6 +211,10 @@ public sealed class DependencyGraphBuilder
                     }
 
                     AddType(context, origin, info.ElementType, node.GetLocation());
+                    if (loop is ForEachVariableStatementSyntax variableLoop)
+                    {
+                        AddDeconstruction(context, origin, semantic.GetDeconstructionInfo(variableLoop), node.GetLocation());
+                    }
                 }
 
                 if (node is AwaitExpressionSyntax awaitExpression)
@@ -216,6 +233,26 @@ public sealed class DependencyGraphBuilder
                     if (semantic.GetOperation(node, _cancellationToken) is { Parent: null } operation)
                     {
                         ScanOperations(context, semantic, operation, operations);
+                    }
+                }
+            }
+        }
+
+        private void AddDeconstruction(Context context, ISymbol? origin, DeconstructionInfo info, Location location)
+        {
+            // Deconstruction methods and element conversions are compiler-selected bindings, not invocation operations.
+            var pending = new Stack<DeconstructionInfo>();
+            pending.Push(info);
+            while (pending.TryPop(out var current))
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+                AddSymbol(context, origin, current.Method, location);
+                AddSymbol(context, origin, current.Conversion?.MethodSymbol, location);
+                if (!current.Nested.IsDefaultOrEmpty)
+                {
+                    foreach (var nested in current.Nested)
+                    {
+                        pending.Push(nested);
                     }
                 }
             }
@@ -246,6 +283,7 @@ public sealed class DependencyGraphBuilder
                     IUnaryOperation unary => unary.OperatorMethod,
                     IIncrementOrDecrementOperation increment => increment.OperatorMethod,
                     ICompoundAssignmentOperation assignment => assignment.OperatorMethod,
+                    IRecursivePatternOperation pattern => pattern.DeconstructSymbol,
                     _ => null,
                 };
                 AddSymbol(context, origin, symbol, location);

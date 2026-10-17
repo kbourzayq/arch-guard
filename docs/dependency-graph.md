@@ -65,8 +65,11 @@ the compilation's project references, not arbitrary build-order-only MSBuild ite
 Semantic extraction includes base types, interfaces, constraints, attributes,
 generic arguments, nested types, arrays, pointers, function pointers, inferred
 expression types, aliases at use sites, member/constructor calls, user-defined
-conversions and operators, and foreach/await bindings. Explicit generated source
-participates. Unused `using` directives and documentation comments do not create
+conversions and operators, deconstruction assignments/foreach variables, positional
+patterns, and foreach/await bindings. Nested deconstruction retains each
+compiler-selected method. Intrinsic `nameof` expressions retain their argument's
+dependencies without treating the intrinsic callee as an unresolved type. Explicit
+generated source participates. Unused `using` directives and documentation comments do not create
 dependencies. Constructed generic types use the normalized original declaration
 identity and retain dependencies on their arguments. Implicit compiler helper types
 are excluded; top-level statements and assembly attributes still contribute
