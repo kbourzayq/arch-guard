@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="ArchitectureGuardian.Nonexistent.Package" Version="0.0.0" />
+  </ItemGroup>
+</Project>

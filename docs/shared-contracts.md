@@ -5,10 +5,12 @@
 Core uses only the .NET base library. These APIs do not load solutions, parse YAML,
 implement the six rules or render reports. F03 adds the separate architecture policy,
 resolver and `GatePolicy` described in the [policy guide](policy.md); YAML stays in
-the Configuration adapter.
+the Configuration adapter. F04 adds Roslyn/MSBuild workspace loading in Analysis,
+described in the [workspace loading guide](workspace-loading.md); the shared Core
+contracts remain independent of those dependencies.
 
 Start with the [architecture overview](architecture/overview.md) for component
-responsibilities and the planned solution/compiler integration paths.
+responsibilities, implemented workspace loading and the planned compiler integration.
 
 ## Evaluation, severity and gates
 
@@ -78,8 +80,9 @@ exceptions so a composition error can be fixed by the caller.
 
 This sequence describes the implemented service with a supplied neutral context
 and rule instances. It shows the path where each rule completes; the
-[outcome flow](#outcome-flow) covers other outcomes. The current CLI does not invoke
-analysis yet, and production rule implementations remain planned work.
+[outcome flow](#outcome-flow) covers other outcomes. CLI `load` validates workspace
+context separately; architecture scanning and production rule implementations remain
+planned work.
 
 ```mermaid
 sequenceDiagram
@@ -137,8 +140,9 @@ is a failure. Cancellation before starting invokes no rules. Rules must observe 
 token for prompt cancellation while running; the service does not abandon their tasks.
 
 `AnalysisIssue` carries an operational code, message and optional rule/source location,
-separately from policy violations. Future loaders must propagate missing context via
-these outcomes rather than passing a silently reduced snapshot as complete.
+separately from policy violations. F04's `WorkspaceLoadResult` uses the same coverage
+statuses and issue contracts for loading. Hosts must propagate missing workspace
+context rather than pass a silently reduced snapshot to rule evaluation as complete.
 
 ### Outcome flow
 

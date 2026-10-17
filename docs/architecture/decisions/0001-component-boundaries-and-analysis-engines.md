@@ -4,7 +4,8 @@
 - Date: 2026-10-17
 - Delivery: [F01](https://github.com/kbourzayq/arch-guard/issues/1),
   [F02](https://github.com/kbourzayq/arch-guard/issues/2),
-  [F03](https://github.com/kbourzayq/arch-guard/issues/3)
+  [F03](https://github.com/kbourzayq/arch-guard/issues/3),
+  [F04](https://github.com/kbourzayq/arch-guard/issues/4)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -36,10 +37,11 @@ CLI, MCP, serializers, reporting adapters or their transport/host types. It does
 load files, discover SDKs, invoke processes or write reports.
 
 Analysis is the solution-wide engine and application-service implementation reusable
-by CLI and the future MCP adapter. It references Core and will own workspace loading
-and conversion of Roslyn/MSBuild data into neutral Core inputs. It may acquire those
-external dependencies in F04. CLI composes the services, handles arguments and maps
-results to console output and exit codes. It contains no rule evaluation.
+by CLI and the future MCP adapter. It references Core and owns workspace loading
+and conversion of Roslyn/MSBuild data into neutral Core inputs. F04 adds Roslyn C#
+workspaces, MSBuild integration and SDK discovery in Analysis. CLI composes the
+services, handles arguments and maps results to console output and exit codes.
+It contains no rule evaluation.
 
 Configuration now implements Core's `IPolicyLoader` port and references only Core.
 YamlDotNet 16.3.0 is confined to this adapter: the base library has no YAML parser,
@@ -136,15 +138,29 @@ remain F10; adding Configuration does not introduce a working scan command.
 ### Solution-wide engine
 
 The solution-wide engine is designed to run in a .NET 10 application hosted by CLI
-or MCP. Loading `.sln`, `.slnx` and project inputs through MSBuildWorkspace is planned
-in F04; repository normalization and dependency graph construction follow in F05–F06.
+or MCP. F04 loads `.sln`, `.slnx` and C# project inputs through MSBuildWorkspace;
+repository normalization and dependency graph construction follow in F05–F06.
 This is the authoritative scope for module/layer dependencies and whole-module cycle
 detection (AG001–AG003). Loading diagnostics, missing context and cancellation must
 propagate to the shared result rather than silently removing graph nodes. F02
-implements orchestration over prepared contexts; workspace integration is still pending.
+implements orchestration over prepared contexts; F04 provides workspace context separately.
 
-Workspace loading belongs to this engine. It may execute repository MSBuild tasks;
-F04 must define isolation and trust behavior before loading untrusted inputs.
+Workspace loading belongs to this engine. It requires explicit trust before SDK
+discovery or design-time build execution. No automatic restore runs. Workspace
+warnings, compiler errors, missing restore assets and loading exceptions yield
+incomplete coverage; cancellation stays distinct. CLI `load` maps unfinished coverage
+to exit 2 without claiming a rule scan. Framework selection is explicit for
+multi-targeted projects, and coverage applies to one configuration/framework per run.
+See the [workspace loading guide](../../workspace-loading.md) for isolation and SDK
+lifecycle constraints.
+
+Roslyn `Microsoft.CodeAnalysis.CSharp.Workspaces` and `Workspaces.MSBuild` 5.0.0
+provide C# semantic context and solution loading. `Microsoft.Build.Locator` 1.11.2
+selects an installed SDK with the input's `global.json`. The MSBuild 18.6.3 compile-time
+references (`Microsoft.Build`, `Microsoft.Build.Framework`, `Microsoft.NET.StringTools`)
+exclude runtime assets and remain private so SDK-provided assemblies load only after
+registration. No new project or dependency toward Core is introduced; workspace
+results expose Roslyn context only inside the Analysis adapter pending F05 normalization.
 
 ### Compiler-hosted engine
 
@@ -170,8 +186,8 @@ project or host-compatibility claim is introduced by F01.
 
 ## Consequences
 
-- The repository builds without Roslyn, MCP or reporting packages in production;
-  only Configuration depends on the YAML package.
+- Analysis owns Roslyn/MSBuild packages and Configuration owns the YAML package;
+  Core remains independent of external packages. MCP and reporting remain planned.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
 - Extra adapters and concrete port APIs are deferred until required, avoiding unused

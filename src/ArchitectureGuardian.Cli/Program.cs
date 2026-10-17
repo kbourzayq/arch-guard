@@ -5,10 +5,10 @@ namespace ArchitectureGuardian.Cli;
 /// <summary>Provides the console entry point and maps supported arguments to output and exit codes.</summary>
 internal static class Program
 {
-    /// <summary>Prints help or version information, or reports unsupported arguments.</summary>
+    /// <summary>Handles informational arguments and workspace loading.</summary>
     /// <param name="args">The command-line arguments supplied by the process host.</param>
-    /// <returns>Zero for help or version output; two for unsupported arguments.</returns>
-    private static int Main(string[] args)
+    /// <returns>Zero for successful commands; two for invalid arguments or incomplete/cancelled loading.</returns>
+    private static async Task<int> Main(string[] args)
     {
         if (args is [] or ["--help"] or ["-h"])
         {
@@ -16,11 +16,14 @@ internal static class Program
                 Architecture Guardian for .NET
 
                 Usage: arch-guard [--help | --version]
+                       arch-guard load <input.sln|input.slnx|input.csproj> --trusted
+                           [--configuration Debug|Release] [--framework <tfm>]
 
                   -h, --help   Show usage
                   --version    Show version
 
-                The solution scaffold is ready. Analysis commands are not available yet.
+                load validates workspace context; it does not evaluate architecture rules.
+                MSBuild can execute repository tasks. Isolate untrusted repositories first.
                 """);
             return 0;
         }
@@ -29,6 +32,11 @@ internal static class Program
         {
             Console.WriteLine($"Architecture Guardian {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}");
             return 0;
+        }
+
+        if (args is ["load", ..])
+        {
+            return await LoadCommand.RunAsync(args[1..]);
         }
 
         // Unsupported analysis commands must fail explicitly until a real analysis use case is available.

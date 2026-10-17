@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Reference Include="Unavailable.Assembly">
+      <HintPath>unavailable.dll</HintPath>
+    </Reference>
+    <ProjectReference Include="../Unavailable/Unavailable.csproj" />
+  </ItemGroup>
+</Project>

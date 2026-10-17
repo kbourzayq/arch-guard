@@ -6,9 +6,10 @@ the YAML loader and pure policy resolution. The [repository policy](../architect
 maps this solution's six projects. The [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
 illustrates public contracts. Both are loaded and resolved by tests.
 
-The loader and policy APIs are usable today. Solution loading, dependency discovery,
-rule implementations and CLI scanning follow in F04–F10. Loading a valid policy is
-not an architecture scan, and the CLI does not yet consume this file.
+The loader and policy APIs and [trusted workspace loading](workspace-loading.md) are
+usable today. Dependency discovery, rule implementations and CLI scanning follow in
+F05–F10. Loading a valid policy is not an architecture scan, and the CLI does not
+yet consume this file.
 
 ## Document shape
 
@@ -165,7 +166,8 @@ F22 will add baseline-aware gate semantics; v1 has no baseline setting.
 
 This example assumes the host already obtained a complete `projectPaths` inventory,
 a neutral `context` and the rule implementations available for that scope. It adds
-no workspace integration or CLI command:
+no policy-to-workspace composition or CLI scanning command; F04's separate `load`
+command validates workspace context:
 
 ```csharp
 using ArchitectureGuardian.Analysis.Orchestration;
@@ -186,8 +188,8 @@ var passesGate = policy.Gate.Passes(result);
 `RepositoryContext` above stands for the host's prepared neutral context, not a
 currently implemented repository model. It must carry the resolved policy where
 rules need it. Hosts reference Configuration and Analysis at composition time;
-Analysis and Core do not reference the YAML adapter. CLI composition is deferred
-until its commands are implemented.
+Analysis and Core do not reference the YAML adapter. Policy-driven CLI composition
+is deferred to F10.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
 logical field path and corrective message. Contract/reference errors may point to

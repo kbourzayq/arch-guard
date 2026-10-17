@@ -4,11 +4,12 @@ Architecture Guardian is an offline, deterministic architecture policy and valid
 layer for .NET teams and coding agents.
 
 This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/1),
-[F02](https://github.com/kbourzayq/arch-guard/issues/2) and
-[F03](https://github.com/kbourzayq/arch-guard/issues/3): the .NET 10 solution, component
+[F02](https://github.com/kbourzayq/arch-guard/issues/2),
+[F03](https://github.com/kbourzayq/arch-guard/issues/3) and
+[F04](https://github.com/kbourzayq/arch-guard/issues/4): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
-policy, deterministic project matching and severity gates. Solution loading, rule
-implementations and analysis commands are subsequent features in the
+policy, deterministic project matching, severity gates and trusted workspace loading.
+Repository normalization, rule implementations and scanning are subsequent features in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
 ## Architecture and flows
@@ -50,8 +51,10 @@ dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-re
 The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs these checks on Linux,
 Windows and macOS for pull requests and pushes to `main`. Tests cover diagnostic
 identity and ordering, YAML validation, policy references, portable globs, inventory
-resolution, rule selection, severity gates, analysis outcomes and cancellation, plus evaluated
-MSBuild references in both Debug and Release, solution membership, Core's independence
+resolution, rule selection, severity gates, analysis outcomes and cancellation, plus
+workspace loading for all three input formats, framework selection, conditional
+compilation, missing SDKs/references, failed restores and CLI loading exit codes.
+They also cover evaluated MSBuild references in both Debug and Release, solution membership, Core's independence
 from external packages and adapters, and CLI process behavior. Warnings fail the build.
 Builds emit XML API documentation; missing documentation for public types or members
 also fails the build.
@@ -60,11 +63,12 @@ NuGet uses the public nuget.org source. Dependency lock files are committed. Whe
 intentionally changing dependencies, run `dotnet restore ArchitectureGuardian.slnx
 --force-evaluate`, review the lock-file changes and rerun the checks above.
 
-## Run the CLI scaffold
+## Run the CLI
 
 ```sh
 dotnet run --project src/ArchitectureGuardian.Cli -- --help
 dotnet run --project src/ArchitectureGuardian.Cli -- --version
+dotnet run --project src/ArchitectureGuardian.Cli -- load path/to/Application.slnx --trusted
 ```
 
 No arguments also prints help. Unsupported commands or arguments return exit code 2
@@ -72,12 +76,17 @@ and write an error to stderr. Scanning is not implemented; `scan` returns 2 rath
 reporting a successful analysis. The `arch-guard` name in help is the intended command
 name; distribution as a .NET tool is tracked separately in F27.
 
+The `load` command validates `.sln`, `.slnx` and `.csproj` workspace context after
+an explicit restore. MSBuild may execute repository tasks, so trust is required.
+Loading problems and cancellation return 2. See the [workspace loading guide](docs/workspace-loading.md)
+for isolation, conditional compilation, framework selection and reusable API behavior.
+
 ## Components
 
 | Project | Responsibility | Direct production references |
 | --- | --- | --- |
 | `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions and gates | None |
-| `ArchitectureGuardian.Analysis` | Reusable orchestration over prepared contexts; source/workspace integration follows in F04 | Core |
+| `ArchitectureGuardian.Analysis` | Reusable orchestration and trusted Roslyn/MSBuild workspace loading | Core |
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
 | `ArchitectureGuardian.Cli` | Console entry point and composition | Analysis |
 
