@@ -7,7 +7,8 @@ implement the six rules or render reports. F03 adds the separate architecture po
 resolver and `GatePolicy` described in the [policy guide](policy.md); YAML stays in
 the Configuration adapter. F04 adds Roslyn/MSBuild workspace loading in Analysis,
 described in the [workspace loading guide](workspace-loading.md); the shared Core
-contracts remain independent of those dependencies.
+contracts remain independent of those dependencies. F05 adds the neutral
+[repository model](repository-model.md) and a separate Analysis normalization API.
 
 Start with the [architecture overview](architecture/overview.md) for component
 responsibilities, implemented workspace loading and the planned compiler integration.
@@ -66,8 +67,8 @@ static Task<AnalysisResult> AnalyzeAsync<TContext>(
 ```
 
 The host supplies actual rule implementations and the neutral model appropriate to
-their scope. The generic context avoids inventing the repository model before F05.
-It must remain stable throughout evaluation; the service cannot defensively copy an
+their scope, such as F05's `RepositoryModel` for solution-wide evaluation. The context
+must remain stable throughout evaluation; the service cannot defensively copy an
 arbitrary context. Workspace/transport objects must be converted at adapter boundaries.
 
 Rules execute sequentially in ordinal rule-ID order. Registration is copied and
@@ -143,6 +144,8 @@ token for prompt cancellation while running; the service does not abandon their 
 separately from policy violations. F04's `WorkspaceLoadResult` uses the same coverage
 statuses and issue contracts for loading. Hosts must propagate missing workspace
 context rather than pass a silently reduced snapshot to rule evaluation as complete.
+F05's `RepositoryBuildResult` retains loading issues alongside normalization coverage;
+hosts must inspect it before using its neutral model as a rule context.
 
 ### Outcome flow
 

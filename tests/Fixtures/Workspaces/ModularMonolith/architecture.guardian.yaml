@@ -1,0 +1,27 @@
+version: 1
+modules:
+  - id: Billing
+    projects: ["src/Billing/**/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["src/Billing/Billing.Contracts/Billing.Contracts.csproj"]
+  - id: Orders
+    projects: ["src/Orders/**/*.csproj"]
+    allowedDependencies: ["contract:Billing/api"]
+layers:
+  - id: Domain
+    projects: ["src/**/*.Domain.csproj"]
+  - id: Contracts
+    projects: ["src/**/*.Contracts.csproj"]
+  - id: Application
+    projects: ["src/**/*.Application.csproj"]
+    allowedDependencies: [Domain, Contracts]
+  - id: Infrastructure
+    projects: ["src/**/*.Infrastructure.csproj"]
+    allowedDependencies: [Application, Contracts, Domain]
+rules:
+  AG001: error
+  AG002: error
+  AG003: error
+gate:
+  failOn: error

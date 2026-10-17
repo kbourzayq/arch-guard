@@ -4,8 +4,9 @@ F04 adds reusable `MSBuildWorkspaceLoader` integration in Analysis and a `load`
 command for validating workspace context. It supports C# SDK projects supplied as
 `.csproj`, `.sln` or `.slnx`. Referenced projects load from source, including projects
 outside the solution when referenced by its members. Unsupported projects and empty
-solutions cannot establish complete coverage. Repository normalization, dependency
-extraction and architecture scanning remain F05–F10.
+solutions cannot establish complete coverage. F05 adds the separate
+[repository normalization API](repository-model.md); dependency extraction and
+architecture scanning remain F06–F10.
 
 ```sh
 dotnet restore path/to/Application.slnx
@@ -15,7 +16,9 @@ dotnet run --project src/ArchitectureGuardian.Cli -- load path/to/Application.cs
 
 The API accepts `WorkspaceLoadRequest` and returns an owned `WorkspaceLoadResult`.
 Dispose the result after consuming its Roslyn `Solution`. Roslyn objects remain in
-Analysis; future normalization must convert them into neutral Core inputs. Loading
+Analysis; `RepositoryModelBuilder` converts them into neutral Core inputs.
+`WorkspaceLoadResult.InputPath` retains the original absolute input so the builder
+can preserve its policy-relative identity. Loading
 coverage uses Core's status and operational-issue contracts but is separate from rule
 evaluation: a completed load does not mean architecture policy passed.
 
@@ -118,8 +121,11 @@ including unresolved types and metadata, rather than silently reducing semantic 
 The fixtures under `tests/Fixtures/Workspaces` cover the three input formats,
 project references, conditional source inclusion and compilation, two frameworks,
 missing SDKs/references, solution-conditioned references, generator diagnostics and
-failed restore. The generator fixture has its own locked restore. Integration tests
+failed restore. The `ModularMonolith` fixture adds multi-project modules, contract
+references and normalized model identity checks. The generator fixture has its own locked restore. Integration tests
 copy inputs to isolated temporary directories and stage generator DLLs with test
 build artifacts: Roslyn's process-lifetime loader can keep those DLLs locked on
-Windows. The loader validates the current evaluated snapshot; it does not guarantee
+Windows. Fixture restores serialize project restoration, including relocated inputs,
+to avoid competing writes through temporary-directory path aliases. The loader
+validates the current evaluated snapshot; it does not guarantee
 that restore assets are fresh after arbitrary repository edits.

@@ -5,11 +5,13 @@ layer for .NET teams and coding agents.
 
 This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/1),
 [F02](https://github.com/kbourzayq/arch-guard/issues/2),
-[F03](https://github.com/kbourzayq/arch-guard/issues/3) and
-[F04](https://github.com/kbourzayq/arch-guard/issues/4): the .NET 10 solution, component
+[F03](https://github.com/kbourzayq/arch-guard/issues/3),
+[F04](https://github.com/kbourzayq/arch-guard/issues/4) and
+[F05](https://github.com/kbourzayq/arch-guard/issues/5): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
-policy, deterministic project matching, severity gates and trusted workspace loading.
-Repository normalization, rule implementations and scanning are subsequent features in the
+policy, deterministic project matching, severity gates, trusted workspace loading and
+a normalized repository/module model. Dependency extraction, rule implementations
+and scanning follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
 ## Architecture and flows
@@ -51,8 +53,10 @@ dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-re
 The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs these checks on Linux,
 Windows and macOS for pull requests and pushes to `main`. Tests cover diagnostic
 identity and ordering, YAML validation, policy references, portable globs, inventory
-resolution, rule selection, severity gates, analysis outcomes and cancellation, plus
-workspace loading for all three input formats, framework selection, conditional
+resolution, rule selection, severity gates, analysis outcomes and cancellation,
+normalized source declarations, multi-project modules, contract membership and
+checkout-independent model identities. Workspace tests cover all three input formats,
+framework selection, conditional
 compilation, solution-conditioned references, source-generator diagnostics, missing
 SDKs/references, failed restores and CLI loading exit codes.
 They also cover evaluated MSBuild references in both Debug and Release, solution membership, Core's independence
@@ -81,13 +85,15 @@ The `load` command validates `.sln`, `.slnx` and `.csproj` workspace context aft
 an explicit restore. MSBuild may execute repository tasks, so trust is required.
 Loading problems and cancellation return 2. See the [workspace loading guide](docs/workspace-loading.md)
 for isolation, conditional compilation, framework selection and reusable API behavior.
+The [repository model guide](docs/repository-model.md) describes normalization, stable
+identities and module/contract/layer membership through `RepositoryModelBuilder`.
 
 ## Components
 
 | Project | Responsibility | Direct production references |
 | --- | --- | --- |
-| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions and gates | None |
-| `ArchitectureGuardian.Analysis` | Reusable orchestration and trusted Roslyn/MSBuild workspace loading | Core |
+| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, gates and immutable repository/module data | None |
+| `ArchitectureGuardian.Analysis` | Reusable orchestration, trusted Roslyn/MSBuild workspace loading and repository normalization | Core |
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
 | `ArchitectureGuardian.Cli` | Console entry point and composition | Analysis |
 

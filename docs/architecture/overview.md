@@ -12,14 +12,14 @@ records the decisions and constraints behind them.
 
 | Area | Current implementation | Planned work |
 | --- | --- | --- |
-| Core contracts | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests and coverage outcomes | Repository and graph models; rule implementations |
-| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader` | Repository normalization and dependency extraction |
+| Core contracts | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes and repository/module model | Dependency graph; rule implementations |
+| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; `RepositoryModelBuilder` normalization | Dependency extraction |
 | CLI | Help, version and `load` with explicit trust, coverage errors and cancellation | Scan, inspect and explain commands |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Host/CLI composition |
 | Other adapters | None | Compiler analyzer, MCP and reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines and host exit-code mapping |
 
-F01–F04 establish the current implementation. The
+F01–F05 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -31,7 +31,7 @@ Arrows in this diagram mean direct production project references, not runtime ca
 ```mermaid
 flowchart LR
     Cli["ArchitectureGuardian.Cli<br/>Arguments and composition<br/>Console and exit codes"]
-    Analysis["ArchitectureGuardian.Analysis<br/>Orchestration and workspace loading"]
+    Analysis["ArchitectureGuardian.Analysis<br/>Orchestration, workspace loading and normalization"]
     Core["ArchitectureGuardian.Core<br/>Neutral contracts and metadata<br/>Pure policy"]
     Configuration["ArchitectureGuardian.Configuration<br/>YAML parsing and validation"]
 
@@ -55,6 +55,7 @@ The service interface and its implementation live on opposite sides of this boun
 | Describe the analysis use case | Core | [`IAnalysisService<TContext>`](../../src/ArchitectureGuardian.Core/Analysis/IAnalysisService.cs) |
 | Coordinate registered rules and severity policy | Analysis | [`AnalysisService<TContext>`](../../src/ArchitectureGuardian.Analysis/Orchestration/AnalysisService.cs) |
 | Load trusted workspace context and report loading coverage | Analysis | [`MSBuildWorkspaceLoader`](../../src/ArchitectureGuardian.Analysis/Workspaces/MSBuildWorkspaceLoader.cs), [`WorkspaceLoadResult`](../../src/ArchitectureGuardian.Analysis/Workspaces/WorkspaceLoadResult.cs) |
+| Normalize workspace declarations and logical ownership | Analysis / Core | [`RepositoryModelBuilder`](../../src/ArchitectureGuardian.Analysis/Repositories/RepositoryModelBuilder.cs), [`RepositoryModel`](../../src/ArchitectureGuardian.Core/Repositories/RepositoryModel.cs) |
 | Define a check over neutral input | Core | [`IArchitectureRule<TContext>`](../../src/ArchitectureGuardian.Core/Rules/IArchitectureRule.cs) |
 | Identify built-in checks and their help URLs | Core | [`RuleCatalog`](../../src/ArchitectureGuardian.Core/Rules/RuleCatalog.cs) |
 | Load YAML through a neutral port | Core / Configuration | [`IPolicyLoader`](../../src/ArchitectureGuardian.Core/Policies/IPolicyLoader.cs), [`YamlPolicyLoader`](../../src/ArchitectureGuardian.Configuration/Yaml/YamlPolicyLoader.cs) |
@@ -63,8 +64,9 @@ The service interface and its implementation live on opposite sides of this boun
 | Carry findings, reporting levels and coverage | Core | [`RuleViolation`](../../src/ArchitectureGuardian.Core/Rules/RuleViolation.cs), [`Diagnostic`](../../src/ArchitectureGuardian.Core/Diagnostics/Diagnostic.cs), [`AnalysisResult`](../../src/ArchitectureGuardian.Core/Analysis/AnalysisResult.cs) |
 
 The generic context is supplied by the caller and must stay stable throughout the
-run. It lets the current service operate without inventing a repository model ahead
-of F05. Concrete rule implementations remain separate from catalog metadata.
+run. F05 supplies `RepositoryModel` as a neutral solution-wide context; the service
+also supports other neutral scopes. Concrete rule implementations remain separate
+from catalog metadata.
 
 ## Source organization
 
@@ -81,14 +83,16 @@ nested implementation helpers stay with their owner.
 | Core | `Diagnostics` | Reported findings, evidence, affected targets, severity levels and source coordinates |
 | Core | `Rules` | Evaluation contracts, rule descriptors, catalog and severity-free violations |
 | Core | `Policies` | Architecture declarations, loading port, matching, resolution, permissions, severity and gate policy |
+| Core | `Repositories` | Immutable repository, project, assembly, namespace, type, module, contract and layer data and build coverage |
 | Core | `Canonicalization` | Internal deterministic encoding, hashing and collection ordering |
 | Analysis | `Orchestration` | Reusable analysis service implementation |
+| Analysis | `Repositories` | Workspace-to-Core normalization and policy ownership composition |
 | Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
 | Configuration | `Yaml` | YAML parsing and loading |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
-Unit tests use `Analysis`, `Diagnostics`, `Policies` and `Workspaces` folders and
+Unit tests use `Analysis`, `Diagnostics`, `Policies`, `Repositories` and `Workspaces` folders and
 matching namespaces. Workspace fixtures live under `tests/Fixtures/Workspaces` and
 are copied to temporary directories for integration tests. Architecture tests group dependency checks under `Dependencies`,
 process smoke tests under `Cli`, and repository/process helpers under `Infrastructure`.
@@ -114,15 +118,17 @@ opening a documentation URL is an optional browser action after reporting.
 
 This flow will be assembled by later features. F02 supplies reusable orchestration
 and contracts; F03 supplies YAML loading, policy resolution, rule selection and
-severity gates. F04 supplies trusted workspace loading; rule discovery and scanning
-composition remain planned.
+severity gates. F04 supplies trusted workspace loading and F05 supplies neutral
+repository normalization and ownership composition. Dependency extraction, rule
+discovery and scanning composition remain planned.
 
 ```mermaid
 flowchart TD
     Host["CLI or MCP host<br/>Planned commands and protocol tools"]
     Configuration["Configuration adapter — implemented<br/>Read and validate YAML policy — F03"]
     Workspace["Analysis workspace integration — implemented<br/>Load solution or projects — F04"]
-    Context["Neutral repository model and dependency graph<br/>F05–F06"]
+    Context["Neutral repository model — implemented<br/>Normalize declarations and ownership — F05"]
+    Graph["Dependency graph — planned<br/>F06"]
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
     Rules["Core rule implementations<br/>AG001–AG003 — F07–F09"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
@@ -132,7 +138,9 @@ flowchart TD
     Host --> Configuration
     Host --> Workspace
     Workspace --> Context
-    Context --> Service
+    Configuration --> Context
+    Context --> Graph
+    Graph --> Service
     Configuration -->|"Validated neutral inputs and severity policy"| Service
     Service -->|"Evaluate using prepared context"| Rules
     Rules -->|"Findings, issues and coverage"| Service
@@ -143,8 +151,10 @@ flowchart TD
 
 Configuration supplies validated `ArchitecturePolicy`. `ResolvedPolicy` maps a
 complete, caller-supplied inventory to modules, layers and public contracts before
-rules run. Selection rejects unavailable configured rules. A future neutral evaluation
-context carries these inputs; the request carries severity settings. Rule logic determines violations;
+rules run. `RepositoryModelBuilder` composes workspace normalization with this
+resolution and stores both the policy and mappings in `RepositoryModel`. Selection
+rejects unavailable configured rules. The neutral context carries these inputs;
+the request carries severity settings. Rule logic determines violations;
 severity policy selects reporting levels; quality gates determine whether an
 evaluated result is acceptable. A completed run can contain error diagnostics.
 Incomplete coverage must never become a successful clean scan.
@@ -182,6 +192,8 @@ compatibility. F16 will verify parity where both engines have sufficient context
 
 ## Where to read next
 
+- [Repository model](../repository-model.md): normalization, portable identities,
+  multi-project modules, contracts, layer membership and build coverage.
 - [Shared contracts](../shared-contracts.md): service composition, execution, coverage,
   cancellation, locations and deterministic identities.
 - [Rule catalog](../rule-catalog.md): metadata, documentation links and the canonical
