@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "architectureguardian.analysis": {
+        "type": "Project",
+        "dependencies": {
+          "ArchitectureGuardian.Core": "[0.1.0, )"
+        }
+      },
+      "architectureguardian.core": {
+        "type": "Project"
+      }
+    }
+  }
+}
