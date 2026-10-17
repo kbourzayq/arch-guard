@@ -6,7 +6,8 @@
   [F02](https://github.com/kbourzayq/arch-guard/issues/2),
   [F03](https://github.com/kbourzayq/arch-guard/issues/3),
   [F04](https://github.com/kbourzayq/arch-guard/issues/4),
-  [F05](https://github.com/kbourzayq/arch-guard/issues/5)
+  [F05](https://github.com/kbourzayq/arch-guard/issues/5),
+  [F06](https://github.com/kbourzayq/arch-guard/issues/6)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -140,8 +141,8 @@ remain F10; adding Configuration does not introduce a working scan command.
 
 The solution-wide engine is designed to run in a .NET 10 application hosted by CLI
 or MCP. F04 loads `.sln`, `.slnx` and C# project inputs through MSBuildWorkspace;
-F05 normalizes the loaded context into neutral repository data. Dependency graph
-construction follows in F06.
+F05 normalizes the loaded context into neutral repository data. F06 constructs the
+dependency evidence graph from evaluated references and semantic uses.
 This is the authoritative scope for module/layer dependencies and whole-module cycle
 detection (AG001–AG003). Loading diagnostics, missing context and cancellation must
 propagate to the shared result rather than silently removing graph nodes. F02
@@ -194,9 +195,27 @@ multiple layers; contract access remains a separate direct permission decision.
 incomplete, failed and cancelled normalization. Invalid mappings never become clean
 models. The model survives workspace disposal; hosts must inspect coverage before
 evaluation. See the [repository model guide](../../repository-model.md) for the
-identity fields and executable modular-monolith reference fixture. Dependency
-extraction, production rule implementations and scanning composition remain later
-features.
+identity fields and executable modular-monolith reference fixture. Production rule
+implementations and scanning composition remain later features.
+
+### F06 dependency extraction and evidence
+
+Analysis's `DependencyGraphBuilder` normalizes the same workspace through
+`RepositoryModelBuilder`, binds evaluated project/assembly references and semantic
+type uses, and preserves source symbols, project pairs and portable source spans.
+Core's `DependencyGraph` snapshots this evidence, merges direct edges and aggregates
+them across policy module/layer boundaries without losing contract-sensitive project
+origins. External metadata remains visible without receiving repository ownership.
+Normalization and extraction share declaration identity construction, including
+generated and authored file-local types.
+
+Core owns iterative deterministic traversal and cyclic strongly connected component
+discovery. Graph construction and traversal perform no I/O and expose no compiler,
+serializer or presentation types. No packages or new component boundaries are added.
+Compilation errors, unresolved/ambiguous context and dynamic operations prevent
+completion; available evidence is retained. Static binding does not claim runtime
+reflection or concrete dispatch targets. Rule evaluation and scanning composition
+remain separate. See the [dependency graph guide](../../dependency-graph.md).
 
 ### Compiler-hosted engine
 

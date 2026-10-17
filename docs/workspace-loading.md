@@ -5,8 +5,9 @@ command for validating workspace context. It supports C# SDK projects supplied a
 `.csproj`, `.sln` or `.slnx`. Referenced projects load from source, including projects
 outside the solution when referenced by its members. Unsupported projects and empty
 solutions cannot establish complete coverage. F05 adds the separate
-[repository normalization API](repository-model.md); dependency extraction and
-architecture scanning remain F06–F10.
+[repository normalization API](repository-model.md), and F06 adds the
+[dependency evidence graph](dependency-graph.md). Rule implementations and
+architecture scanning remain F07–F10.
 
 ```sh
 dotnet restore path/to/Application.slnx

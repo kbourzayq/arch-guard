@@ -36,7 +36,8 @@ Contracts select entire projects in v1. `IsPublic` means the type and every cont
 type are public; it does not grant dependency permission or enforce symbol access.
 `AllowsModuleDependency` and `AllowsLayerDependency` retain the policy's separate,
 direct and directional permission checks. The model does not extract edges or report
-violations; dependency extraction is F06, and rule implementations follow in F07–F09.
+violations; [F06 dependency extraction](dependency-graph.md) consumes this normalization,
+and rule implementations follow in F07–F09.
 
 ## Identities and reproducibility
 

@@ -12,14 +12,14 @@ records the decisions and constraints behind them.
 
 | Area | Current implementation | Planned work |
 | --- | --- | --- |
-| Core contracts | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes and repository/module model | Dependency graph; rule implementations |
-| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; `RepositoryModelBuilder` normalization | Dependency extraction |
+| Core contracts | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model and evidence graph | Rule implementations |
+| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Scanning composition |
 | CLI | Help, version and `load` with explicit trust, coverage errors and cancellation | Scan, inspect and explain commands |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Host/CLI composition |
 | Other adapters | None | Compiler analyzer, MCP and reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines and host exit-code mapping |
 
-F01–F05 establish the current implementation. The
+F01–F06 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -31,7 +31,7 @@ Arrows in this diagram mean direct production project references, not runtime ca
 ```mermaid
 flowchart LR
     Cli["ArchitectureGuardian.Cli<br/>Arguments and composition<br/>Console and exit codes"]
-    Analysis["ArchitectureGuardian.Analysis<br/>Orchestration, workspace loading and normalization"]
+    Analysis["ArchitectureGuardian.Analysis<br/>Orchestration, workspace loading, normalization and extraction"]
     Core["ArchitectureGuardian.Core<br/>Neutral contracts and metadata<br/>Pure policy"]
     Configuration["ArchitectureGuardian.Configuration<br/>YAML parsing and validation"]
 
@@ -56,6 +56,7 @@ The service interface and its implementation live on opposite sides of this boun
 | Coordinate registered rules and severity policy | Analysis | [`AnalysisService<TContext>`](../../src/ArchitectureGuardian.Analysis/Orchestration/AnalysisService.cs) |
 | Load trusted workspace context and report loading coverage | Analysis | [`MSBuildWorkspaceLoader`](../../src/ArchitectureGuardian.Analysis/Workspaces/MSBuildWorkspaceLoader.cs), [`WorkspaceLoadResult`](../../src/ArchitectureGuardian.Analysis/Workspaces/WorkspaceLoadResult.cs) |
 | Normalize workspace declarations and logical ownership | Analysis / Core | [`RepositoryModelBuilder`](../../src/ArchitectureGuardian.Analysis/Repositories/RepositoryModelBuilder.cs), [`RepositoryModel`](../../src/ArchitectureGuardian.Core/Repositories/RepositoryModel.cs) |
+| Extract dependencies and retain origin evidence | Analysis / Core | [`DependencyGraphBuilder`](../../src/ArchitectureGuardian.Analysis/Dependencies/DependencyGraphBuilder.cs), [`DependencyGraph`](../../src/ArchitectureGuardian.Core/Dependencies/DependencyGraph.cs) |
 | Define a check over neutral input | Core | [`IArchitectureRule<TContext>`](../../src/ArchitectureGuardian.Core/Rules/IArchitectureRule.cs) |
 | Identify built-in checks and their help URLs | Core | [`RuleCatalog`](../../src/ArchitectureGuardian.Core/Rules/RuleCatalog.cs) |
 | Load YAML through a neutral port | Core / Configuration | [`IPolicyLoader`](../../src/ArchitectureGuardian.Core/Policies/IPolicyLoader.cs), [`YamlPolicyLoader`](../../src/ArchitectureGuardian.Configuration/Yaml/YamlPolicyLoader.cs) |
@@ -84,15 +85,17 @@ nested implementation helpers stay with their owner.
 | Core | `Rules` | Evaluation contracts, rule descriptors, catalog and severity-free violations |
 | Core | `Policies` | Architecture declarations, loading port, matching, resolution, permissions, severity and gate policy |
 | Core | `Repositories` | Immutable repository, project, assembly, namespace, type, module, contract and layer data and build coverage |
+| Core | `Dependencies` | Immutable evidence graphs, aggregation, traversal, cyclic components and extraction coverage |
 | Core | `Canonicalization` | Internal deterministic encoding, hashing and collection ordering |
 | Analysis | `Orchestration` | Reusable analysis service implementation |
 | Analysis | `Repositories` | Workspace-to-Core normalization and policy ownership composition |
+| Analysis | `Dependencies` | Evaluated reference and semantic dependency extraction with source evidence |
 | Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
 | Configuration | `Yaml` | YAML parsing and loading |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
-Unit tests use `Analysis`, `Diagnostics`, `Policies`, `Repositories` and `Workspaces` folders and
+Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories` and `Workspaces` folders and
 matching namespaces. Workspace fixtures live under `tests/Fixtures/Workspaces` and
 are copied to temporary directories for integration tests. Architecture tests group dependency checks under `Dependencies`,
 process smoke tests under `Cli`, and repository/process helpers under `Infrastructure`.
@@ -119,8 +122,9 @@ opening a documentation URL is an optional browser action after reporting.
 This flow will be assembled by later features. F02 supplies reusable orchestration
 and contracts; F03 supplies YAML loading, policy resolution, rule selection and
 severity gates. F04 supplies trusted workspace loading and F05 supplies neutral
-repository normalization and ownership composition. Dependency extraction, rule
-discovery and scanning composition remain planned.
+repository normalization and ownership composition. F06 supplies dependency
+extraction, evidence aggregation and deterministic traversal/cycles. Rule discovery
+and scanning composition remain planned.
 
 ```mermaid
 flowchart TD
@@ -128,7 +132,7 @@ flowchart TD
     Configuration["Configuration adapter — implemented<br/>Read and validate YAML policy — F03"]
     Workspace["Analysis workspace integration — implemented<br/>Load solution or projects — F04"]
     Context["Neutral repository model — implemented<br/>Normalize declarations and ownership — F05"]
-    Graph["Dependency graph — planned<br/>F06"]
+    Graph["Dependency graph — implemented<br/>Evidence, aggregation and traversal — F06"]
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
     Rules["Core rule implementations<br/>AG001–AG003 — F07–F09"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
@@ -194,6 +198,8 @@ compatibility. F16 will verify parity where both engines have sufficient context
 
 - [Repository model](../repository-model.md): normalization, portable identities,
   multi-project modules, contracts, layer membership and build coverage.
+- [Dependency graph](../dependency-graph.md): extraction, origin evidence, logical
+  aggregation, deterministic traversal/cycles and semantic coverage.
 - [Shared contracts](../shared-contracts.md): service composition, execution, coverage,
   cancellation, locations and deterministic identities.
 - [Rule catalog](../rule-catalog.md): metadata, documentation links and the canonical

@@ -96,7 +96,7 @@ public sealed class RepositoryModelBuilder
         var types = new List<RepositoryType>();
         foreach (var type in symbol.GetTypeMembers())
         {
-            AddType(type, projectPath, name, null, null, null, true, root, generatedFiles, types, cancellationToken);
+            AddType(type, projectPath, root, generatedFiles, types, cancellationToken);
         }
 
         namespaces.Add(new(projectPath, name, types));
@@ -107,8 +107,7 @@ public sealed class RepositoryModelBuilder
         }
     }
 
-    private static void AddType(INamedTypeSymbol symbol, string projectPath, string namespaceName, string? containingName,
-        string? declaringFile, RepositoryGeneratedFile? generatedFile, bool containingPublic, string root,
+    private static void AddType(INamedTypeSymbol symbol, string projectPath, string root,
         IReadOnlyDictionary<SyntaxTree, RepositoryGeneratedFile> generatedFiles, List<RepositoryType> types,
         CancellationToken cancellationToken)
     {
@@ -118,18 +117,36 @@ public sealed class RepositoryModelBuilder
             return;
         }
 
-        // Build the logical metadata name rather than persisting Roslyn's path-dependent file-local prefix.
-        var name = symbol.Name + (symbol.Arity == 0 ? "" : "`" + symbol.Arity.ToString(CultureInfo.InvariantCulture));
-        var qualifiedName = containingName is not null ? containingName + "+" + name
-            : namespaceName.Length == 0 ? name : namespaceName + "." + name;
-        if (symbol.IsFileLocal)
+        types.Add(NormalizeType(symbol, projectPath, root, generatedFiles));
+        foreach (var nested in symbol.GetTypeMembers())
         {
-            var tree = symbol.DeclaringSyntaxReferences.First().SyntaxTree;
-            generatedFiles.TryGetValue(tree, out generatedFile);
-            declaringFile = generatedFile is null ? RelativePath(root, tree.FilePath) : null;
+            AddType(nested, projectPath, root, generatedFiles, types, cancellationToken);
+        }
+    }
+
+    // Both normalization and dependency extraction must use exactly the same scoped declaration identity.
+    internal static RepositoryType NormalizeType(INamedTypeSymbol symbol, string projectPath, string root,
+        IReadOnlyDictionary<SyntaxTree, RepositoryGeneratedFile> generatedFiles)
+    {
+        symbol = symbol.OriginalDefinition;
+        var names = new Stack<string>();
+        string? declaringFile = null;
+        RepositoryGeneratedFile? generatedFile = null;
+        var isPublic = true;
+        for (var current = symbol; current is not null; current = current.ContainingType)
+        {
+            names.Push(current.Name + (current.Arity == 0 ? "" : "`" + current.Arity.ToString(CultureInfo.InvariantCulture)));
+            isPublic &= current.DeclaredAccessibility == Accessibility.Public;
+            if (current.IsFileLocal)
+            {
+                var tree = current.DeclaringSyntaxReferences.First().SyntaxTree;
+                generatedFiles.TryGetValue(tree, out generatedFile);
+                declaringFile = generatedFile is null ? RelativePath(root, tree.FilePath) : null;
+            }
         }
 
-        var isPublic = containingPublic && symbol.DeclaredAccessibility == Accessibility.Public;
+        var namespaceName = NamespaceName(symbol.ContainingNamespace);
+        var qualifiedName = (namespaceName.Length == 0 ? "" : namespaceName + ".") + string.Join("+", names);
         var kind = symbol.TypeKind switch
         {
             TypeKind.Class => RepositoryTypeKind.Class,
@@ -139,15 +156,21 @@ public sealed class RepositoryModelBuilder
             TypeKind.Delegate => RepositoryTypeKind.Delegate,
             _ => throw new ArgumentException($"Unsupported source type '{qualifiedName}'."),
         };
-        types.Add(new(projectPath, namespaceName, qualifiedName, kind, isPublic, declaringFile, generatedFile));
-        foreach (var nested in symbol.GetTypeMembers())
-        {
-            AddType(nested, projectPath, namespaceName, qualifiedName, declaringFile, generatedFile, isPublic, root,
-                generatedFiles, types, cancellationToken);
-        }
+        return new(projectPath, namespaceName, qualifiedName, kind, isPublic, declaringFile, generatedFile);
     }
 
-    private static async Task<IReadOnlyDictionary<SyntaxTree, RepositoryGeneratedFile>> GeneratedFilesAsync(Project project,
+    internal static string NamespaceName(INamespaceSymbol symbol)
+    {
+        var names = new Stack<string>();
+        for (var current = symbol; !current.IsGlobalNamespace; current = current.ContainingNamespace)
+        {
+            names.Push(current.Name);
+        }
+
+        return string.Join(".", names);
+    }
+
+    internal static async Task<IReadOnlyDictionary<SyntaxTree, RepositoryGeneratedFile>> GeneratedFilesAsync(Project project,
         CancellationToken cancellationToken)
     {
         var generators = project.AnalyzerReferences.SelectMany(reference => reference.GetGenerators(project.Language))
@@ -180,7 +203,7 @@ public sealed class RepositoryModelBuilder
         return files;
     }
 
-    private static string RelativePath(string root, string path)
+    internal static string RelativePath(string root, string path)
     {
         if (!Path.IsPathFullyQualified(path))
         {
