@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <FixtureGeneratorMode>valid</FixtureGeneratorMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <Analyzer Include="../Generators/bin/Debug/netstandard2.0/FixtureGenerator.dll" />
+    <CompilerVisibleProperty Include="FixtureGeneratorMode" />
+    <AdditionalFiles Include="input.txt" />
+  </ItemGroup>
+</Project>

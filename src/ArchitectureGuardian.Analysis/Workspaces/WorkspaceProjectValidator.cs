@@ -9,15 +9,30 @@ internal static class WorkspaceProjectValidator
 {
     // Keep MSBuild-dependent JIT compilation behind SDK registration.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void Validate(string projectPath, WorkspaceLoadRequest request,
+    internal static void Validate(string projectPath, WorkspaceLoadRequest request, IReadOnlyDictionary<string, string> workspaceProperties,
         Microsoft.CodeAnalysis.Compilation compilation, List<AnalysisIssue> issues)
     {
-        using var projects = new ProjectCollection(new Dictionary<string, string>
+        // MSBuildWorkspace adds solution globals during opening; retain them along with caller properties.
+        var properties = new Dictionary<string, string>(workspaceProperties, StringComparer.OrdinalIgnoreCase);
+        // Match the design-time defaults of the pinned Roslyn 5.0 build host on .NET.
+        foreach (var (name, value) in new Dictionary<string, string>
         {
-            ["Configuration"] = request.Configuration,
-            ["DesignTimeBuild"] = "true",
-            ["BuildingInsideVisualStudio"] = "true",
-        });
+            ["DesignTimeBuild"] = bool.TrueString,
+            ["NonExistentFile"] = "__NonExistentSubDir__\\__NonExistentFile__",
+            ["BuildProjectReferences"] = bool.FalseString,
+            ["BuildingProject"] = bool.FalseString,
+            ["ProvideCommandLineArgs"] = bool.TrueString,
+            ["SkipCompilerExecution"] = bool.TrueString,
+            ["ContinueOnError"] = "ErrorAndContinue",
+            ["ShouldUnsetParentConfigurationAndPlatform"] = bool.FalseString,
+        })
+        {
+            properties.TryAdd(name, value);
+        }
+
+        // Inspect declarations without forcing a framework, then evaluate the selected inner build below.
+        properties.Remove("TargetFramework");
+        using var projects = new ProjectCollection(properties);
         var project = projects.LoadProject(projectPath);
         var frameworks = project.GetPropertyValue("TargetFrameworks").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (frameworks.Length == 0)

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup Condition="'$(SolutionDir)' != '' and '$(SolutionDir)' != '*Undefined*' and '$(Configuration)' == 'Release'">
+    <Reference Include="SolutionScoped.Unavailable.Assembly">
+      <HintPath>$(SolutionDir)unavailable.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup Condition="'$(SolutionDir)' != '' and '$(SolutionDir)' != '*Undefined*' and '$(BuildingProject)' == 'false' and '$(ProvideCommandLineArgs)' == 'true' and '$(SkipCompilerExecution)' == 'true'">
+    <Reference Include="DesignTime.Unavailable.Assembly">
+      <HintPath>design-time-unavailable.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

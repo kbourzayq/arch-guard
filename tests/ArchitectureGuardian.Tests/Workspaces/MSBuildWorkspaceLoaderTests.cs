@@ -1,3 +1,4 @@
+using System.Reflection;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Core.Analysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -138,6 +139,76 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
         Assert.Contains(result.Issues, issue => issue.Message.Contains("Unavailable.Assembly", StringComparison.Ordinal));
     }
 
+    /// <summary>Checks solution globals and design-time defaults against a real build and the CLI coverage outcome.</summary>
+    /// <param name="input">The solution format whose workspace properties must be preserved.</param>
+    [Theory]
+    [InlineData("SolutionReference.sln")]
+    [InlineData("SolutionReference.slnx")]
+    public async Task Reference_validation_uses_solution_and_design_time_properties(string input)
+    {
+        var build = await fixture.DotnetAsync("build", input, "--configuration", "Release", "--no-restore");
+        Assert.Contains("MSB3245", build.Output);
+        Assert.Contains("SolutionScoped.Unavailable.Assembly", build.Output);
+
+        using var result = await LoadAsync(input, configuration: "Release");
+
+        Assert.Equal(AnalysisStatus.Incomplete, result.Status);
+        Assert.Contains(result.Issues, issue => issue.Code == "reference-unavailable" && issue.Message.Contains("SolutionScoped.Unavailable.Assembly", StringComparison.Ordinal));
+        Assert.Contains(result.Issues, issue => issue.Code == "reference-unavailable" && issue.Message.Contains("DesignTime.Unavailable.Assembly", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Issues, issue => issue.Code == "compilation-error");
+        var cli = await RunCliAsync(input, "Release");
+        Assert.Equal(2, cli.ExitCode);
+        Assert.Empty(cli.Output);
+        Assert.Contains("SolutionScoped.Unavailable.Assembly", cli.Error);
+        using var standalone = await LoadAsync("SolutionReference/SolutionReference.csproj", configuration: "Release");
+        AssertComplete(standalone);
+    }
+
+    /// <summary>Checks generator-reported errors, exceptions, ordinary warnings and successful generated context.</summary>
+    /// <param name="mode">The fixture generator behavior selected through analyzer configuration.</param>
+    /// <param name="isComplete">Whether this generator outcome establishes full context.</param>
+    [Theory]
+    [InlineData("valid", true)]
+    [InlineData("warning", true)]
+    [InlineData("error", false)]
+    [InlineData("throw", false)]
+    public async Task Generator_diagnostics_contribute_to_coverage(string mode, bool isComplete)
+    {
+        var path = Path.Combine(fixture.Root, "GeneratorConsumer", "GeneratorConsumer.csproj");
+        var source = await File.ReadAllTextAsync(path);
+        await File.WriteAllTextAsync(path, source.Replace("<FixtureGeneratorMode>valid</FixtureGeneratorMode>",
+            $"<FixtureGeneratorMode>{mode}</FixtureGeneratorMode>", StringComparison.Ordinal));
+        try
+        {
+            var build = await fixture.DotnetAsync("build", path, "--no-restore", "--no-incremental");
+            Assert.Equal(mode == "error" ? 1 : 0, build.ExitCode);
+            using var result = await LoadAsync("GeneratorConsumer/GeneratorConsumer.csproj");
+
+            Assert.Equal(isComplete ? AnalysisStatus.Completed : AnalysisStatus.Incomplete, result.Status);
+            Assert.DoesNotContain(result.Issues, issue => issue.Code == "compilation-error");
+            if (isComplete)
+            {
+                AssertComplete(result);
+                var compilation = await Assert.Single(result.Solution!.Projects).GetCompilationAsync();
+                Assert.NotNull(compilation!.GetTypeByMetadataName("Generated.Contract"));
+            }
+            else
+            {
+                var issue = Assert.Single(result.Issues, issue => issue.Code == (mode == "error" ? "source-generator-error" : "source-generator-failed"));
+                Assert.Contains(mode == "error" ? "FIXTURE001" : "fixture generator failed", issue.Message);
+            }
+
+            var cli = await RunCliAsync("GeneratorConsumer/GeneratorConsumer.csproj");
+            Assert.Equal(isComplete ? 0 : 2, cli.ExitCode);
+            Assert.Equal(isComplete, string.IsNullOrEmpty(cli.Error));
+            Assert.Equal(!isComplete, string.IsNullOrEmpty(cli.Output));
+        }
+        finally
+        {
+            await File.WriteAllTextAsync(path, source);
+        }
+    }
+
     /// <summary>Prevents malformed or empty solution inputs from looking like successful clean loads.</summary>
     /// <param name="contents">The invalid or empty solution XML.</param>
     [Theory]
@@ -190,6 +261,13 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
 
     private Task<WorkspaceLoadResult> LoadAsync(string input, string configuration = "Debug", string? framework = null) =>
         new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, input), true, configuration, framework));
+
+    private Task<(int ExitCode, string Output, string Error)> RunCliAsync(string input, string configuration = "Debug")
+    {
+        var buildConfiguration = typeof(MSBuildWorkspaceLoaderTests).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
+        var cli = Path.Combine(fixture.RepositoryRoot, "src", "ArchitectureGuardian.Cli", "bin", buildConfiguration, "net10.0", "ArchitectureGuardian.Cli.dll");
+        return fixture.DotnetAsync(cli, "load", Path.Combine(fixture.Root, input), "--trusted", "--configuration", configuration);
+    }
 
     private static void AssertComplete(WorkspaceLoadResult result) =>
         Assert.True(result.Status == AnalysisStatus.Completed, string.Join(Environment.NewLine, result.Issues.Select(issue => issue.Message)));
