@@ -2,7 +2,12 @@
 
 - Status: Accepted
 - Date: 2026-10-17
-- Delivery: [F01](https://github.com/kbourzayq/arch-guard/issues/1)
+- Delivery: [F01](https://github.com/kbourzayq/arch-guard/issues/1),
+  [F02](https://github.com/kbourzayq/arch-guard/issues/2)
+
+For diagrams and an implementation-status guide, see the
+[architecture overview](../overview.md). This record explains the decisions behind
+those flows.
 
 ## Context
 
@@ -44,9 +49,10 @@ an update to this decision. This establishes a checkable boundary before rules e
 
 ## Decision: ports describe domain data, adapters handle technology
 
-The following are ownership decisions, not interfaces implemented by F01. F02 defines
-the shared rule, diagnostic and result contracts; subsequent features introduce
-specific ports when their use cases exist.
+F01 established the following ownership decisions. F02 implements the shared rule,
+diagnostic, severity policy, request and result contracts in Core, with host-independent
+orchestration in Analysis. Subsequent features introduce the remaining ports when
+their use cases exist.
 
 | Port or contract | Owner and direction | Adapter responsibility |
 | --- | --- | --- |
@@ -64,16 +70,43 @@ Cancellation and failed/incomplete analysis must be expressible without a CLI ex
 code in Core; CLI maps those outcomes to exit codes. An unavailable engine or an
 incomplete snapshot must never be presented as a successful clean scan.
 
+### F02 contract and service decisions
+
+`IArchitectureRule<TContext>` evaluates a prepared neutral context and returns
+`RuleViolation` values without severity. `SeverityPolicy` maps those findings to
+`Diagnostic` severities; neither layer decides quality-gate outcomes. `RuleCatalog`
+fixes the AG001–AG006 identities without introducing rule implementations.
+
+`IAnalysisService<TContext>` is the reusable Core input port implemented by
+`AnalysisService<TContext>` in Analysis. Generic contexts let later features supply
+their normalized repository model without defining a placeholder graph or exposing
+workspace objects now. Hosts must keep the context stable during evaluation.
+
+The service evaluates registered rules in ordinal ID order, applies severity policy
+and preserves partial findings and operational issues. Results explicitly distinguish
+completed, incomplete, failed and cancelled work. No rules is incomplete, rule
+exceptions fail the run, and requested cancellation returns a cancelled result.
+Incomplete/failed results require explanatory issues; completed results cannot carry
+operational issues. Diagnostics with error severity can still belong to completed
+analysis, because completion describes coverage rather than policy compliance.
+
+Contracts snapshot their collections. Canonical content produces reproducible
+ordering and SHA-256 diagnostic identities independently of severity. F22 will define
+baseline fingerprints and movement/rename matching; F02 does not promise identity
+stability across changed source, wording or contract versions. See the
+[shared contracts guide](../../shared-contracts.md) for the complete behavior.
+
 ## Decision: separate solution-wide and compiler-hosted analysis
 
 ### Solution-wide engine
 
-Analysis runs in a .NET 10 application hosted by CLI or MCP. It can load `.sln`,
-`.slnx` and project inputs through MSBuildWorkspace (F04), normalize repository and
-logical module data, and construct a dependency graph across projects. This is the
-authoritative scope for module/layer dependencies and whole-module cycle detection
-(AG001–AG003). Loading diagnostics, missing context and cancellation propagate to
-the shared result rather than silently removing graph nodes.
+The solution-wide engine is designed to run in a .NET 10 application hosted by CLI
+or MCP. Loading `.sln`, `.slnx` and project inputs through MSBuildWorkspace is planned
+in F04; repository normalization and dependency graph construction follow in F05–F06.
+This is the authoritative scope for module/layer dependencies and whole-module cycle
+detection (AG001–AG003). Loading diagnostics, missing context and cancellation must
+propagate to the shared result rather than silently removing graph nodes. F02
+implements orchestration over prepared contexts; workspace integration is still pending.
 
 Workspace loading belongs to this engine. It may execute repository MSBuild tasks;
 F04 must define isolation and trust behavior before loading untrusted inputs.

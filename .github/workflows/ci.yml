@@ -33,5 +33,5 @@ jobs:
         run: dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
       - name: Check formatting
         run: dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
-      - name: Check architecture boundaries and CLI
+      - name: Test contracts, analysis, architecture boundaries and CLI
         run: dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore

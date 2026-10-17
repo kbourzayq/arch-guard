@@ -6,5 +6,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ArchitectureGuardian.ArchitectureTests/ArchitectureGuardian.ArchitectureTests.csproj" />
+    <Project Path="tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj" />
   </Folder>
 </Solution>

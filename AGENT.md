@@ -51,6 +51,9 @@ before changing component responsibilities or dependencies.
   and avoid `.Result`, `.Wait()` and `async void` application methods.
 - Comments should explain intent, invariants or tradeoffs. Keep technology details
   out of domain contracts and user-facing messages unless they help resolve a problem.
+- Add XML documentation to every class and public member, including constructors.
+  Explain responsibilities, inputs, results and relevant failure/cancellation behavior.
+  Use implementation comments for important branches or invariants; avoid narrating obvious code.
 
 ## Analysis correctness
 

@@ -21,6 +21,7 @@ if (args is ["--version"])
     return 0;
 }
 
+// Unsupported analysis commands must fail explicitly until a real analysis use case is available.
 Console.Error.WriteLine($"Unknown arguments: {string.Join(' ', args)}");
 Console.Error.WriteLine("Use --help for usage.");
 return 2;

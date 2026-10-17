@@ -4,6 +4,7 @@ using Xunit;
 
 namespace ArchitectureGuardian.ArchitectureTests;
 
+/// <summary>Enforces solution membership, inward project dependencies and Core's independence from adapters.</summary>
 public sealed class DependencyBoundaryTests
 {
     // Adding an adapter requires an explicit dependency decision here and in ADR 0001.
@@ -14,6 +15,7 @@ public sealed class DependencyBoundaryTests
         ["ArchitectureGuardian.Cli"] = ["ArchitectureGuardian.Analysis"],
     };
 
+    /// <summary>Requires every production project to have an explicit dependency decision and belong to the solution.</summary>
     [Fact]
     public void Every_source_project_has_an_explicit_boundary_and_is_in_the_solution()
     {
@@ -27,6 +29,9 @@ public sealed class DependencyBoundaryTests
         Assert.All(sourceProjects, path => Assert.Contains(path, solutionProjects));
     }
 
+    /// <summary>Checks evaluated references so imported or configuration-specific dependencies cannot bypass the boundaries.</summary>
+    /// <param name="project">The production project whose references are inspected.</param>
+    /// <param name="configuration">The build configuration in which MSBuild evaluates the project.</param>
     [Theory]
     [InlineData("ArchitectureGuardian.Core", "Debug")]
     [InlineData("ArchitectureGuardian.Core", "Release")]
