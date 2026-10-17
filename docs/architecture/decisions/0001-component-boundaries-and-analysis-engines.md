@@ -5,7 +5,8 @@
 - Delivery: [F01](https://github.com/kbourzayq/arch-guard/issues/1),
   [F02](https://github.com/kbourzayq/arch-guard/issues/2),
   [F03](https://github.com/kbourzayq/arch-guard/issues/3),
-  [F04](https://github.com/kbourzayq/arch-guard/issues/4)
+  [F04](https://github.com/kbourzayq/arch-guard/issues/4),
+  [F05](https://github.com/kbourzayq/arch-guard/issues/5)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -139,7 +140,8 @@ remain F10; adding Configuration does not introduce a working scan command.
 
 The solution-wide engine is designed to run in a .NET 10 application hosted by CLI
 or MCP. F04 loads `.sln`, `.slnx` and C# project inputs through MSBuildWorkspace;
-repository normalization and dependency graph construction follow in F05–F06.
+F05 normalizes the loaded context into neutral repository data. Dependency graph
+construction follows in F06.
 This is the authoritative scope for module/layer dependencies and whole-module cycle
 detection (AG001–AG003). Loading diagnostics, missing context and cancellation must
 propagate to the shared result rather than silently removing graph nodes. F02
@@ -160,12 +162,41 @@ selects an installed SDK with the input's `global.json`. The MSBuild 18.6.3 comp
 references (`Microsoft.Build`, `Microsoft.Build.Framework`, `Microsoft.NET.StringTools`)
 exclude runtime assets and remain private so SDK-provided assemblies load only after
 registration. No new project or dependency toward Core is introduced; workspace
-results expose Roslyn context only inside the Analysis adapter pending F05 normalization.
+results expose Roslyn context only inside the Analysis adapter. F05 adds a separate
+normalization API that converts that context into Core data.
 Reference validation retains the workspace's effective global properties, including
 solution context, and matches Roslyn's design-time defaults. Generator errors require
 an additional pass through Roslyn's public generator driver because the pinned
 workspace API does not expose generator diagnostics publicly; original source trees
 and generator inputs are preserved for that pass.
+
+### F05 normalization and logical ownership
+
+Core's `RepositoryModel` contains the input identity, projects, evaluated output
+assemblies, source namespaces/types, logical modules, public contracts and layers.
+Analysis's `RepositoryModelBuilder` converts the workspace's current compilations
+without retaining host objects. It includes explicit generated declarations and
+collapses partial types; referenced metadata and implicit compiler helper types are
+excluded. No new package, project or dependency boundary is introduced.
+
+The caller supplies the policy directory. Input/project identities are canonical
+relative paths; declaration identities hash project-scoped names, with a relative
+source-file discriminator for authored file-local types. Absolute checkout paths, workspace
+IDs and output paths are excluded. Generated file-local types use logical generator
+assembly/type/hint identities instead of physical declaring paths, preserving their
+IDs across configurations and external intermediate directories. Namespace names use
+raw symbol components rather than C# keyword escaping. Core snapshots and orders
+collections and reuses
+`ResolvedPolicy` for strict module/layer/contract membership. A module can span
+multiple layers; contract access remains a separate direct permission decision.
+
+`RepositoryBuildResult` retains loading issues and distinguishes completed,
+incomplete, failed and cancelled normalization. Invalid mappings never become clean
+models. The model survives workspace disposal; hosts must inspect coverage before
+evaluation. See the [repository model guide](../../repository-model.md) for the
+identity fields and executable modular-monolith reference fixture. Dependency
+extraction, production rule implementations and scanning composition remain later
+features.
 
 ### Compiler-hosted engine
 

@@ -23,19 +23,19 @@ public sealed class MSBuildWorkspaceLoader
             cancellationToken.ThrowIfCancellationRequested();
             if (!request.IsTrusted)
             {
-                return new(null, AnalysisStatus.Incomplete,
+                return new(null, request.InputPath, AnalysisStatus.Incomplete,
                     [new("workspace-untrusted", "MSBuild loading can execute repository tasks. Explicitly trust the input or load it in an isolated environment.")]);
             }
 
             var extension = Path.GetExtension(request.InputPath).ToLowerInvariant();
             if (extension is not (".sln" or ".slnx" or ".csproj"))
             {
-                return new(null, AnalysisStatus.Incomplete, [new("unsupported-input", "Choose a .sln, .slnx or .csproj file.")]);
+                return new(null, request.InputPath, AnalysisStatus.Incomplete, [new("unsupported-input", "Choose a .sln, .slnx or .csproj file.")]);
             }
 
             if (!File.Exists(request.InputPath))
             {
-                return new(null, AnalysisStatus.Incomplete, [new("input-unavailable", $"Input file does not exist: {request.InputPath}")]);
+                return new(null, request.InputPath, AnalysisStatus.Incomplete, [new("input-unavailable", $"Input file does not exist: {request.InputPath}")]);
             }
 
             var workingDirectory = Path.GetDirectoryName(request.InputPath)!;
@@ -92,19 +92,19 @@ public sealed class MSBuildWorkspaceLoader
 
             cancellationToken.ThrowIfCancellationRequested();
             AddWorkspaceIssues(workspace, issues);
-            return new(workspace, issues.Count == 0 ? AnalysisStatus.Completed : AnalysisStatus.Incomplete, issues);
+            return new(workspace, request.InputPath, issues.Count == 0 ? AnalysisStatus.Completed : AnalysisStatus.Incomplete, issues);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             AddWorkspaceIssues(workspace, issues);
-            return new(workspace, AnalysisStatus.Cancelled, issues);
+            return new(workspace, request.InputPath, AnalysisStatus.Cancelled, issues);
         }
         catch (Exception exception)
         {
             // Preserve partial projects and diagnostics; a loading exception never establishes clean coverage.
             AddWorkspaceIssues(workspace, issues);
             issues.Add(new("workspace-load-failed", $"{request.InputPath}: {exception.GetType().Name}: {exception.Message}"));
-            return new(workspace, AnalysisStatus.Incomplete, issues);
+            return new(workspace, request.InputPath, AnalysisStatus.Incomplete, issues);
         }
     }
 

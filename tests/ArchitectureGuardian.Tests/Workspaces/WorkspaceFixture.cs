@@ -41,6 +41,7 @@ public sealed class WorkspaceFixture : IAsyncLifetime
 
         File.Copy(Path.Combine(repository.FullName, "global.json"), Path.Combine(Root, "global.json"));
         await RestoreAsync("Fixture.slnx");
+        await RestoreAsync("ModularMonolith/ModularMonolith.slnx");
         await RestoreAsync("Multi/Multi.csproj");
         await RestoreAsync("SolutionReference.slnx");
         await RestoreAsync("Generators/FixtureGenerator.csproj");
@@ -61,7 +62,7 @@ public sealed class WorkspaceFixture : IAsyncLifetime
     }
 
     /// <summary>Runs a bounded restore using direct process arguments and captures failures.</summary>
-    /// <param name="input">The fixture-relative project or solution path.</param>
+    /// <param name="input">The fixture-relative or absolute project or solution path.</param>
     /// <param name="expectedSuccess">Whether restore must succeed.</param>
     /// <returns>The combined restore output for assertions.</returns>
     public async Task<string> RestoreAsync(string input, bool expectedSuccess = true)
@@ -92,6 +93,9 @@ public sealed class WorkspaceFixture : IAsyncLifetime
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        // Reused build workers can retain redirected output handles after the command exits.
+        start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+        start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
         foreach (var argument in arguments)
         {
             start.ArgumentList.Add(argument);

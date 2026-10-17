@@ -10,13 +10,17 @@ public sealed class WorkspaceLoadResult : IDisposable
 {
     private readonly MSBuildWorkspace? _workspace;
 
-    internal WorkspaceLoadResult(MSBuildWorkspace? workspace, AnalysisStatus status, IEnumerable<AnalysisIssue> issues)
+    internal WorkspaceLoadResult(MSBuildWorkspace? workspace, string inputPath, AnalysisStatus status, IEnumerable<AnalysisIssue> issues)
     {
         _workspace = workspace;
+        InputPath = inputPath;
         var coverage = new AnalysisResult(status, issues: issues.Distinct());
         Status = coverage.Status;
         Issues = coverage.Issues;
     }
+
+    /// <summary>Gets the absolute solution or project input path; normalization makes it policy-relative.</summary>
+    public string InputPath { get; }
 
     /// <summary>Gets loading coverage for the requested configuration and framework, independently of rule evaluation.</summary>
     public AnalysisStatus Status { get; }

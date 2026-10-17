@@ -8,7 +8,7 @@ illustrates public contracts. Both are loaded and resolved by tests.
 
 The loader and policy APIs and [trusted workspace loading](workspace-loading.md) are
 usable today. Dependency discovery, rule implementations and CLI scanning follow in
-F05–F10. Loading a valid policy is not an architecture scan, and the CLI does not
+F06–F10. Loading a valid policy is not an architecture scan, and the CLI does not
 yet consume this file.
 
 ## Document shape
@@ -164,31 +164,31 @@ F22 will add baseline-aware gate semantics; v1 has no baseline setting.
 
 ## Host composition
 
-This example assumes the host already obtained a complete `projectPaths` inventory,
-a neutral `context` and the rule implementations available for that scope. It adds
-no policy-to-workspace composition or CLI scanning command; F04's separate `load`
-command validates workspace context:
+F05's `RepositoryModelBuilder` composes workspace normalization and strict policy
+resolution into a neutral `RepositoryModel`, as shown in the
+[repository model guide](repository-model.md#reusable-api-and-coverage). After
+checking `RepositoryBuildResult.Status` and obtaining its model as `context`, a host
+can compose evaluation with rule implementations available for that scope. Production
+rules and a CLI scanning command remain planned:
 
 ```csharp
 using ArchitectureGuardian.Analysis.Orchestration;
-using ArchitectureGuardian.Configuration.Yaml;
 using ArchitectureGuardian.Core.Analysis;
-using ArchitectureGuardian.Core.Policies;
+using ArchitectureGuardian.Core.Repositories;
 
-IPolicyLoader loader = new YamlPolicyLoader(); // Configuration adapter
-var policy = await loader.LoadAsync(policyPath, cancellationToken);
-var resolved = new ResolvedPolicy(policy, projectPaths); // Core; supply to rules via context
+// context is a successfully normalized RepositoryModel.
+var policy = context.Policy;
 var selected = policy.SelectRules(availableRules);
-var service = new AnalysisService<RepositoryContext>(selected);
+var service = new AnalysisService<RepositoryModel>(selected);
 var result = await service.AnalyzeAsync(
-    new AnalysisRequest<RepositoryContext>(context, policy.SeverityPolicy), cancellationToken);
+    new AnalysisRequest<RepositoryModel>(context, policy.SeverityPolicy), cancellationToken);
 var passesGate = policy.Gate.Passes(result);
 ```
 
-`RepositoryContext` above stands for the host's prepared neutral context, not a
-currently implemented repository model. It must carry the resolved policy where
-rules need it. Hosts reference Configuration and Analysis at composition time;
-Analysis and Core do not reference the YAML adapter. Policy-driven CLI composition
+`RepositoryModel` carries the immutable policy and resolved mappings where rules
+need them. A caller can also resolve a supplied complete project inventory directly
+with `ResolvedPolicy`, without a workspace. Hosts reference Configuration and Analysis
+at composition time; Analysis and Core do not reference the YAML adapter. Policy-driven CLI composition
 is deferred to F10.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
