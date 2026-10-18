@@ -61,6 +61,9 @@ produce an issue. External framework/package assemblies and referenced namespace
 and types have graph endpoints with null `ProjectPath`. They are not added to the
 repository's source inventory or assigned policy ownership. Project edges describe
 the compilation's project references, not arbitrary build-order-only MSBuild items.
+The SDK can expand transitive project references into that compilation context;
+these also appear as evaluated reference facts. The graph does not compute its own
+transitive closure.
 
 Semantic extraction includes base types, interfaces, constraints, attributes,
 generic arguments, nested types, arrays, pointers, function pointers, inferred
@@ -81,19 +84,25 @@ fact. Its source coordinates are one-based with an exclusive end, as defined by
 the [shared contracts](shared-contracts.md#locations-immutability-and-reproducibility). Project
 references retain both project paths without inventing a source line for evaluated
 or imported declarations. Semantic facts retain the bound source symbol and actual
-syntax span. Facts can be reused in a future rule's violation evidence.
+syntax span. AG001 reuses these facts in its violation evidence.
 
 For example, Orders referencing Billing.Infrastructure creates a project edge with
 the reference path, and using `VisibleStore` creates semantic edges with the source
 member and location. The aggregated Orders → Billing module edge retains both
-facts. A rule can inspect each fact's project pair through
-`Repository.ResolvedPolicy.AllowsModuleDependency` or `AllowsLayerDependency`.
+facts. AG001 checks each fact's project pair through
+`Repository.ResolvedPolicy.AllowsModuleDependency`; the future layer rule can use
+`AllowsLayerDependency` independently.
 Keeping project pairs matters when one target is a permitted public contract and
 another target in the same module is forbidden implementation access.
 
 Aggregation includes direct edges only. It suppresses intra-module/intra-layer
 self edges and excludes external metadata. It does not infer transitive permissions,
 evaluate rules, assign severities or render reports.
+
+`ModuleDependenciesRule` evaluates the complete `DependencyBuildResult` separately
+from extraction. It checks original project pairs at any graph level, deduplicates
+facts and preserves upstream status/issues. See the [AG001 guide](rule-catalog.md#ag001-module-dependencies)
+and [policy composition example](policy.md#host-composition).
 
 ## Stable identities and ordering
 

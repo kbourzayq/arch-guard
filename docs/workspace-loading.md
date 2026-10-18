@@ -6,8 +6,9 @@ command for validating workspace context. It supports C# SDK projects supplied a
 outside the solution when referenced by its members. Unsupported projects and empty
 solutions cannot establish complete coverage. F05 adds the separate
 [repository normalization API](repository-model.md), and F06 adds the
-[dependency evidence graph](dependency-graph.md). Rule implementations and
-architecture scanning remain F07–F10.
+[dependency evidence graph](dependency-graph.md). F07 adds
+[AG001 evaluation](rule-catalog.md#ag001-module-dependencies). Remaining rules and
+CLI scanning follow in F08–F10.
 
 ```sh
 dotnet restore path/to/Application.slnx

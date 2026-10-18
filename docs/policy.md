@@ -6,10 +6,10 @@ the YAML loader and pure policy resolution. The [repository policy](../architect
 maps this solution's six projects. The [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
 illustrates public contracts. Both are loaded and resolved by tests.
 
-The loader and policy APIs, [trusted workspace loading](workspace-loading.md) and
-[dependency extraction](dependency-graph.md) are usable today. Rule implementations
-and CLI scanning follow in F07–F10. Loading a valid policy is not an architecture
-scan, and the CLI does not yet consume this file.
+The loader and policy APIs, [trusted workspace loading](workspace-loading.md),
+[dependency extraction](dependency-graph.md) and [AG001 evaluation](rule-catalog.md#ag001-module-dependencies)
+are usable today. Remaining rules and CLI scanning follow in F08–F10. Loading a
+valid policy is not an architecture scan, and the CLI does not yet consume this file.
 
 ## Document shape
 
@@ -138,8 +138,8 @@ separate rule (AG003); an explicit permission does not disable cycle discovery.
 questions about an **already discovered** project edge. A module permission cannot
 override a layer restriction. Unknown source/target project identities are errors.
 These APIs do not discover edges, produce violations, enforce semantic symbol
-access or decide a quality gate. Later rules attach evidence and findings to these
-decisions.
+access or decide a quality gate. AG001's `ModuleDependenciesRule` attaches evidence
+and findings to module permission decisions; AG002 remains planned.
 
 ## Rule selection, severity and gates
 
@@ -164,24 +164,30 @@ F22 will add baseline-aware gate semantics; v1 has no baseline setting.
 
 ## Host composition
 
-F05's `RepositoryModelBuilder` composes workspace normalization and strict policy
-resolution into a neutral `RepositoryModel`, as shown in the
-[repository model guide](repository-model.md#reusable-api-and-coverage). After
-checking `RepositoryBuildResult.Status` and obtaining its model as `context`, a host
-can compose evaluation with rule implementations available for that scope. Production
-rules and a CLI scanning command remain planned:
+F06's `DependencyGraphBuilder` composes workspace normalization, policy resolution
+and extraction into a neutral `DependencyBuildResult`, as shown in the
+[dependency graph guide](dependency-graph.md#build-a-graph). F07's AG001 rule consumes
+that result directly, preserving upstream coverage and issues alongside findings.
+For a policy selecting AG001 only, a host can compose evaluation as follows:
 
 ```csharp
 using ArchitectureGuardian.Analysis.Orchestration;
 using ArchitectureGuardian.Core.Analysis;
-using ArchitectureGuardian.Core.Repositories;
+using ArchitectureGuardian.Core.Dependencies;
+using ArchitectureGuardian.Core.Rules;
 
-// context is a successfully normalized RepositoryModel.
-var policy = context.Policy;
+// context is the DependencyBuildResult returned by DependencyGraphBuilder.
+if (context.Repository is null)
+{
+    // Surface context.Status and context.Issues; no evaluation context is available.
+    return;
+}
+var policy = context.Repository.Policy;
+IArchitectureRule<DependencyBuildResult>[] availableRules = [new ModuleDependenciesRule()];
 var selected = policy.SelectRules(availableRules);
-var service = new AnalysisService<RepositoryModel>(selected);
+var service = new AnalysisService<DependencyBuildResult>(selected);
 var result = await service.AnalyzeAsync(
-    new AnalysisRequest<RepositoryModel>(context, policy.SeverityPolicy), cancellationToken);
+    new AnalysisRequest<DependencyBuildResult>(context, policy.SeverityPolicy), cancellationToken);
 var passesGate = policy.Gate.Passes(result);
 ```
 
@@ -190,6 +196,15 @@ need them. A caller can also resolve a supplied complete project inventory direc
 with `ResolvedPolicy`, without a workspace. Hosts reference Configuration and Analysis
 at composition time; Analysis and Core do not reference the YAML adapter. Policy-driven CLI composition
 is deferred to F10.
+
+The supplied inventory and graph establish AG001's scope; omission from `rules`
+disables its selection. V1 rejects `enabled` and per-rule scope fields. AG001 uses
+project pairs from the graph's evidence, so approved contracts never mask forbidden
+implementation dependencies inside the same aggregated module edge. Unmapped pairs
+prevent completed coverage. See the [AG001 guide](rule-catalog.md#ag001-module-dependencies).
+Policies selecting AG002–AG006 still require those implementations; repository and
+modular-monolith example policies intentionally retain their full intended rule set
+and are not executable with AG001 alone.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
 logical field path and corrective message. Contract/reference errors may point to

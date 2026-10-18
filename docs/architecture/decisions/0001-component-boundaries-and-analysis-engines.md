@@ -7,7 +7,8 @@
   [F03](https://github.com/kbourzayq/arch-guard/issues/3),
   [F04](https://github.com/kbourzayq/arch-guard/issues/4),
   [F05](https://github.com/kbourzayq/arch-guard/issues/5),
-  [F06](https://github.com/kbourzayq/arch-guard/issues/6)
+  [F06](https://github.com/kbourzayq/arch-guard/issues/6),
+  [F07](https://github.com/kbourzayq/arch-guard/issues/7)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -195,8 +196,8 @@ multiple layers; contract access remains a separate direct permission decision.
 incomplete, failed and cancelled normalization. Invalid mappings never become clean
 models. The model survives workspace disposal; hosts must inspect coverage before
 evaluation. See the [repository model guide](../../repository-model.md) for the
-identity fields and executable modular-monolith reference fixture. Production rule
-implementations and scanning composition remain later features.
+identity fields and executable modular-monolith reference fixture. F07 consumes
+this model and F06's evidence for module evaluation; CLI scanning remains F10.
 
 ### F06 dependency extraction and evidence
 
@@ -216,6 +217,22 @@ Compilation errors, unresolved/ambiguous context and dynamic operations prevent
 completion; available evidence is retained. Static binding does not claim runtime
 reflection or concrete dispatch targets. Rule evaluation and scanning composition
 remain separate. See the [dependency graph guide](../../dependency-graph.md).
+
+### F07 module-dependency evaluation
+
+Core's `ModuleDependenciesRule` implements AG001 over the existing neutral
+`DependencyBuildResult`. It checks original source/target project pairs through
+`ResolvedPolicy.AllowsModuleDependency` and reports one evidence-backed finding per
+forbidden pair. Facts are deduplicated across graph levels; approved public-contract
+facts never authorize other projects in an aggregated module edge. Same-module
+dependencies pass and external metadata remains outside module ownership checks.
+
+The supplied repository and graph define scope. Out-of-inventory evidence prevents
+completed coverage; extraction status/issues and partial findings are preserved.
+Rule selection controls enabled state using v1's existing explicit rule IDs.
+Severity and gates remain with the existing policies and service orchestration.
+No package, component or host dependency is introduced. Layer/cycle rules and CLI
+scanning remain later features. See the [AG001 guide](../../rule-catalog.md#ag001-module-dependencies).
 
 ### Compiler-hosted engine
 
