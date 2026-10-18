@@ -54,10 +54,14 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         // BuildAsync has disposed the workspace: the graph and policy remain usable without host objects.
         Assert.True(result.Repository!.ResolvedPolicy.AllowsModuleDependency(Orders, Contracts));
         Assert.NotEmpty(graph.Traverse(type.Source.Id));
-        var evaluation = await EvaluateModulesAsync(result);
+        var evaluation = await EvaluateDependenciesAsync(result, "AG001");
         Assert.True(evaluation.IsComplete);
         Assert.Empty(evaluation.Diagnostics);
         Assert.True(result.Repository.Policy.Gate.Passes(evaluation));
+        var layers = await EvaluateDependenciesAsync(result, "AG002");
+        Assert.True(layers.IsComplete);
+        Assert.Empty(layers.Diagnostics);
+        Assert.True(result.Repository.Policy.Gate.Passes(layers));
     }
 
     /// <summary>Enforces a seeded forbidden reference using the graph's project and semantic evidence.</summary>
@@ -86,7 +90,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 && evidence.ProjectReference == Infrastructure);
             Assert.Contains(module.Evidence, evidence => evidence.SourceProject == Orders && evidence.TargetProject == Infrastructure
                 && evidence.SourceSymbol?.Contains("Forbidden", StringComparison.Ordinal) == true && evidence.Fact.Location!.Path.EndsWith("Forbidden.cs", StringComparison.Ordinal));
-            var evaluation = await EvaluateModulesAsync(result);
+            var evaluation = await EvaluateDependenciesAsync(result, "AG001");
             Assert.True(evaluation.IsComplete);
             // The SDK also exposes implementation references transitively to the compilation.
             // Every forbidden pair is reported, while contract facts stay out of those findings.
@@ -108,6 +112,19 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
             Assert.DoesNotContain(diagnostic.Evidence, fact => fact.Description.Contains("IInvoice", StringComparison.Ordinal));
             Assert.Equal("src/Orders/Orders.Application/Forbidden.cs", diagnostic.Location!.Path);
             Assert.False(result.Repository.Policy.Gate.Passes(evaluation));
+            var layers = await EvaluateDependenciesAsync(result, "AG002");
+            Assert.True(layers.IsComplete);
+            var layerDiagnostic = Assert.Single(layers.Diagnostics);
+            Assert.Equal("AG002", layerDiagnostic.RuleId);
+            Assert.Contains("Layer 'Application'", layerDiagnostic.Message);
+            Assert.Contains("layer 'Infrastructure'", layerDiagnostic.Message);
+            Assert.Equal("src/Orders/Orders.Application/Forbidden.cs", layerDiagnostic.Location!.Path);
+            Assert.Contains(layerDiagnostic.Evidence, fact => fact.Description.Contains(Infrastructure, StringComparison.Ordinal));
+            Assert.Contains(layerDiagnostic.Evidence, fact => fact.Location?.Path.EndsWith("Forbidden.cs", StringComparison.Ordinal) == true
+                && fact.Description.Contains("Forbidden.Create", StringComparison.Ordinal)
+                && fact.Description.Contains("VisibleStore", StringComparison.Ordinal));
+            Assert.DoesNotContain(layerDiagnostic.Evidence, fact => fact.Description.Contains("IInvoice", StringComparison.Ordinal));
+            Assert.False(result.Repository.Policy.Gate.Passes(layers));
         }
         finally
         {
@@ -505,13 +522,13 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
     private static void Complete(DependencyBuildResult result) => Assert.True(result.Status == AnalysisStatus.Completed,
         string.Join(Environment.NewLine, result.Issues.Select(issue => $"{issue.Code}: {issue.Message}")));
 
-    private static Task<AnalysisResult> EvaluateModulesAsync(DependencyBuildResult context)
+    private static Task<AnalysisResult> EvaluateDependenciesAsync(DependencyBuildResult context, string ruleId)
     {
-        // This integration covers F07 only; the fixture also declares the still-unavailable AG002/AG003.
+        // Evaluate an implemented dependency rule; the fixture also selects the still-unavailable AG003.
         var policy = context.Repository!.Policy;
         var selection = new ArchitecturePolicy(policy.Modules, policy.Layers,
-            new Dictionary<string, DiagnosticSeverity> { ["AG001"] = policy.SeverityPolicy.GetSeverity("AG001") });
-        var rules = selection.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule()]);
+            new Dictionary<string, DiagnosticSeverity> { [ruleId] = policy.SeverityPolicy.GetSeverity(ruleId) });
+        var rules = selection.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule(), new LayerDependenciesRule()]);
         return new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, selection.SeverityPolicy));
     }
 

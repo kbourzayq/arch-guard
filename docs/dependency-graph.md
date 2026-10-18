@@ -84,13 +84,13 @@ fact. Its source coordinates are one-based with an exclusive end, as defined by
 the [shared contracts](shared-contracts.md#locations-immutability-and-reproducibility). Project
 references retain both project paths without inventing a source line for evaluated
 or imported declarations. Semantic facts retain the bound source symbol and actual
-syntax span. AG001 reuses these facts in its violation evidence.
+syntax span. AG001 and AG002 reuse these facts in their violation evidence.
 
 For example, Orders referencing Billing.Infrastructure creates a project edge with
 the reference path, and using `VisibleStore` creates semantic edges with the source
 member and location. The aggregated Orders → Billing module edge retains both
 facts. AG001 checks each fact's project pair through
-`Repository.ResolvedPolicy.AllowsModuleDependency`; the future layer rule can use
+`Repository.ResolvedPolicy.AllowsModuleDependency`; AG002 checks
 `AllowsLayerDependency` independently.
 Keeping project pairs matters when one target is a permitted public contract and
 another target in the same module is forbidden implementation access.
@@ -99,9 +99,11 @@ Aggregation includes direct edges only. It suppresses intra-module/intra-layer
 self edges and excludes external metadata. It does not infer transitive permissions,
 evaluate rules, assign severities or render reports.
 
-`ModuleDependenciesRule` evaluates the complete `DependencyBuildResult` separately
-from extraction. It checks original project pairs at any graph level, deduplicates
-facts and preserves upstream status/issues. See the [AG001 guide](rule-catalog.md#ag001-module-dependencies)
+`ModuleDependenciesRule` and `LayerDependenciesRule` evaluate the complete
+`DependencyBuildResult` separately from extraction. They check original project
+pairs at any graph level, deduplicate facts and preserve upstream status/issues.
+See the [AG001 guide](rule-catalog.md#ag001-module-dependencies),
+[AG002 guide](rule-catalog.md#ag002-layer-dependencies)
 and [policy composition example](policy.md#host-composition).
 
 ## Stable identities and ordering

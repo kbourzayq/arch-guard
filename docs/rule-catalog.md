@@ -1,8 +1,8 @@
 # Canonical core rule catalog
 
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
-`RuleCatalog`. AG001 is implemented in F07; remaining implementations arrive in
-their linked features. CLI scanning and compiler analysis remain planned.
+`RuleCatalog`. AG001 and AG002 are implemented in F07/F08; remaining implementations
+arrive in their linked features. CLI scanning and compiler analysis remain planned.
 
 ## How catalog metadata reaches a diagnostic
 
@@ -10,7 +10,7 @@ their linked features. CLI scanning and compiler analysis remain planned.
 provides an ID, a title and a documentation URL. The catalog does not fetch a remote
 rule list, read this Markdown file, or contain the executable checking logic.
 
-AG001 uses this implemented evaluation flow; host reporting adapters remain planned:
+AG001 and AG002 use this implemented evaluation flow; host reporting adapters remain planned:
 
 ```mermaid
 flowchart TD
@@ -94,8 +94,41 @@ is cooperative. AG001 does not enforce layers, cycles or symbol visibility.
 ## AG002: Layer dependencies
 
 Detect dependencies forbidden between architectural layers by policy. AG002 denotes
-the layer rule; it is not a CQRS convention rule.
+the layer rule. Earlier illustrative CQRS use of AG002 is superseded by this
+canonical layer rule; AG002 does not enforce CQRS conventions.
 Implementation: [F08](https://github.com/kbourzayq/arch-guard/issues/8).
+
+`LayerDependenciesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
+It checks each observed source/target project pair through
+`ResolvedPolicy.AllowsLayerDependency`. Layer names and the outgoing
+`allowedDependencies` matrix come entirely from policy: no universal Clean
+Architecture layout or special handling of names such as Domain or Infrastructure
+is assumed. For example, Domain → Infrastructure is forbidden when Infrastructure
+is absent from Domain's outgoing list, and allowed when explicitly listed.
+
+Same-layer dependencies pass, including across modules. Cross-layer dependencies
+require the target layer's exact ID in the source layer's outgoing list; permissions
+are direct and directional. Module or public-contract permissions cannot override
+a layer restriction, and AG002 does not enforce module permissions. Select AG001
+and AG002 together to enforce both dimensions.
+
+Each forbidden project pair produces one finding naming both layers and project
+paths, retaining the original reference facts, semantic symbol descriptions and
+available source spans. Duplicate facts across graph levels are merged. The first
+located fact in canonical evidence order supplies the primary location; reference-only
+findings have no invented location. Remediation describes removing or inverting the
+dependency, or explicitly changing the configured matrix when intended. The graph's
+observed references are checked without computing a transitive closure.
+
+The supplied inventory and graph define scope. External metadata has no repository
+target project and passes this ownership check. Projects omitted from a prepared
+scope are not inspected; evidence for a project absent from its inventory is instead
+an AG002 `dependency-project-unmapped` coverage issue. V1 has no per-rule scope
+selectors. Omit AG002 from `rules` to disable its selection; do not weaken inventory
+validation to exclude projects. Upstream incomplete, failed and cancelled outcomes,
+issues and available findings are preserved. Evaluation cooperates with cancellation.
+Severity and gates apply separately after discovery. See the
+[policy composition example](policy.md#host-composition).
 
 ## AG003: Module cycles
 

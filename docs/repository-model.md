@@ -38,7 +38,8 @@ type are public; it does not grant dependency permission or enforce symbol acces
 direct and directional permission checks. The model does not extract edges or report
 violations; [F06 dependency extraction](dependency-graph.md) consumes this normalization,
 and [AG001](rule-catalog.md#ag001-module-dependencies) evaluates its evidence against
-the resolved module permissions. Layer and cycle rules remain F08–F09.
+the resolved module permissions. [AG002](rule-catalog.md#ag002-layer-dependencies)
+evaluates layer permissions independently. Cycle evaluation remains F09.
 
 ## Identities and reproducibility
 

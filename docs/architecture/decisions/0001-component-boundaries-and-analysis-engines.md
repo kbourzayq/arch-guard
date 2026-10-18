@@ -8,7 +8,8 @@
   [F04](https://github.com/kbourzayq/arch-guard/issues/4),
   [F05](https://github.com/kbourzayq/arch-guard/issues/5),
   [F06](https://github.com/kbourzayq/arch-guard/issues/6),
-  [F07](https://github.com/kbourzayq/arch-guard/issues/7)
+  [F07](https://github.com/kbourzayq/arch-guard/issues/7),
+  [F08](https://github.com/kbourzayq/arch-guard/issues/8)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -231,8 +232,23 @@ The supplied repository and graph define scope. Out-of-inventory evidence preven
 completed coverage; extraction status/issues and partial findings are preserved.
 Rule selection controls enabled state using v1's existing explicit rule IDs.
 Severity and gates remain with the existing policies and service orchestration.
-No package, component or host dependency is introduced. Layer/cycle rules and CLI
-scanning remain later features. See the [AG001 guide](../../rule-catalog.md#ag001-module-dependencies).
+No package, component or host dependency is introduced. Cycle rules and CLI
+scanning remain later features; F08 adds the separate layer check below. See the
+[AG001 guide](../../rule-catalog.md#ag001-module-dependencies).
+
+### F08 layer-dependency evaluation
+
+Core's `LayerDependenciesRule` implements AG002 over the same neutral
+`DependencyBuildResult`. It checks original project pairs through
+`ResolvedPolicy.AllowsLayerDependency`, independently of module and contract
+permissions. The policy's named layers and outgoing allow-lists define the matrix;
+there is no fixed Clean Architecture layout. Same-layer dependencies pass.
+
+Like AG001, AG002 merges repeated reference and semantic facts per forbidden pair,
+retains source evidence and upstream coverage, and reports unmapped project evidence
+as incomplete coverage. Rule selection, severity and gates reuse the existing
+contracts. No schema, package, project or component dependency changes are required.
+See the [AG002 guide](../../rule-catalog.md#ag002-layer-dependencies).
 
 ### Compiler-hosted engine
 

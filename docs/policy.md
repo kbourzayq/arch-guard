@@ -7,9 +7,11 @@ maps this solution's six projects. The [modular-monolith example](examples/modul
 illustrates public contracts. Both are loaded and resolved by tests.
 
 The loader and policy APIs, [trusted workspace loading](workspace-loading.md),
-[dependency extraction](dependency-graph.md) and [AG001 evaluation](rule-catalog.md#ag001-module-dependencies)
-are usable today. Remaining rules and CLI scanning follow in F08–F10. Loading a
-valid policy is not an architecture scan, and the CLI does not yet consume this file.
+[dependency extraction](dependency-graph.md), [AG001 evaluation](rule-catalog.md#ag001-module-dependencies)
+and [AG002 evaluation](rule-catalog.md#ag002-layer-dependencies) are usable today.
+Remaining rules follow in their roadmap features; CLI scanning follows in F10.
+Loading a valid policy is not an architecture scan, and the CLI does not yet consume
+this file.
 
 ## Document shape
 
@@ -139,7 +141,9 @@ questions about an **already discovered** project edge. A module permission cann
 override a layer restriction. Unknown source/target project identities are errors.
 These APIs do not discover edges, produce violations, enforce semantic symbol
 access or decide a quality gate. AG001's `ModuleDependenciesRule` attaches evidence
-and findings to module permission decisions; AG002 remains planned.
+and findings to module permission decisions; AG002's `LayerDependenciesRule` does
+the same for layer permission decisions. Neither assumes fixed layer names or a
+universal Clean Architecture layout.
 
 ## Rule selection, severity and gates
 
@@ -166,9 +170,9 @@ F22 will add baseline-aware gate semantics; v1 has no baseline setting.
 
 F06's `DependencyGraphBuilder` composes workspace normalization, policy resolution
 and extraction into a neutral `DependencyBuildResult`, as shown in the
-[dependency graph guide](dependency-graph.md#build-a-graph). F07's AG001 rule consumes
-that result directly, preserving upstream coverage and issues alongside findings.
-For a policy selecting AG001 only, a host can compose evaluation as follows:
+[dependency graph guide](dependency-graph.md#build-a-graph). The AG001/AG002 rules
+consume that result directly, preserving upstream coverage and issues alongside findings.
+For a policy selecting either or both rules, a host can compose evaluation as follows:
 
 ```csharp
 using ArchitectureGuardian.Analysis.Orchestration;
@@ -183,7 +187,8 @@ if (context.Repository is null)
     return;
 }
 var policy = context.Repository.Policy;
-IArchitectureRule<DependencyBuildResult>[] availableRules = [new ModuleDependenciesRule()];
+IArchitectureRule<DependencyBuildResult>[] availableRules =
+    [new ModuleDependenciesRule(), new LayerDependenciesRule()];
 var selected = policy.SelectRules(availableRules);
 var service = new AnalysisService<DependencyBuildResult>(selected);
 var result = await service.AnalyzeAsync(
@@ -197,14 +202,16 @@ with `ResolvedPolicy`, without a workspace. Hosts reference Configuration and An
 at composition time; Analysis and Core do not reference the YAML adapter. Policy-driven CLI composition
 is deferred to F10.
 
-The supplied inventory and graph establish AG001's scope; omission from `rules`
-disables its selection. V1 rejects `enabled` and per-rule scope fields. AG001 uses
+The supplied inventory and graph establish AG001/AG002 scope; omission from `rules`
+disables a rule's selection. V1 rejects `enabled` and per-rule scope fields. AG001 uses
 project pairs from the graph's evidence, so approved contracts never mask forbidden
 implementation dependencies inside the same aggregated module edge. Unmapped pairs
 prevent completed coverage. See the [AG001 guide](rule-catalog.md#ag001-module-dependencies).
-Policies selecting AG002–AG006 still require those implementations; repository and
+AG002 independently checks the configured layer matrix and retains symbol/source
+evidence. See the [AG002 guide](rule-catalog.md#ag002-layer-dependencies).
+Policies selecting AG003–AG006 still require those implementations; repository and
 modular-monolith example policies intentionally retain their full intended rule set
-and are not executable with AG001 alone.
+and still require AG003 before the full selection is executable.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
 logical field path and corrective message. Contract/reference errors may point to
