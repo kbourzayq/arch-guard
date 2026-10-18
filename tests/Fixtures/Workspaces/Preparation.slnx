@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="App/App.csproj" />
+  <Project Path="Library/Library.csproj" />
+  <Project Path="Multi/Multi.csproj" />
+  <Project Path="SolutionReference/SolutionReference.csproj" />
+  <Project Path="Generators/FixtureGenerator.csproj" />
+  <Project Path="GeneratorConsumer/GeneratorConsumer.csproj" />
+  <Project Path="ModularMonolith/src/Billing/Billing.Domain/Billing.Domain.csproj" />
+  <Project Path="ModularMonolith/src/Billing/Billing.Application/Billing.Application.csproj" />
+  <Project Path="ModularMonolith/src/Billing/Billing.Contracts/Billing.Contracts.csproj" />
+  <Project Path="ModularMonolith/src/Billing/Billing.Infrastructure/Billing.Infrastructure.csproj" />
+  <Project Path="ModularMonolith/src/Orders/Orders.Application/Orders.Application.csproj" />
+</Solution>

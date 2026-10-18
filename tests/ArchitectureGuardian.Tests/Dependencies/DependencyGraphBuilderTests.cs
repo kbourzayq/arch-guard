@@ -15,6 +15,7 @@ namespace ArchitectureGuardian.Tests.Dependencies;
 
 /// <summary>Verifies semantic extraction and evidence against real, isolated MSBuild workspaces.</summary>
 /// <param name="fixture">Restored workspace inputs.</param>
+[Trait("Category", "Integration")]
 public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : IClassFixture<WorkspaceFixture>
 {
     private const string Orders = "src/Orders/Orders.Application/Orders.Application.csproj";

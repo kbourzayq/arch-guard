@@ -13,6 +13,7 @@ namespace ArchitectureGuardian.Tests.Repositories;
 
 /// <summary>Verifies real workspace normalization, multi-project modules, portable identities and coverage propagation.</summary>
 /// <param name="fixture">Restored, isolated workspace fixtures.</param>
+[Trait("Category", "Integration")]
 public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : IClassFixture<WorkspaceFixture>
 {
     private const string Contracts = "src/Billing/Billing.Contracts/Billing.Contracts.csproj";

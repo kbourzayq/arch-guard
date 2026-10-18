@@ -8,6 +8,7 @@ namespace ArchitectureGuardian.Tests.Workspaces;
 
 /// <summary>Exercises real SDK design-time builds and verifies coverage, build context and cancellation.</summary>
 /// <param name="fixture">Restored, isolated workspace inputs shared within this test class.</param>
+[Trait("Category", "Integration")]
 public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : IClassFixture<WorkspaceFixture>
 {
     /// <summary>Checks every supported input format and source-based project reference loading.</summary>
