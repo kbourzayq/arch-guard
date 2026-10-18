@@ -6,6 +6,7 @@ using Xunit;
 namespace ArchitectureGuardian.ArchitectureTests.Dependencies;
 
 /// <summary>Enforces solution membership, inward project dependencies and Core's independence from adapters.</summary>
+[Trait("Category", "Integration")]
 public sealed class DependencyBoundaryTests
 {
     // Adding an adapter requires an explicit dependency decision here and in ADR 0001.

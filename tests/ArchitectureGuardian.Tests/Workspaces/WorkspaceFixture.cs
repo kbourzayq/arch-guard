@@ -40,12 +40,9 @@ public sealed class WorkspaceFixture : IAsyncLifetime
         }
 
         File.Copy(Path.Combine(repository.FullName, "global.json"), Path.Combine(Root, "global.json"));
-        await RestoreAsync("Fixture.slnx");
-        await RestoreAsync("ModularMonolith/ModularMonolith.slnx");
-        await RestoreAsync("Multi/Multi.csproj");
-        await RestoreAsync("SolutionReference.slnx");
-        await RestoreAsync("Generators/FixtureGenerator.csproj");
-        await RestoreAsync("GeneratorConsumer/GeneratorConsumer.csproj");
+        // Restore valid fixtures in one process; broken and unrestored inputs stay outside preparation.
+        // Each class keeps its own copied project files and intermediate outputs for mutation tests.
+        await RestoreAsync("Preparation.slnx");
         var build = await DotnetAsync("build", "Generators/FixtureGenerator.csproj", "--configuration", "Debug", "--no-restore");
         Assert.True(build.ExitCode == 0, build.Output + build.Error);
 

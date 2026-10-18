@@ -55,6 +55,19 @@ dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
 dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore
 ```
 
+For fast feedback after a build, run the unit tests without MSBuild integration:
+
+```sh
+dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj --configuration Release --no-build --no-restore --filter "Category!=Integration"
+```
+
+Use `--filter "Category=Integration"` for the MSBuild/Roslyn workspace, CLI process
+and evaluated dependency-boundary tests. The unfiltered command above runs both
+categories and remains required before publishing. Integration fixtures keep separate
+project copies per test class, but batch their valid-project restores through
+`tests/Fixtures/Workspaces/Preparation.slnx` to reduce process startup. Deliberately
+broken and unrestored fixtures are excluded from that preparation.
+
 The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs these checks on Linux,
 Windows and macOS for pull requests and pushes to `main`. Tests cover diagnostic
 identity and ordering, YAML validation, policy references, portable globs, inventory

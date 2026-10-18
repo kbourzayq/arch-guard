@@ -5,6 +5,7 @@ using Xunit;
 namespace ArchitectureGuardian.ArchitectureTests.Cli;
 
 /// <summary>Exercises the built CLI as a process to verify its public output and exit-code contract.</summary>
+[Trait("Category", "Integration")]
 public sealed class CliSmokeTests
 {
     /// <summary>Checks that no arguments and both help switches print usage successfully without errors.</summary>
