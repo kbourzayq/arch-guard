@@ -12,21 +12,23 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F07](https://github.com/kbourzayq/arch-guard/issues/7),
 [F08](https://github.com/kbourzayq/arch-guard/issues/8),
 [F09](https://github.com/kbourzayq/arch-guard/issues/9),
-[F10](https://github.com/kbourzayq/arch-guard/issues/10) and
-[F11](https://github.com/kbourzayq/arch-guard/issues/11): the .NET 10 solution, component
+[F10](https://github.com/kbourzayq/arch-guard/issues/10),
+[F11](https://github.com/kbourzayq/arch-guard/issues/11) and
+[F12](https://github.com/kbourzayq/arch-guard/issues/12): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
 AG001 enforcement of module and public-contract permissions, and AG002 enforcement
 of the configured layer matrix, AG003 module cycle detection, and CLI scan, inspect
-and explain commands, with compliant and deliberately violating reference solutions.
+and explain commands, with compliant and deliberately violating reference solutions,
+and a compiler-hosted AG001/AG002 analyzer with a semantic test harness.
 Remaining rules follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
 ## Architecture and flows
 
 The [architecture overview](docs/architecture/overview.md) explains component
-responsibilities, dependency direction and the planned solution/compiler paths.
+responsibilities, dependency direction and the solution/compiler paths.
 Mermaid diagrams show the [service execution](docs/shared-contracts.md#service-execution-flow),
 [coverage outcomes](docs/shared-contracts.md#outcome-flow) and
 [catalog-to-documentation flow](docs/rule-catalog.md#how-catalog-metadata-reaches-a-diagnostic).
@@ -42,7 +44,7 @@ permissions, selected rule IDs, severities and gates. The [JSON Schema](docs/sch
 supports editor validation; the loader additionally checks references and the
 resolver rejects unmatched or ambiguously mapped projects.
 
-The [repository policy](architecture.guardian.yaml) maps all six solution projects.
+The [repository policy](architecture.guardian.yaml) maps all eight solution projects.
 A [modular-monolith example](docs/examples/modular-monolith/architecture.guardian.yaml)
 shows contract-only permissions. These files can be loaded through `YamlPolicyLoader`
 and resolved against a supplied inventory or used directly by CLI `scan` and `inspect`.
@@ -148,6 +150,7 @@ origin evidence, deterministic traversal/cycles and extraction coverage.
 | `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG003 evaluation, gates, repository data and evidence graphs | None |
 | `ArchitectureGuardian.Analysis` | Reusable orchestration, trusted Roslyn/MSBuild workspace loading, repository normalization and dependency extraction | Core |
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
+| `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002 and AdditionalFiles policy | None; source-links pure Core semantics |
 | `ArchitectureGuardian.Cli` | System.CommandLine arguments, policy/service composition, diagnostics and exit codes | Analysis, Configuration |
 
 Rules return evidence-backed findings without severity. The analysis service applies
@@ -167,7 +170,8 @@ implement AG001–AG003 over `DependencyBuildResult`; AG004–AG006 remain plann
 [AG003 guide](docs/rule-catalog.md#ag003-module-cycles) and
 [policy composition example](docs/policy.md#host-composition) explain their scope and use.
 
-Adapters for compiler analyzers, MCP and reporting will be added when
-their features need them. [ADR 0001](docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md)
+The [compiler analyzer guide](docs/compiler-analyzer.md) describes package consumption,
+policy distribution, semantic scope and host validation. MCP and reporting adapters
+will be added when their features need them. [ADR 0001](docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md)
 records ports, dependency direction, the two analysis engines and compiler-host
 compatibility constraints.

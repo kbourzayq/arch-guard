@@ -16,10 +16,11 @@ records the decisions and constraints behind them.
 | Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Future host integrations |
 | CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
-| Other adapters | None | Compiler analyzer, MCP and reports |
+| Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002 semantic uses, AdditionalFiles snapshot | AG004–AG006, extended parity |
+| Other adapters | None | MCP and reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
 
-F01–F10 establish the current implementation. The
+F01–F12 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -39,6 +40,7 @@ flowchart LR
     Cli --> Configuration
     Analysis --> Core
     Configuration --> Core
+    Analyzers["ArchitectureGuardian.Analyzers<br/>Host compilation and AdditionalFiles<br/>Source-links pure Core semantics; no project references"]
 ```
 
 Core uses only the .NET base library. It performs no file, network or process access
@@ -98,6 +100,7 @@ nested implementation helpers stay with their owner.
 | Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
 | Configuration | `Yaml` | YAML parsing and loading |
 | Configuration | `Validation` | Configuration error contracts with source positions |
+| Analyzers | `Policies` / project root | Compiler snapshot validation / compilation-local semantic diagnostics |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
 Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories`, `Rules` and `Workspaces` folders and
@@ -176,7 +179,7 @@ repository MSBuild tasks. See [workspace loading](../workspace-loading.md) for i
 framework selection and restore behavior. Loading failures and missing projects remain
 coverage problems rather than disappearing from the graph.
 
-## Planned compiler-hosted flow
+## Compiler-hosted flow
 
 The compiler adapter has a different input source and lifecycle. It receives the
 current compilation from its host and maps only the facts available in that scope:
@@ -185,7 +188,7 @@ current compilation from its host and maps only the facts available in that scop
 flowchart TD
     Host["Compiler or IDE host<br/>Current Roslyn compilation"]
     Adapter["Compiler adapter — F12<br/>Map available facts to neutral inputs"]
-    Rules["Shared Core contracts and semantic rules<br/>AG004–AG006 — F13–F15"]
+    Rules["Source-linked Core dependency semantics<br/>AG001/AG002; AG004–AG006 planned"]
     Diagnostics["Compiler adapter<br/>Map findings to Roslyn diagnostics"]
 
     Host --> Adapter
@@ -198,9 +201,11 @@ restoring projects or launching CLI. One compilation cannot establish whole-solu
 module cycles. The solution engine owns that scope; sharing a rule ID does not grant
 the compiler adapter additional coverage.
 
-Compiler-host compatibility and a suitable target for shared Core code must be
-established before F12 ships. The current `net10.0` projects do not establish that
-compatibility. F16 will verify parity where both engines have sufficient context.
+The compiler adapter targets netstandard2.0 with a Roslyn 4.8 API floor and has no
+project references. It source-links the small pure Core `DependencySemantics` source
+for shared AG001/AG002 metadata and permissions. The [compiler guide](../compiler-analyzer.md)
+documents policy distribution, generated code, scope and host validation. The other
+projects remain net10.0. F16 will extend parity where both engines have sufficient context.
 
 ## Where to read next
 

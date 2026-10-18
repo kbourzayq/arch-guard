@@ -4,13 +4,13 @@ namespace ArchitectureGuardian.Core.Rules;
 /// <remarks>The catalog supplies metadata; the corresponding evaluation implementations are separate features.</remarks>
 public static class RuleCatalog
 {
-    private const string DocumentationRoot = "https://github.com/kbourzayq/arch-guard/blob/main/docs/rule-catalog.md#";
+    private const string DocumentationRoot = DependencySemantics.DocumentationRoot;
 
     /// <summary>Gets AG001, which checks policy-forbidden dependencies between logical modules.</summary>
-    public static RuleDescriptor ModuleDependencies { get; } = Create("AG001", "Module dependencies", "ag001-module-dependencies");
+    public static RuleDescriptor ModuleDependencies { get; } = Create(DependencySemantics.ModuleId, DependencySemantics.ModuleTitle, DependencySemantics.ModuleAnchor);
 
     /// <summary>Gets AG002, which checks policy-forbidden dependencies between architectural layers.</summary>
-    public static RuleDescriptor LayerDependencies { get; } = Create("AG002", "Layer dependencies", "ag002-layer-dependencies");
+    public static RuleDescriptor LayerDependencies { get; } = Create(DependencySemantics.LayerId, DependencySemantics.LayerTitle, DependencySemantics.LayerAnchor);
 
     /// <summary>Gets AG003, which checks cycles in the solution-wide logical module graph.</summary>
     public static RuleDescriptor ModuleCycles { get; } = Create("AG003", "Module cycles", "ag003-module-cycles");

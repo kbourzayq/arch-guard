@@ -35,3 +35,37 @@ jobs:
         run: dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
       - name: Test contracts, analysis, architecture boundaries and CLI
         run: dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore
+      - name: Pack compiler analyzer
+        run: dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-build --no-restore --output artifacts/analyzers
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: compiler-analyzer
+          path: artifacts/analyzers/*.nupkg
+
+  compiler-hosts:
+    name: Compiler host (${{ matrix.os }}, SDK ${{ matrix.sdk }})
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        sdk: ['8.0.100', '9.0.100', '10.0.301']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ matrix.sdk }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiler-analyzer
+          path: artifacts/analyzers
+      - name: Verify packaged analyzer in an isolated SDK consumer
+        run: python eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk ${{ matrix.sdk }}

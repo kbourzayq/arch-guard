@@ -223,3 +223,11 @@ message. Read errors and requested cancellation propagate to the host. Resolutio
 errors are `ArgumentException` values identifying an invalid inventory/policy pairing.
 Hosts must surface these failures rather than substitute empty policy or clean
 analysis results.
+
+## Compiler policy distribution
+
+The netstandard2.0 [compiler analyzer](compiler-analyzer.md) consumes an explicit,
+versioned assembly ownership snapshot through AdditionalFiles. It cannot load this
+YAML or discover the inventory in compiler callbacks. Maintain that snapshot from the
+resolved YAML policy outside the compiler; F12 does not include an automatic exporter.
+Roslyn editorconfig controls compiler severity independently of this file's CLI gate.

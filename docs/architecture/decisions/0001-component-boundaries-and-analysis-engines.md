@@ -61,7 +61,7 @@ also reference Analysis to invoke solution-wide services. Analysis must not refe
 CLI, MCP, reporting or the compiler adapter. Core must not depend on any adapter.
 
 The dependency tests evaluate MSBuild items, including imported references, in Debug
-and Release. They enforce the four-project graph and Core's lack of external
+and Release. They enforce the production-project graph and Core's lack of external
 dependencies. New production projects require an explicit entry in those checks and
 an update to this decision. This establishes a checkable boundary before rules exist.
 
@@ -294,29 +294,28 @@ See the [CLI guide](../../cli.md).
 
 ### Compiler-hosted engine
 
-A future compiler adapter (F12) runs inside Roslyn's compiler/IDE host. It receives
+The F12 compiler adapter runs inside Roslyn's compiler/IDE host. It receives
 the current compilation and semantic context from that host, converts available
-facts into Core data and maps evaluation results back to Roslyn diagnostics. It
+facts into neutral ownership identities and maps shared permission decisions to Roslyn diagnostics. It
 must not launch the CLI, open an MSBuildWorkspace, perform an independent restore or
 assume it can see every project in the solution.
 
-Its initial scope is semantic checks for AG004–AG006 where the current compilation
-has sufficient context. Whole-solution cycle detection remains with Analysis. The
+Its initial scope is semantic uses for AG001/AG002 with supplied assembly ownership;
+AG004–AG006 will add further compiler-safe checks. Whole-solution cycle detection remains with Analysis. The
 two engines share rule identities and pure evaluation where their inputs support
 the same semantics; missing context is explicit. F16 will verify parity on supported
 cases and document generated-code, incomplete-compilation and host limitations.
 
 All three initial projects target `net10.0`. This does **not** establish compiler-host
 compatibility: a `net10.0` Core assembly cannot simply be packaged with a broadly
-compatible analyzer. Before F12 ships, select and test the supported Roslyn/IDE host
-matrix and provide a compatible target for the shared pure Core surface (for example,
-multi-target Core for `netstandard2.0` and `net10.0`, or extract a compatible shared
-library). Keep .NET 10 workspace orchestration outside that surface. No analyzer
-project or host-compatibility claim is introduced by F01.
+compatible analyzer. F12 source-links the small portable permission surface into its netstandard2.0
+adapter and validates its Roslyn API floor and packaged SDK consumers. Keep .NET 10
+workspace orchestration outside that surface; see the F12 decision below.
 
 ## Consequences
 
-- Analysis owns Roslyn/MSBuild packages and Configuration owns the YAML package;
+- Analysis owns workspace/MSBuild packages, Analyzers owns compiler-only Roslyn
+  packages and Configuration owns the YAML package;
   Core remains independent of external packages. MCP and reporting remain planned.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
@@ -325,3 +324,26 @@ project or host-compatibility claim is introduced by F01.
 - CI enforces formatting, dependency direction and CLI behavior on all three desktop
   operating systems. Dependency lock files and the SDK policy make clean restores
   reproducible within the selected SDK patch band.
+
+## F12: portable compiler adapter
+
+`ArchitectureGuardian.Analyzers` targets netstandard2.0 and Roslyn 4.8.0. It has no
+project references and source-links only Core's internal `DependencySemantics.cs`:
+base-library-only AG001/AG002 metadata and direct permission decisions. Core compiles
+the same source, so its resolved policy and the compiler adapter share these semantics.
+This deliberately small source boundary avoids loading net10.0 Core, Analysis,
+Configuration, YAML or Workspaces dependencies in compiler hosts. Boundary tests
+require this explicit fifth production project; the analyzer release tracking files
+and locked packages keep compiler dependencies visible.
+
+The adapter validates an assembly ownership snapshot supplied through AdditionalFiles,
+then resolves bound type/member uses from its host compilation. It emits canonical
+AG001/AG002 meanings with per-use spans and leaves severity to Roslyn configuration.
+It never claims full repository coverage or evaluates cycles. Missing configuration
+produces operational AG000 errors. The solution engine keeps its existing grouped
+project-pair diagnostics, policy loading, coverage statuses and gates.
+
+The [compiler guide](../../compiler-analyzer.md) specifies snapshot distribution,
+source-linked semantics, generated-code behavior, cancellation, concurrent isolation,
+the supported compiler API baseline and package validation matrix. Interactive IDE
+UI testing remains separate from driver/workspace compatibility validation.
