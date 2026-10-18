@@ -19,7 +19,10 @@ public sealed class CliSmokeTests
         var result = await RunCli(argument is null ? [] : [argument]);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Usage: arch-guard", result.Output);
+        Assert.Contains("Usage:", result.Output);
+        Assert.Contains("scan", result.Output);
+        Assert.Contains("inspect", result.Output);
+        Assert.Contains("explain", result.Output);
         Assert.Empty(result.Error);
     }
 
@@ -30,7 +33,7 @@ public sealed class CliSmokeTests
         var result = await RunCli("--version");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Matches(@"^Architecture Guardian \d+\.\d+\.\d+\s*$", result.Output);
+        Assert.Matches(@"^\d+\.\d+\.\d+(?:[+.-]\S+)?\s*$", result.Output);
         Assert.Empty(result.Error);
     }
 
@@ -40,13 +43,13 @@ public sealed class CliSmokeTests
     [Theory]
     [InlineData("scan", null)]
     [InlineData("--unknown", null)]
-    [InlineData("--help", "scan")]
+    [InlineData("--unknown", "scan")]
     public async Task Unsupported_commands_do_not_report_success(string first, string? second)
     {
         var result = await RunCli(second is null ? [first] : [first, second]);
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("Unknown arguments:", result.Error);
+        Assert.NotEmpty(result.Error);
         Assert.Empty(result.Output);
     }
 

@@ -9,7 +9,8 @@ solutions cannot establish complete coverage. F05 adds the separate
 [dependency evidence graph](dependency-graph.md). F07 adds
 [AG001 evaluation](rule-catalog.md#ag001-module-dependencies), F08 adds
 [AG002 evaluation](rule-catalog.md#ag002-layer-dependencies), and F09 adds
-[AG003 cycle evaluation](rule-catalog.md#ag003-module-cycles). CLI scanning follows in F10.
+[AG003 cycle evaluation](rule-catalog.md#ag003-module-cycles). F10 adds
+[CLI `scan` and `inspect`](cli.md) using the same trusted loading service.
 
 ```sh
 dotnet restore path/to/Application.slnx
