@@ -11,14 +11,16 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F06](https://github.com/kbourzayq/arch-guard/issues/6),
 [F07](https://github.com/kbourzayq/arch-guard/issues/7),
 [F08](https://github.com/kbourzayq/arch-guard/issues/8),
-[F09](https://github.com/kbourzayq/arch-guard/issues/9) and
-[F10](https://github.com/kbourzayq/arch-guard/issues/10): the .NET 10 solution, component
+[F09](https://github.com/kbourzayq/arch-guard/issues/9),
+[F10](https://github.com/kbourzayq/arch-guard/issues/10) and
+[F11](https://github.com/kbourzayq/arch-guard/issues/11): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
 AG001 enforcement of module and public-contract permissions, and AG002 enforcement
 of the configured layer matrix, AG003 module cycle detection, and CLI scan, inspect
-and explain commands. Remaining rules follow in the
+and explain commands, with compliant and deliberately violating reference solutions.
+Remaining rules follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
 ## Architecture and flows
@@ -92,6 +94,9 @@ references and source evidence, same-module and same-layer dependencies, direct 
 severity, gates, deterministic findings and preservation of incomplete coverage.
 Cycle fixtures cover two-module, longer and disconnected cycles, repeated edges,
 shortest representative paths, self-dependencies and allowed contract edges.
+
+The [M1 demo](docs/m1-demo.md) provides runnable Clean Architecture and modular-monolith
+reference solutions, exact gate outcomes, and the labeled AG001–AG003 regression set.
 
 NuGet uses the public nuget.org source. Dependency lock files are committed. When
 intentionally changing dependencies, run `dotnet restore ArchitectureGuardian.slnx

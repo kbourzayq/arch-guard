@@ -1,0 +1,22 @@
+version: 1
+modules:
+  - id: Shop
+    projects: ["Shop.*/*.csproj"]
+layers:
+  - id: Domain
+    projects: ["Shop.Domain/*.csproj"]
+  - id: Application
+    projects: ["Shop.Application/*.csproj"]
+    allowedDependencies: [Domain]
+  - id: Infrastructure
+    projects: ["Shop.Infrastructure/*.csproj"]
+    allowedDependencies: [Domain]
+  - id: Host
+    projects: ["Shop.Host/*.csproj"]
+    allowedDependencies: [Application, Infrastructure, Domain]
+rules:
+  AG001: error
+  AG002: error
+  AG003: error
+gate:
+  failOn: error

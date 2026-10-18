@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Shop.Domain/Shop.Domain.csproj" />
+    <ProjectReference Include="../Shop.Infrastructure/Shop.Infrastructure.csproj" Condition="'$(Configuration)' == 'AG002' Or '$(Configuration)' == 'Incomplete'" />
+  </ItemGroup>
+</Project>

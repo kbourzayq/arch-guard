@@ -1,0 +1,19 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Compliant" />
+    <BuildType Name="AG001" />
+    <BuildType Name="AG002" />
+    <BuildType Name="AG003" />
+    <BuildType Name="Incomplete" />
+  </Configurations>
+  <Project Path="CleanArchitecture/Shop.Domain/Shop.Domain.csproj" />
+  <Project Path="CleanArchitecture/Shop.Application/Shop.Application.csproj" />
+  <Project Path="CleanArchitecture/Shop.Infrastructure/Shop.Infrastructure.csproj" />
+  <Project Path="CleanArchitecture/Shop.Host/Shop.Host.csproj" />
+  <Project Path="ModularMonolith/Billing.Contracts/Billing.Contracts.csproj" />
+  <Project Path="ModularMonolith/Billing.Application/Billing.Application.csproj" />
+  <Project Path="ModularMonolith/Orders.Contracts/Orders.Contracts.csproj" />
+  <Project Path="ModularMonolith/Orders.Application/Orders.Application.csproj" />
+</Solution>

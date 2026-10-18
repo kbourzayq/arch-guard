@@ -1,0 +1,26 @@
+version: 1
+modules:
+  - id: Billing
+    projects: ["Billing.*/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["Billing.Contracts/*.csproj"]
+    allowedDependencies: ["contract:Orders/api"]
+  - id: Orders
+    projects: ["Orders.*/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["Orders.Contracts/*.csproj"]
+    allowedDependencies: ["contract:Billing/api"]
+layers:
+  - id: Contracts
+    projects: ["*.Contracts/*.csproj"]
+  - id: Application
+    projects: ["*.Application/*.csproj"]
+    allowedDependencies: [Contracts]
+rules:
+  AG001: error
+  AG002: error
+  AG003: error
+gate:
+  failOn: error

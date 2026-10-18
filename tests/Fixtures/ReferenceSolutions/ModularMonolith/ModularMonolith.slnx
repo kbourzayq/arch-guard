@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Compliant" />
+    <BuildType Name="AG001" />
+    <BuildType Name="AG002" />
+    <BuildType Name="AG003" />
+    <BuildType Name="Incomplete" />
+  </Configurations>
+  <Project Path="Billing.Contracts/Billing.Contracts.csproj" />
+  <Project Path="Billing.Application/Billing.Application.csproj" />
+  <Project Path="Orders.Contracts/Orders.Contracts.csproj" />
+  <Project Path="Orders.Application/Orders.Application.csproj" />
+</Solution>
