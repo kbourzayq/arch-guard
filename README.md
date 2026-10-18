@@ -9,13 +9,14 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F04](https://github.com/kbourzayq/arch-guard/issues/4),
 [F05](https://github.com/kbourzayq/arch-guard/issues/5),
 [F06](https://github.com/kbourzayq/arch-guard/issues/6),
-[F07](https://github.com/kbourzayq/arch-guard/issues/7) and
-[F08](https://github.com/kbourzayq/arch-guard/issues/8): the .NET 10 solution, component
+[F07](https://github.com/kbourzayq/arch-guard/issues/7),
+[F08](https://github.com/kbourzayq/arch-guard/issues/8) and
+[F09](https://github.com/kbourzayq/arch-guard/issues/9): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
 AG001 enforcement of module and public-contract permissions, and AG002 enforcement
-of the configured layer matrix.
+of the configured layer matrix, plus AG003 module cycle detection.
 Remaining rules and CLI scanning follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
@@ -85,9 +86,11 @@ from external packages and adapters, and CLI process behavior. Warnings fail the
 Builds emit XML API documentation; missing documentation for public types or members
 also fails the build.
 
-AG001/AG002 tests cover approved contracts, configured layers, seeded forbidden
+AG001–AG003 tests cover approved contracts, configured layers, seeded forbidden
 references and source evidence, same-module and same-layer dependencies, direct directional permissions, rule selection, reporting
 severity, gates, deterministic findings and preservation of incomplete coverage.
+Cycle fixtures cover two-module, longer and disconnected cycles, repeated edges,
+shortest representative paths, self-dependencies and allowed contract edges.
 
 NuGet uses the public nuget.org source. Dependency lock files are committed. When
 intentionally changing dependencies, run `dotnet restore ArchitectureGuardian.slnx
@@ -119,7 +122,7 @@ origin evidence, deterministic traversal/cycles and extraction coverage.
 
 | Project | Responsibility | Direct production references |
 | --- | --- | --- |
-| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001/AG002 evaluation, gates, repository data and evidence graphs | None |
+| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG003 evaluation, gates, repository data and evidence graphs | None |
 | `ArchitectureGuardian.Analysis` | Reusable orchestration, trusted Roslyn/MSBuild workspace loading, repository normalization and dependency extraction | Core |
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
 | `ArchitectureGuardian.Cli` | Console entry point and composition | Analysis |
@@ -134,10 +137,11 @@ incomplete, failed or cancelled results regardless of their diagnostic count.
 See the [shared contracts guide](docs/shared-contracts.md) for composition, source
 coordinates, deterministic identities and cancellation behavior, and the
 [canonical rule catalog](docs/rule-catalog.md) for AG001–AG006. The catalog defines
-identities. `ModuleDependenciesRule` implements AG001 and `LayerDependenciesRule`
-implements AG002 over `DependencyBuildResult`; AG003–AG006 remain planned. The
+identities. `ModuleDependenciesRule`, `LayerDependenciesRule` and `ModuleCyclesRule`
+implement AG001–AG003 over `DependencyBuildResult`; AG004–AG006 remain planned. The
 [AG001 guide](docs/rule-catalog.md#ag001-module-dependencies),
-[AG002 guide](docs/rule-catalog.md#ag002-layer-dependencies) and
+[AG002 guide](docs/rule-catalog.md#ag002-layer-dependencies),
+[AG003 guide](docs/rule-catalog.md#ag003-module-cycles) and
 [policy composition example](docs/policy.md#host-composition) explain their scope and use.
 
 Adapters for compiler analyzers, MCP and reporting will be added when

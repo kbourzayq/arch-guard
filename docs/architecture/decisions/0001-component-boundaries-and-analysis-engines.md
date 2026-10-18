@@ -9,7 +9,8 @@
   [F05](https://github.com/kbourzayq/arch-guard/issues/5),
   [F06](https://github.com/kbourzayq/arch-guard/issues/6),
   [F07](https://github.com/kbourzayq/arch-guard/issues/7),
-  [F08](https://github.com/kbourzayq/arch-guard/issues/8)
+  [F08](https://github.com/kbourzayq/arch-guard/issues/8),
+  [F09](https://github.com/kbourzayq/arch-guard/issues/9)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -232,8 +233,8 @@ The supplied repository and graph define scope. Out-of-inventory evidence preven
 completed coverage; extraction status/issues and partial findings are preserved.
 Rule selection controls enabled state using v1's existing explicit rule IDs.
 Severity and gates remain with the existing policies and service orchestration.
-No package, component or host dependency is introduced. Cycle rules and CLI
-scanning remain later features; F08 adds the separate layer check below. See the
+No package, component or host dependency is introduced. F08 and F09 add the
+separate layer and cycle checks below; CLI scanning remains planned. See the
 [AG001 guide](../../rule-catalog.md#ag001-module-dependencies).
 
 ### F08 layer-dependency evaluation
@@ -249,6 +250,20 @@ retains source evidence and upstream coverage, and reports unmapped project evid
 as incomplete coverage. Rule selection, severity and gates reuse the existing
 contracts. No schema, package, project or component dependency changes are required.
 See the [AG002 guide](../../rule-catalog.md#ag002-layer-dependencies).
+
+### F09 module-cycle evaluation
+
+Core's `ModuleCyclesRule` implements AG003 over `DependencyBuildResult`, rebuilding
+module edges from original project ownership. It excludes intra-module dependencies
+and external metadata; allowed module/contract edges still participate. Iterative
+strongly connected component discovery and breadth first path selection report one
+reproducible, evidence-backed representative cycle per component without recursive
+traversal or enumeration of every simple cycle.
+
+Upstream coverage, issues and available findings are preserved. Unmapped project
+evidence prevents completed coverage. Selection, severity and gates use the existing
+contracts. No schema, package, project or component dependency changes are required.
+See the [AG003 guide](../../rule-catalog.md#ag003-module-cycles).
 
 ### Compiler-hosted engine
 

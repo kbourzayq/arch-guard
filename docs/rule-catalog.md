@@ -1,7 +1,7 @@
 # Canonical core rule catalog
 
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
-`RuleCatalog`. AG001 and AG002 are implemented in F07/F08; remaining implementations
+`RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
 arrive in their linked features. CLI scanning and compiler analysis remain planned.
 
 ## How catalog metadata reaches a diagnostic
@@ -10,7 +10,7 @@ arrive in their linked features. CLI scanning and compiler analysis remain plann
 provides an ID, a title and a documentation URL. The catalog does not fetch a remote
 rule list, read this Markdown file, or contain the executable checking logic.
 
-AG001 and AG002 use this implemented evaluation flow; host reporting adapters remain planned:
+AG001–AG003 use this implemented evaluation flow; host reporting adapters remain planned:
 
 ```mermaid
 flowchart TD
@@ -134,6 +134,46 @@ Severity and gates apply separately after discovery. See the
 
 Detect cycles across logical modules using the solution-wide dependency graph.
 Implementation: [F09](https://github.com/kbourzayq/arch-guard/issues/9).
+
+`ModuleCyclesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
+It rebuilds direct module edges from each fact's original project ownership, so
+project, semantic and aggregated graphs yield the same results. Repeated edges
+and facts across graph levels are merged. External metadata has no repository
+module and is excluded. The rule computes no transitive closure.
+
+Self-dependencies within one module are excluded, including references between
+its implementation and contract projects, reciprocal project references within
+that module and explicit aggregate self edges supported by intra-module evidence.
+AG003 detects cycles **between distinct modules**. Allowed `module:ID` and
+`contract:MODULE/ID` dependencies still participate: permission to depend on a
+contract does not exempt that edge from cycle detection. For example,
+Billing.Application → Orders.Application → Billing.Contracts is a module cycle
+Billing → Orders → Billing even though its project graph is acyclic.
+
+Iterative strongly connected component discovery yields one finding per cyclic
+component, including disconnected components. It avoids enumerating every simple
+cycle. Each finding reports a closed, directed path such as `A → C → B → A`,
+not a sorted member list. Starting at the component's ordinal-first module ID,
+breadth first search selects a shortest return path; ordinal target module IDs
+resolve equal-length ties. A representative path may omit other members of a
+complex component. Input order, repeated edges and graph identity hashes do not
+change the selected path or finding identity for the same snapshot.
+
+Findings target the path's first module and retain all distinct original reference
+and semantic facts for the chosen hops, with available source spans. Evidence for
+other edges in the component is excluded. The first located fact in canonical
+order supplies the primary location; reference-only cycles have no invented source
+line. Remediation suggests removing or inverting an edge or extracting a shared
+contract into an independent module.
+
+Rule selection, reporting severity and gates use the existing
+[composition APIs](policy.md#host-composition). The supplied inventory and graph
+define scope; upstream incomplete, failed or cancelled coverage and available
+findings survive evaluation. Unmapped project evidence produces an AG003
+`dependency-project-unmapped` issue and prevents completed coverage. Missing context
+cannot become a clean completed result. Graph construction and traversal observe
+cancellation. Whole-module cycles require solution-wide scope; a single compiler
+invocation cannot establish it. CLI scanning remains F10.
 
 ## AG004: Implementation boundaries
 

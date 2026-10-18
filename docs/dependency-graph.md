@@ -84,7 +84,7 @@ fact. Its source coordinates are one-based with an exclusive end, as defined by
 the [shared contracts](shared-contracts.md#locations-immutability-and-reproducibility). Project
 references retain both project paths without inventing a source line for evaluated
 or imported declarations. Semantic facts retain the bound source symbol and actual
-syntax span. AG001 and AG002 reuse these facts in their violation evidence.
+syntax span. AG001–AG003 reuse these facts in their violation evidence.
 
 For example, Orders referencing Billing.Infrastructure creates a project edge with
 the reference path, and using `VisibleStore` creates semantic edges with the source
@@ -99,12 +99,12 @@ Aggregation includes direct edges only. It suppresses intra-module/intra-layer
 self edges and excludes external metadata. It does not infer transitive permissions,
 evaluate rules, assign severities or render reports.
 
-`ModuleDependenciesRule` and `LayerDependenciesRule` evaluate the complete
+`ModuleDependenciesRule`, `LayerDependenciesRule` and `ModuleCyclesRule` evaluate the complete
 `DependencyBuildResult` separately from extraction. They check original project
 pairs at any graph level, deduplicate facts and preserve upstream status/issues.
 See the [AG001 guide](rule-catalog.md#ag001-module-dependencies),
-[AG002 guide](rule-catalog.md#ag002-layer-dependencies)
-and [policy composition example](policy.md#host-composition).
+[AG002 guide](rule-catalog.md#ag002-layer-dependencies),
+[AG003 guide](rule-catalog.md#ag003-module-cycles) and [policy composition example](policy.md#host-composition).
 
 ## Stable identities and ordering
 
@@ -130,6 +130,12 @@ many simple cycles. Each component and the component list have deterministic ord
 ordering; the member order is not an executable cycle path. Consumers can select the
 corresponding edges and their evidence from the graph. Traversal and cycle discovery
 are iterative and support cancellation.
+
+AG003 rebuilds module edges from original project evidence, excludes intra-module
+dependencies and reports one shortest cycle through each cyclic component's
+ordinal-first module. Allowed contract edges participate. Each finding contains the
+closed path and distinct reference/semantic facts for its hops. See the
+[cycle semantics](rule-catalog.md#ag003-module-cycles).
 
 ## Coverage
 
