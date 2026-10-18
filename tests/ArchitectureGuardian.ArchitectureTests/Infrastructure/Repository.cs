@@ -13,8 +13,18 @@ internal static class Repository
     /// <returns>The process exit code, standard output and standard error after completion.</returns>
     /// <exception cref="InvalidOperationException">The .NET process cannot be started.</exception>
     /// <exception cref="TimeoutException">The process exceeds the 30-second test deadline and is terminated.</exception>
-    public static async Task<CommandResult> Dotnet(params string[] arguments)
+    public static Task<CommandResult> Dotnet(params string[] arguments) => Dotnet(TimeSpan.FromSeconds(30), arguments);
+
+    /// <summary>Executes the .NET CLI with an explicit deadline for integration scenarios that perform workspace evaluation.</summary>
+    /// <param name="timeoutDuration">The positive process deadline; the entire process tree is terminated when it expires.</param>
+    /// <param name="arguments">Individual arguments passed without shell interpretation.</param>
+    /// <returns>The process exit code, standard output and standard error after completion.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The deadline is not positive.</exception>
+    /// <exception cref="InvalidOperationException">The .NET process cannot be started.</exception>
+    /// <exception cref="TimeoutException">The process exceeds its test deadline and is terminated.</exception>
+    public static async Task<CommandResult> Dotnet(TimeSpan timeoutDuration, params string[] arguments)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeoutDuration, TimeSpan.Zero);
         var startInfo = new ProcessStartInfo("dotnet")
         {
             WorkingDirectory = Root,
@@ -33,7 +43,7 @@ internal static class Repository
         // Drain both pipes concurrently so a child process cannot block while waiting for an unread buffer.
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var timeout = new CancellationTokenSource(timeoutDuration);
 
         try
         {
@@ -43,7 +53,7 @@ internal static class Repository
         {
             // Stop child processes too, so a timed-out build cannot outlive its test.
             process.Kill(entireProcessTree: true);
-            throw new TimeoutException($"dotnet {string.Join(' ', arguments)} timed out.");
+            throw new TimeoutException($"dotnet {string.Join(' ', arguments)} timed out after {timeoutDuration}.");
         }
 
         return new CommandResult(process.ExitCode, await output, await error);
