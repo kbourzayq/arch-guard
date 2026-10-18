@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <DefineConstants Condition="'$(Configuration)' == 'AG001'">$(DefineConstants);AG001</DefineConstants>
+    <DefineConstants Condition="'$(Configuration)' == 'AG002'">$(DefineConstants);AG002</DefineConstants>
+    <DefineConstants Condition="'$(Configuration)' == 'AG003'">$(DefineConstants);AG003</DefineConstants>
+    <DefineConstants Condition="'$(Configuration)' == 'Incomplete'">$(DefineConstants);AG001;AG002;INCOMPLETE</DefineConstants>
+  </PropertyGroup>
+</Project>

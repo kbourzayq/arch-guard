@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Orders.Contracts/Orders.Contracts.csproj" />
+    <ProjectReference Include="../Billing.Contracts/Billing.Contracts.csproj" />
+    <ProjectReference Include="../Billing.Application/Billing.Application.csproj" Condition="'$(Configuration)' == 'AG001' Or '$(Configuration)' == 'Incomplete'" />
+    <Reference Include="Unavailable.Assembly" Condition="'$(Configuration)' == 'Incomplete'">
+      <HintPath>unavailable.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
