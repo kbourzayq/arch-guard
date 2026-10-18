@@ -261,19 +261,19 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         }
     }
 
-    /// <summary>Records selected extension Deconstruct methods, including nested, foreach and positional-pattern bindings.</summary>
-    /// <param name="statement">A successfully bound deconstruction form.</param>
-    /// <param name="nested">Whether a second compiler-selected Deconstruct method is required.</param>
-    [Theory]
-    [InlineData("var (first, second) = \"x\";", false)]
-    [InlineData("int first, second; (first, second) = \"x\";", false)]
-    [InlineData("var (first, (second, third)) = \"x\";", true)]
-    [InlineData("foreach (var (first, second) in new[] { \"x\" }) { }", false)]
-    [InlineData("foreach (var (first, (second, third)) in new[] { \"x\" }) { }", true)]
-    [InlineData("var matched = \"x\" is (var first, var second);", false)]
-    [InlineData("var matched = \"x\" is (var first, (var second, var third));", true)]
-    public async Task Deconstruction_preserves_compiler_selected_methods_and_evidence(string statement, bool nested)
+    /// <summary>Checks each deconstruction form's selected methods and source evidence in one shared compilation.</summary>
+    [Fact]
+    public async Task Deconstruction_preserves_compiler_selected_methods_and_evidence()
     {
+        (string Statement, bool Nested)[] cases = [
+            ("var (first, second) = \"x\";", false),
+            ("int first, second; (first, second) = \"x\";", false),
+            ("var (first, (second, third)) = \"x\";", true),
+            ("foreach (var (first, second) in new[] { \"x\" }) { }", false),
+            ("foreach (var (first, (second, third)) in new[] { \"x\" }) { }", true),
+            ("var matched = \"x\" is (var first, var second);", false),
+            ("var matched = \"x\" is (var first, (var second, var third));", true),
+        ];
         var root = Path.Combine(fixture.Root, "ModularMonolith");
         var sourcePath = Path.Combine(root, "src/Billing/Billing.Application/Deconstruction.cs");
         var targetPath = Path.Combine(root, "src/Billing/Billing.Domain/Deconstruction.cs");
@@ -294,31 +294,43 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                     public static void Deconstruct(this double value, out int first, out int second) { first = 1; second = 2; }
                 }
                 """);
+            // Each case has its own method scope and source line, but shares one design-time build.
+            var methods = cases.Select((item, index) => $"    public void Run{index}() {{ {item.Statement} }}");
             await File.WriteAllTextAsync(sourcePath, $$"""
                 using Helpers;
                 namespace Billing.Application;
                 public class DeconstructionConsumer
                 {
-                    public void Run() { {{statement}} }
+                {{string.Join("\n", methods)}}
                 }
                 """);
             var result = await BuildAsync();
             Complete(result);
             var graph = result.Graph!;
-            foreach (var target in nested ? new[] { "Helpers.Extensions", "Helpers.NestedExtensions" } : new[] { "Helpers.Extensions" })
+            for (var index = 0; index < cases.Length; index++)
             {
-                var edge = Assert.Single(graph.Edges, edge => edge.Kind == DependencyKind.Type
-                    && edge.Source.Name == "Billing.Application.DeconstructionConsumer" && edge.Target.Name == target);
-                var evidence = edge.Evidence.First(evidence => evidence.TargetSymbol?.Contains(".Deconstruct(", StringComparison.Ordinal) == true);
-                Assert.Contains("DeconstructionConsumer.Run", evidence.SourceSymbol);
-                Assert.Equal("src/Billing/Billing.Application/Deconstruction.cs", evidence.Fact.Location!.Path);
-                Assert.Equal(5, evidence.Fact.Location.StartLine);
-                Assert.Equal("src/Billing/Billing.Domain/Billing.Domain.csproj", evidence.TargetProject);
-                Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Namespace
-                    && edge.Source.Name == "Billing.Application" && edge.Target.Name == "Helpers" && edge.Evidence.Contains(evidence));
-                Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Assembly && edge.Evidence.Contains(evidence));
-                Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Layer
-                    && edge.Source.Name == "Application" && edge.Target.Name == "Domain" && edge.Evidence.Contains(evidence));
+                var sourceSymbol = $"DeconstructionConsumer.Run{index}(";
+                foreach (var target in cases[index].Nested ? new[] { "Helpers.Extensions", "Helpers.NestedExtensions" } : new[] { "Helpers.Extensions" })
+                {
+                    var edge = Assert.Single(graph.Edges, edge => edge.Kind == DependencyKind.Type
+                        && edge.Source.Name == "Billing.Application.DeconstructionConsumer" && edge.Target.Name == target);
+                    var evidence = edge.Evidence.First(evidence => evidence.TargetSymbol?.Contains(".Deconstruct(", StringComparison.Ordinal) == true
+                        && evidence.SourceSymbol?.Contains(sourceSymbol, StringComparison.Ordinal) == true);
+                    Assert.Equal("src/Billing/Billing.Application/Deconstruction.cs", evidence.Fact.Location!.Path);
+                    Assert.Equal(5 + index, evidence.Fact.Location.StartLine);
+                    Assert.Equal("src/Billing/Billing.Domain/Billing.Domain.csproj", evidence.TargetProject);
+                    Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Namespace
+                        && edge.Source.Name == "Billing.Application" && edge.Target.Name == "Helpers" && edge.Evidence.Contains(evidence));
+                    Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Assembly && edge.Evidence.Contains(evidence));
+                    Assert.Contains(graph.Edges, edge => edge.Kind == DependencyKind.Layer
+                        && edge.Source.Name == "Application" && edge.Target.Name == "Domain" && edge.Evidence.Contains(evidence));
+                }
+
+                if (!cases[index].Nested)
+                {
+                    Assert.DoesNotContain(graph.Edges.Where(edge => edge.Kind == DependencyKind.Type && edge.Target.Name == "Helpers.NestedExtensions")
+                        .SelectMany(edge => edge.Evidence), evidence => evidence.SourceSymbol?.Contains(sourceSymbol, StringComparison.Ordinal) == true);
+                }
             }
 
             Assert.DoesNotContain(graph.Edges, edge => edge.Kind == DependencyKind.Type
