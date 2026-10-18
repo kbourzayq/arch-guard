@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using ArchitectureGuardian.Core.Rules;
 
 namespace ArchitectureGuardian.Core.Policies;
 
@@ -75,9 +76,7 @@ public sealed class ResolvedPolicy
         var source = GetProject(sourceProject);
         var target = GetProject(targetProject);
         var module = _policy.Modules.Single(module => module.Id == source.ModuleId);
-        return source.ModuleId == target.ModuleId
-            || module.AllowedDependencies.Contains("module:" + target.ModuleId, StringComparer.Ordinal)
-            || target.ContractId is not null && module.AllowedDependencies.Contains($"contract:{target.ModuleId}/{target.ContractId}", StringComparer.Ordinal);
+        return DependencySemantics.AllowsModule(source.ModuleId, target.ModuleId, target.ContractId, module.AllowedDependencies);
     }
 
     /// <summary>Tests AG002 permissions for an already-discovered direct project dependency.</summary>
@@ -89,8 +88,8 @@ public sealed class ResolvedPolicy
     {
         var source = GetProject(sourceProject);
         var target = GetProject(targetProject);
-        return source.LayerId == target.LayerId || _policy.Layers.Single(layer => layer.Id == source.LayerId)
-            .AllowedDependencies.Contains(target.LayerId, StringComparer.Ordinal);
+        return DependencySemantics.AllowsLayer(source.LayerId, target.LayerId,
+            _policy.Layers.Single(layer => layer.Id == source.LayerId).AllowedDependencies);
     }
 
     private ProjectPolicyMapping GetProject(string path)

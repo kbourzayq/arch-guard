@@ -4,9 +4,11 @@
     <Project Path="src/ArchitectureGuardian.Configuration/ArchitectureGuardian.Configuration.csproj" />
     <Project Path="src/ArchitectureGuardian.Analysis/ArchitectureGuardian.Analysis.csproj" />
     <Project Path="src/ArchitectureGuardian.Cli/ArchitectureGuardian.Cli.csproj" />
+    <Project Path="src/ArchitectureGuardian.Analyzers/ArchitectureGuardian.Analyzers.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ArchitectureGuardian.ArchitectureTests/ArchitectureGuardian.ArchitectureTests.csproj" />
     <Project Path="tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj" />
+    <Project Path="tests/ArchitectureGuardian.Analyzers.Tests/ArchitectureGuardian.Analyzers.Tests.csproj" />
   </Folder>
 </Solution>

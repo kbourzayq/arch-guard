@@ -3,7 +3,8 @@
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
 `RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
 arrive in their linked features. F10 exposes CLI `scan` and local `explain <rule-id>`;
-compiler analysis remains planned. See the [CLI guide](cli.md).
+F12 adds compiler AG001/AG002 semantic uses. See the [CLI guide](cli.md) and
+[compiler guide](compiler-analyzer.md).
 
 ## How catalog metadata reaches a diagnostic
 
@@ -195,3 +196,12 @@ Implementation: [F15](https://github.com/kbourzayq/arch-guard/issues/15).
 Severity is applied separately through `SeverityPolicy`. Rule metadata contains no
 quality-gate decision. Compiler-hosted checks must observe the scope constraints in
 [ADR 0001](architecture/decisions/0001-component-boundaries-and-analysis-engines.md).
+
+## Compiler scope
+
+The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002 for bound semantic
+uses between assemblies present in its supplied ownership snapshot. It shares Core's
+IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
+spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable
+compiler configuration and is an operational adapter diagnostic, outside AG001–AG006.
+Compiler results do not establish whole-solution coverage or cycle compliance.

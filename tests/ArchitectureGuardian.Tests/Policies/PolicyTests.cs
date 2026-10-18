@@ -214,7 +214,7 @@ public sealed class PolicyTests
         var repositoryPolicy = await loader.LoadAsync(Path.Combine(root, "architecture.guardian.yaml"));
         var projects = XDocument.Load(Path.Combine(root, "ArchitectureGuardian.slnx")).Descendants("Project")
             .Select(project => project.Attribute("Path")!.Value);
-        Assert.Equal(6, new ResolvedPolicy(repositoryPolicy, projects).Projects.Count);
+        Assert.Equal(8, new ResolvedPolicy(repositoryPolicy, projects).Projects.Count);
         var example = await loader.LoadAsync(Path.Combine(root, "docs", "examples", "modular-monolith", "architecture.guardian.yaml"));
         Assert.Equal(3, new ResolvedPolicy(example, ProjectPaths).Projects.Count);
     }

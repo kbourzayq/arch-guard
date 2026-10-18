@@ -16,6 +16,7 @@ public sealed class DependencyBoundaryTests
         ["ArchitectureGuardian.Configuration"] = ["ArchitectureGuardian.Core"],
         ["ArchitectureGuardian.Analysis"] = ["ArchitectureGuardian.Core"],
         ["ArchitectureGuardian.Cli"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration"],
+        ["ArchitectureGuardian.Analyzers"] = [],
     };
 
     /// <summary>Requires every production project to have an explicit dependency decision and belong to the solution.</summary>
@@ -44,15 +45,18 @@ public sealed class DependencyBoundaryTests
     [InlineData("ArchitectureGuardian.Analysis", "Release")]
     [InlineData("ArchitectureGuardian.Cli", "Debug")]
     [InlineData("ArchitectureGuardian.Cli", "Release")]
+    [InlineData("ArchitectureGuardian.Analyzers", "Debug")]
+    [InlineData("ArchitectureGuardian.Analyzers", "Release")]
     public async Task Evaluated_references_respect_dependency_direction(string project, string configuration)
     {
         var path = Path.Combine("src", project, $"{project}.csproj");
         var result = await Repository.Dotnet("msbuild", path, "-nologo", $"-property:Configuration={configuration}",
-            "-getProperty:TargetFramework", "-getItem:ProjectReference,PackageReference,Reference,FrameworkReference");
+            "-getProperty:TargetFramework", "-getItem:ProjectReference,PackageReference,Reference,FrameworkReference,Compile");
 
         Assert.True(result.ExitCode == 0, result.Output + result.Error);
         using var document = JsonDocument.Parse(result.Output);
-        Assert.Equal("net10.0", document.RootElement.GetProperty("Properties").GetProperty("TargetFramework").GetString());
+        Assert.Equal(project == "ArchitectureGuardian.Analyzers" ? "netstandard2.0" : "net10.0",
+            document.RootElement.GetProperty("Properties").GetProperty("TargetFramework").GetString());
 
         var items = document.RootElement.GetProperty("Items");
         var references = items.GetProperty("ProjectReference").EnumerateArray()
@@ -62,6 +66,21 @@ public sealed class DependencyBoundaryTests
             .Select(name => Path.Combine(Repository.Root, "src", name, $"{name}.csproj"))
             .Order().ToArray();
         Assert.Equal(expected, references);
+
+        if (project == "ArchitectureGuardian.Analyzers")
+        {
+            var sourceLinks = items.GetProperty("Compile").EnumerateArray()
+                .Select(item => item.GetProperty("FullPath").GetString()!)
+                .Where(path => !path.StartsWith(Path.Combine(Repository.Root, "src", project) + Path.DirectorySeparatorChar, StringComparison.Ordinal));
+            Assert.Equal([Path.Combine(Repository.Root, "src", "ArchitectureGuardian.Core", "Rules", "DependencySemantics.cs")], sourceLinks);
+            var packages = items.GetProperty("PackageReference").EnumerateArray()
+                .Where(item => item.GetProperty("Identity").GetString() != "NETStandard.Library").ToArray();
+            Assert.Equal(["Microsoft.CodeAnalysis.Analyzers", "Microsoft.CodeAnalysis.CSharp"],
+                packages.Select(item => item.GetProperty("Identity").GetString()).Order());
+            Assert.All(packages, item => Assert.Equal("all", item.GetProperty("PrivateAssets").GetString()));
+            Assert.Equal("4.8.0", packages.Single(item => item.GetProperty("Identity").GetString() == "Microsoft.CodeAnalysis.CSharp")
+                .GetProperty("Version").GetString());
+        }
 
         if (project == "ArchitectureGuardian.Core")
         {
