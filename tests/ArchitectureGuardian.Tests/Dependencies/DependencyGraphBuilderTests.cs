@@ -1,11 +1,13 @@
 using System.Xml.Linq;
 using ArchitectureGuardian.Analysis.Dependencies;
+using ArchitectureGuardian.Analysis.Orchestration;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Configuration.Yaml;
 using ArchitectureGuardian.Core.Analysis;
 using ArchitectureGuardian.Core.Dependencies;
 using ArchitectureGuardian.Core.Diagnostics;
 using ArchitectureGuardian.Core.Policies;
+using ArchitectureGuardian.Core.Rules;
 using ArchitectureGuardian.Tests.Workspaces;
 using Xunit;
 
@@ -52,9 +54,13 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         // BuildAsync has disposed the workspace: the graph and policy remain usable without host objects.
         Assert.True(result.Repository!.ResolvedPolicy.AllowsModuleDependency(Orders, Contracts));
         Assert.NotEmpty(graph.Traverse(type.Source.Id));
+        var evaluation = await EvaluateModulesAsync(result);
+        Assert.True(evaluation.IsComplete);
+        Assert.Empty(evaluation.Diagnostics);
+        Assert.True(result.Repository.Policy.Gate.Passes(evaluation));
     }
 
-    /// <summary>Traces a forbidden project and semantic dependency without performing rule evaluation or rendering.</summary>
+    /// <summary>Enforces a seeded forbidden reference using the graph's project and semantic evidence.</summary>
     [Fact]
     public async Task Forbidden_dependency_can_be_traced_to_project_and_source_origins()
     {
@@ -80,12 +86,36 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 && evidence.ProjectReference == Infrastructure);
             Assert.Contains(module.Evidence, evidence => evidence.SourceProject == Orders && evidence.TargetProject == Infrastructure
                 && evidence.SourceSymbol?.Contains("Forbidden", StringComparison.Ordinal) == true && evidence.Fact.Location!.Path.EndsWith("Forbidden.cs", StringComparison.Ordinal));
+            var evaluation = await EvaluateModulesAsync(result);
+            Assert.True(evaluation.IsComplete);
+            // The SDK also exposes implementation references transitively to the compilation.
+            // Every forbidden pair is reported, while contract facts stay out of those findings.
+            Assert.All(evaluation.Diagnostics, item =>
+            {
+                Assert.Equal("Orders", item.Target.Module);
+                Assert.Contains("module 'Billing'", item.Message);
+                Assert.DoesNotContain(Contracts, item.Message);
+            });
+            var diagnostic = Assert.Single(evaluation.Diagnostics, item => item.Message.Contains(Infrastructure, StringComparison.Ordinal));
+            Assert.Equal("AG001", diagnostic.RuleId);
+            Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+            Assert.Equal("Orders", diagnostic.Target.Module);
+            Assert.Contains("module 'Billing'", diagnostic.Message);
+            Assert.Contains(Infrastructure, diagnostic.Message);
+            Assert.Contains(diagnostic.Evidence, fact => fact.Description.Contains(Infrastructure, StringComparison.Ordinal));
+            Assert.Contains(diagnostic.Evidence, fact => fact.Location?.Path.EndsWith("Forbidden.cs", StringComparison.Ordinal) == true
+                && fact.Description.Contains("VisibleStore", StringComparison.Ordinal));
+            Assert.DoesNotContain(diagnostic.Evidence, fact => fact.Description.Contains("IInvoice", StringComparison.Ordinal));
+            Assert.Equal("src/Orders/Orders.Application/Forbidden.cs", diagnostic.Location!.Path);
+            Assert.False(result.Repository.Policy.Gate.Passes(evaluation));
         }
         finally
         {
             await File.WriteAllTextAsync(projectPath, original);
             File.Delete(sourcePath);
             File.Delete(targetPath);
+            // Restore the original asset graph as well as the project file for later fixture consumers.
+            await fixture.RestoreAsync(Path.Combine(root, "ModularMonolith.slnx"));
         }
     }
 
@@ -474,6 +504,16 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
 
     private static void Complete(DependencyBuildResult result) => Assert.True(result.Status == AnalysisStatus.Completed,
         string.Join(Environment.NewLine, result.Issues.Select(issue => $"{issue.Code}: {issue.Message}")));
+
+    private static Task<AnalysisResult> EvaluateModulesAsync(DependencyBuildResult context)
+    {
+        // This integration covers F07 only; the fixture also declares the still-unavailable AG002/AG003.
+        var policy = context.Repository!.Policy;
+        var selection = new ArchitecturePolicy(policy.Modules, policy.Layers,
+            new Dictionary<string, DiagnosticSeverity> { ["AG001"] = policy.SeverityPolicy.GetSeverity("AG001") });
+        var rules = selection.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule()]);
+        return new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, selection.SeverityPolicy));
+    }
 
     private static string[] Snapshot(DependencyGraph graph) => [.. graph.Nodes.Select(node => node.Id),
         .. graph.Edges.SelectMany(edge => new[] { edge.Id }.Concat(edge.Evidence.Select(evidence =>

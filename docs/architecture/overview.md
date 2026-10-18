@@ -12,14 +12,14 @@ records the decisions and constraints behind them.
 
 | Area | Current implementation | Planned work |
 | --- | --- | --- |
-| Core contracts | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model and evidence graph | Rule implementations |
+| Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001 module evaluation | AG002–AG006 implementations |
 | Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Scanning composition |
 | CLI | Help, version and `load` with explicit trust, coverage errors and cancellation | Scan, inspect and explain commands |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Host/CLI composition |
 | Other adapters | None | Compiler analyzer, MCP and reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines and host exit-code mapping |
 
-F01–F06 establish the current implementation. The
+F01–F07 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -58,6 +58,7 @@ The service interface and its implementation live on opposite sides of this boun
 | Normalize workspace declarations and logical ownership | Analysis / Core | [`RepositoryModelBuilder`](../../src/ArchitectureGuardian.Analysis/Repositories/RepositoryModelBuilder.cs), [`RepositoryModel`](../../src/ArchitectureGuardian.Core/Repositories/RepositoryModel.cs) |
 | Extract dependencies and retain origin evidence | Analysis / Core | [`DependencyGraphBuilder`](../../src/ArchitectureGuardian.Analysis/Dependencies/DependencyGraphBuilder.cs), [`DependencyGraph`](../../src/ArchitectureGuardian.Core/Dependencies/DependencyGraph.cs) |
 | Define a check over neutral input | Core | [`IArchitectureRule<TContext>`](../../src/ArchitectureGuardian.Core/Rules/IArchitectureRule.cs) |
+| Evaluate module dependencies and exact contract permissions | Core | [`ModuleDependenciesRule`](../../src/ArchitectureGuardian.Core/Rules/ModuleDependenciesRule.cs) |
 | Identify built-in checks and their help URLs | Core | [`RuleCatalog`](../../src/ArchitectureGuardian.Core/Rules/RuleCatalog.cs) |
 | Load YAML through a neutral port | Core / Configuration | [`IPolicyLoader`](../../src/ArchitectureGuardian.Core/Policies/IPolicyLoader.cs), [`YamlPolicyLoader`](../../src/ArchitectureGuardian.Configuration/Yaml/YamlPolicyLoader.cs) |
 | Resolve project ownership and dependency permissions | Core | [`ResolvedPolicy`](../../src/ArchitectureGuardian.Core/Policies/ResolvedPolicy.cs) |
@@ -65,8 +66,9 @@ The service interface and its implementation live on opposite sides of this boun
 | Carry findings, reporting levels and coverage | Core | [`RuleViolation`](../../src/ArchitectureGuardian.Core/Rules/RuleViolation.cs), [`Diagnostic`](../../src/ArchitectureGuardian.Core/Diagnostics/Diagnostic.cs), [`AnalysisResult`](../../src/ArchitectureGuardian.Core/Analysis/AnalysisResult.cs) |
 
 The generic context is supplied by the caller and must stay stable throughout the
-run. F05 supplies `RepositoryModel` as a neutral solution-wide context; the service
-also supports other neutral scopes. Concrete rule implementations remain separate
+run. AG001 consumes `DependencyBuildResult`, including F05's `RepositoryModel`,
+F06's graph and extraction coverage; the service also supports other neutral scopes.
+Concrete rule implementations remain separate
 from catalog metadata.
 
 ## Source organization
@@ -82,7 +84,7 @@ nested implementation helpers stay with their owner.
 | --- | --- | --- |
 | Core | `Analysis` | Requests, results, coverage outcomes and the analysis service port |
 | Core | `Diagnostics` | Reported findings, evidence, affected targets, severity levels and source coordinates |
-| Core | `Rules` | Evaluation contracts, rule descriptors, catalog and severity-free violations |
+| Core | `Rules` | Evaluation contracts, rule descriptors, catalog, AG001 module rule and severity-free violations |
 | Core | `Policies` | Architecture declarations, loading port, matching, resolution, permissions, severity and gate policy |
 | Core | `Repositories` | Immutable repository, project, assembly, namespace, type, module, contract and layer data and build coverage |
 | Core | `Dependencies` | Immutable evidence graphs, aggregation, traversal, cyclic components and extraction coverage |
@@ -95,7 +97,7 @@ nested implementation helpers stay with their owner.
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
-Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories` and `Workspaces` folders and
+Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories`, `Rules` and `Workspaces` folders and
 matching namespaces. Workspace fixtures live under `tests/Fixtures/Workspaces` and
 are copied to temporary directories for integration tests. Architecture tests group dependency checks under `Dependencies`,
 process smoke tests under `Cli`, and repository/process helpers under `Infrastructure`.
@@ -111,7 +113,8 @@ remain separate from architecture violations.
 The [service sequence](../shared-contracts.md#service-execution-flow) shows the calls,
 and the [outcome flow](../shared-contracts.md#outcome-flow) shows how completion,
 missing coverage, failure and cancellation affect the result. CLI `load` validates
-workspace context separately; rule orchestration is exercised with test rules until F10.
+workspace context separately. AG001 can be composed through the reusable API;
+policy-driven CLI scanning remains F10.
 
 The [catalog and documentation flow](../rule-catalog.md#how-catalog-metadata-reaches-a-diagnostic)
 explains how metadata reaches a diagnostic. Catalog access is entirely local;
@@ -123,8 +126,9 @@ This flow will be assembled by later features. F02 supplies reusable orchestrati
 and contracts; F03 supplies YAML loading, policy resolution, rule selection and
 severity gates. F04 supplies trusted workspace loading and F05 supplies neutral
 repository normalization and ownership composition. F06 supplies dependency
-extraction, evidence aggregation and deterministic traversal/cycles. Rule discovery
-and scanning composition remain planned.
+extraction, evidence aggregation and deterministic traversal/cycles. F07 supplies
+AG001 module-dependency evaluation. Layer/cycle rules and CLI scanning composition
+remain planned.
 
 ```mermaid
 flowchart TD
@@ -134,7 +138,7 @@ flowchart TD
     Context["Neutral repository model — implemented<br/>Normalize declarations and ownership — F05"]
     Graph["Dependency graph — implemented<br/>Evidence, aggregation and traversal — F06"]
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
-    Rules["Core rule implementations<br/>AG001–AG003 — F07–F09"]
+    Rules["Core rule implementations<br/>AG001 — implemented F07<br/>AG002–AG003 — planned F08–F09"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
     Output["Host and output adapters<br/>Console, MCP and reports — planned"]
     Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Baselines — planned"]
