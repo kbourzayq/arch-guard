@@ -106,7 +106,8 @@ public sealed class CliSmokeTests
                 Assert.Equal(scenario == "failed-restore" ? 1 : 0, restore.ExitCode);
             }
 
-            var result = await RunCli("load", path, "--trusted");
+            // SDK discovery and design-time builds need the workspace fixture's budget on shared CI runners.
+            var result = await RunCli(TimeSpan.FromSeconds(60), "load", path, "--trusted");
 
             Assert.Equal(scenario == "complete" ? 0 : 2, result.ExitCode);
             if (scenario == "complete")
@@ -130,11 +131,17 @@ public sealed class CliSmokeTests
     /// <summary>Runs the CLI assembly built in the same configuration as the current tests.</summary>
     /// <param name="arguments">Arguments to pass directly to the CLI process.</param>
     /// <returns>The CLI's exit code and captured standard output and error streams.</returns>
-    private static Task<CommandResult> RunCli(params string[] arguments)
+    private static Task<CommandResult> RunCli(params string[] arguments) => RunCli(TimeSpan.FromSeconds(30), arguments);
+
+    /// <summary>Runs the built CLI with a scenario-specific process deadline.</summary>
+    /// <param name="timeoutDuration">The positive process deadline.</param>
+    /// <param name="arguments">Arguments to pass directly to the CLI process.</param>
+    /// <returns>The CLI's exit code and captured standard output and error streams.</returns>
+    private static Task<CommandResult> RunCli(TimeSpan timeoutDuration, params string[] arguments)
     {
         var configuration = typeof(CliSmokeTests).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
         var assembly = Path.Combine(Repository.Root, "src", "ArchitectureGuardian.Cli", "bin", configuration,
             "net10.0", "ArchitectureGuardian.Cli.dll");
-        return Repository.Dotnet([assembly, .. arguments]);
+        return Repository.Dotnet(timeoutDuration, [assembly, .. arguments]);
     }
 }
