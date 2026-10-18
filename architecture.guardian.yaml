@@ -17,7 +17,7 @@ layers:
     allowedDependencies: [Core]
   - id: Cli
     projects: ["src/ArchitectureGuardian.Cli/*.csproj"]
-    allowedDependencies: [Analysis]
+    allowedDependencies: [Core, Analysis, Configuration]
   - id: Tests
     projects: ["tests/**/*.csproj"]
     allowedDependencies: [Core, Analysis, Configuration, Cli]

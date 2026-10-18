@@ -2,7 +2,8 @@
 
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
 `RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
-arrive in their linked features. CLI scanning and compiler analysis remain planned.
+arrive in their linked features. F10 exposes CLI `scan` and local `explain <rule-id>`;
+compiler analysis remains planned. See the [CLI guide](cli.md).
 
 ## How catalog metadata reaches a diagnostic
 
@@ -10,7 +11,8 @@ arrive in their linked features. CLI scanning and compiler analysis remain plann
 provides an ID, a title and a documentation URL. The catalog does not fetch a remote
 rule list, read this Markdown file, or contain the executable checking logic.
 
-AG001–AG003 use this implemented evaluation flow; host reporting adapters remain planned:
+AG001–AG003 use this evaluation flow, rendered by CLI `scan`; additional reporting
+adapters remain planned:
 
 ```mermaid
 flowchart TD
@@ -173,7 +175,7 @@ findings survive evaluation. Unmapped project evidence produces an AG003
 `dependency-project-unmapped` issue and prevents completed coverage. Missing context
 cannot become a clean completed result. Graph construction and traversal observe
 cancellation. Whole-module cycles require solution-wide scope; a single compiler
-invocation cannot establish it. CLI scanning remains F10.
+invocation cannot establish it. CLI `scan` composes this evaluation in F10.
 
 ## AG004: Implementation boundaries
 

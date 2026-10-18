@@ -10,7 +10,8 @@
   [F06](https://github.com/kbourzayq/arch-guard/issues/6),
   [F07](https://github.com/kbourzayq/arch-guard/issues/7),
   [F08](https://github.com/kbourzayq/arch-guard/issues/8),
-  [F09](https://github.com/kbourzayq/arch-guard/issues/9)
+  [F09](https://github.com/kbourzayq/arch-guard/issues/9),
+  [F10](https://github.com/kbourzayq/arch-guard/issues/10)
 
 For diagrams and an implementation-status guide, see the
 [architecture overview](../overview.md). This record explains the decisions behind
@@ -31,8 +32,8 @@ adapter. The current production references are:
 ```text
 ArchitectureGuardian.Cli --> ArchitectureGuardian.Analysis --> ArchitectureGuardian.Core
      console/composition        solution application services       pure policy/evaluation
-ArchitectureGuardian.Configuration -------------------------> ArchitectureGuardian.Core
-     YAML loading/validation
+ArchitectureGuardian.Cli --> ArchitectureGuardian.Configuration --> ArchitectureGuardian.Core
+                                  YAML loading/validation
 ```
 
 An arrow means a project reference. CLI can consume Core types through Analysis's
@@ -48,7 +49,7 @@ workspaces, MSBuild integration and SDK discovery in Analysis. CLI composes the
 services, handles arguments and maps results to console output and exit codes.
 It contains no rule evaluation.
 
-Configuration now implements Core's `IPolicyLoader` port and references only Core.
+Configuration implements Core's `IPolicyLoader` port and references only Core.
 YamlDotNet 16.3.0 is confined to this adapter: the base library has no YAML parser,
 and a mature parser preserves source marks and detects malformed documents without
 introducing serializer types into Core. Strict schema checks run before constructing
@@ -135,8 +136,9 @@ violations themselves. Module and contract references are explicitly distinguish
 permissions are direct and directional. Rule selection rejects missing selected
 implementations. Severity remains a reporting decision after discovery. `GatePolicy`
 checks an inclusive severity threshold and always rejects incomplete, failed or
-cancelled coverage. Baseline-aware gates remain F22. CLI composition and scanning
-remain F10; adding Configuration does not introduce a working scan command.
+cancelled coverage. Baseline-aware gates remain F22. F10 composes these contracts
+through CLI scanning; Configuration itself remains independent of workspace loading
+and hosts.
 
 ## Decision: separate solution-wide and compiler-hosted analysis
 
@@ -199,7 +201,7 @@ incomplete, failed and cancelled normalization. Invalid mappings never become cl
 models. The model survives workspace disposal; hosts must inspect coverage before
 evaluation. See the [repository model guide](../../repository-model.md) for the
 identity fields and executable modular-monolith reference fixture. F07 consumes
-this model and F06's evidence for module evaluation; CLI scanning remains F10.
+this model and F06's evidence for module evaluation; F10 composes it in CLI scanning.
 
 ### F06 dependency extraction and evidence
 
@@ -234,8 +236,8 @@ completed coverage; extraction status/issues and partial findings are preserved.
 Rule selection controls enabled state using v1's existing explicit rule IDs.
 Severity and gates remain with the existing policies and service orchestration.
 No package, component or host dependency is introduced. F08 and F09 add the
-separate layer and cycle checks below; CLI scanning remains planned. See the
-[AG001 guide](../../rule-catalog.md#ag001-module-dependencies).
+separate layer and cycle checks below; F10 exposes evaluation through CLI scanning.
+See the [AG001 guide](../../rule-catalog.md#ag001-module-dependencies).
 
 ### F08 layer-dependency evaluation
 
@@ -264,6 +266,31 @@ Upstream coverage, issues and available findings are preserved. Unmapped project
 evidence prevents completed coverage. Selection, severity and gates use the existing
 contracts. No schema, package, project or component dependency changes are required.
 See the [AG003 guide](../../rule-catalog.md#ag003-module-cycles).
+
+### F10 CLI composition
+
+CLI references Configuration directly to load explicit YAML policies, then composes
+Analysis's workspace loader, repository/dependency builders and generic analysis
+service. Core and Analysis keep their existing dependencies. System.CommandLine
+2.0.12 belongs only to CLI: it supplies command parsing, generated help and async
+invocation cancellation, replacing the hand-written argument parser.
+
+`scan` selects available implementations before workspace execution, evaluates the
+neutral context and applies `GatePolicy` after completed coverage. Exit codes are
+0 for completed/pass, 1 for completed/gate failure and 2 for invalid, incomplete,
+failed or cancelled work. Partial findings remain visible independently of coverage.
+`inspect` normalizes ownership and reports policy boundaries without evaluating
+rules. `explain` resolves canonical catalog metadata locally. `load` remains available
+with the same trust and coverage contract. Console rendering stays inside CLI;
+Configuration is not referenced from Analysis or Core.
+
+The dependency boundary tests and repository policy explicitly permit CLI's
+Configuration reference. The layer policy also permits semantic dependencies on Core,
+matching the existing decision that CLI consumes neutral contracts transitively.
+Direct project references remain Analysis and Configuration; layer checks include
+semantic type uses as well as explicit project references. Lock files capture the
+new parser and existing YAML adapter dependencies. No project or new component boundary is introduced.
+See the [CLI guide](../../cli.md).
 
 ### Compiler-hosted engine
 

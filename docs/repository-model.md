@@ -139,8 +139,8 @@ into any later evaluation rather than accept findings from incomplete input as c
 
 The builder performs no restore, workspace opening or policy-file loading. It forwards
 cancellation while obtaining compilations and checks it during symbol traversal.
-CLI `load` still validates workspace context only; policy-driven CLI composition and
-scanning remain F10.
+CLI `load` validates workspace context only. F10 composes normalization in
+[`inspect` and `scan`](cli.md).
 
 ## Reference fixture
 

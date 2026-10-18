@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "System.CommandLine": {
+        "type": "Direct",
+        "requested": "[2.0.12, )",
+        "resolved": "2.0.12",
+        "contentHash": "FpW672e6qqrTd1EfKqsvUtFZaJWlTlszUR1o8tdakXhkzKbnEZVndtpfd4K3fUPCFcIs9UmcswMyYGJP1zp/rg=="
+      },
       "Humanizer.Core": {
         "type": "Transitive",
         "resolved": "2.14.1",
@@ -180,6 +186,11 @@
           "System.Composition.Runtime": "9.0.0"
         }
       },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "16.3.0",
+        "contentHash": "SgMOdxbz8X65z8hraIs6hOEdnkH6hESTAIUa7viEngHOYaH+6q5XJmwr1+yb9vJpNQ19hCQY69xbFsLtXpobQA=="
+      },
       "architectureguardian.analysis": {
         "type": "Project",
         "dependencies": {
@@ -187,6 +198,13 @@
           "Microsoft.Build.Locator": "[1.11.2, )",
           "Microsoft.CodeAnalysis.CSharp.Workspaces": "[5.0.0, )",
           "Microsoft.CodeAnalysis.Workspaces.MSBuild": "[5.0.0, )"
+        }
+      },
+      "architectureguardian.configuration": {
+        "type": "Project",
+        "dependencies": {
+          "ArchitectureGuardian.Core": "[0.1.0, )",
+          "YamlDotNet": "[16.3.0, )"
         }
       },
       "architectureguardian.core": {

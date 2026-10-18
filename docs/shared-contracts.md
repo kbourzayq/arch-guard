@@ -83,8 +83,9 @@ exceptions so a composition error can be fixed by the caller.
 This sequence describes the implemented service with a supplied neutral context
 and rule instances. It shows the path where each rule completes; the
 [outcome flow](#outcome-flow) covers other outcomes. CLI `load` validates workspace
-context separately. AG001–AG003 are available through the reusable API; CLI scanning and
-the remaining production rules remain planned work.
+context separately. CLI `scan` composes the reusable AG001–AG003 API with policy
+loading, dependency extraction and gate evaluation; see the [CLI guide](cli.md).
+The remaining production rules remain planned work.
 
 ```mermaid
 sequenceDiagram

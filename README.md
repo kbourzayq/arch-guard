@@ -10,14 +10,15 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F05](https://github.com/kbourzayq/arch-guard/issues/5),
 [F06](https://github.com/kbourzayq/arch-guard/issues/6),
 [F07](https://github.com/kbourzayq/arch-guard/issues/7),
-[F08](https://github.com/kbourzayq/arch-guard/issues/8) and
-[F09](https://github.com/kbourzayq/arch-guard/issues/9): the .NET 10 solution, component
+[F08](https://github.com/kbourzayq/arch-guard/issues/8),
+[F09](https://github.com/kbourzayq/arch-guard/issues/9) and
+[F10](https://github.com/kbourzayq/arch-guard/issues/10): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
 AG001 enforcement of module and public-contract permissions, and AG002 enforcement
-of the configured layer matrix, plus AG003 module cycle detection.
-Remaining rules and CLI scanning follow in the
+of the configured layer matrix, AG003 module cycle detection, and CLI scan, inspect
+and explain commands. Remaining rules follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
 ## Architecture and flows
@@ -42,7 +43,7 @@ resolver rejects unmatched or ambiguously mapped projects.
 The [repository policy](architecture.guardian.yaml) maps all six solution projects.
 A [modular-monolith example](docs/examples/modular-monolith/architecture.guardian.yaml)
 shows contract-only permissions. These files can be loaded through `YamlPolicyLoader`
-and resolved against a supplied inventory; CLI policy loading and scanning follow in F10.
+and resolved against a supplied inventory or used directly by CLI `scan` and `inspect`.
 
 ## Build and check
 
@@ -101,13 +102,30 @@ intentionally changing dependencies, run `dotnet restore ArchitectureGuardian.sl
 ```sh
 dotnet run --project src/ArchitectureGuardian.Cli -- --help
 dotnet run --project src/ArchitectureGuardian.Cli -- --version
+dotnet run --project src/ArchitectureGuardian.Cli -- scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
+dotnet run --project src/ArchitectureGuardian.Cli -- inspect path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
+dotnet run --project src/ArchitectureGuardian.Cli -- explain AG001
 dotnet run --project src/ArchitectureGuardian.Cli -- load path/to/Application.slnx --trusted
 ```
 
-No arguments also prints help. Unsupported commands or arguments return exit code 2
-and write an error to stderr. Scanning is not implemented; `scan` returns 2 rather than
-reporting a successful analysis. The `arch-guard` name in help is the intended command
-name; distribution as a .NET tool is tracked separately in F27.
+No arguments also prints help. System.CommandLine supplies command-specific help,
+argument validation and cancellation. The intended tool name is `archguard`; until
+F27 packages it, use `dotnet run` as above (generated usage shows the assembly name).
+See the [CLI guide](docs/cli.md) for output, policy paths and examples.
+
+`scan` evaluates policy-selected AG001–AG003 rules and prints severity, rule ID,
+source location, affected target, evidence, remediation and documentation. Exit 0
+means completed and gate passed; 1 means completed and gate failed; 2 means invalid
+input or unreliable, incomplete, failed or cancelled work. Operational errors go to
+stderr; available findings remain on stdout. No gate result is claimed for incomplete
+analysis. Selected rules without implementations fail explicitly.
+
+`inspect` lists resolved modules, project/layer ownership, public contracts, direct
+permissions, selected rule severities and the gate without evaluating rules.
+`explain AG001` resolves case-sensitive canonical IDs AG001–AG006 locally, including
+metadata for planned rules. `scan` and `inspect` require an explicit `--policy` path;
+project identities are relative to its directory. Both accept `--configuration` and
+`--framework` with the same scope and trust requirements as `load`.
 
 The `load` command validates `.sln`, `.slnx` and `.csproj` workspace context after
 an explicit restore. MSBuild may execute repository tasks, so trust is required.
@@ -125,7 +143,7 @@ origin evidence, deterministic traversal/cycles and extraction coverage.
 | `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG003 evaluation, gates, repository data and evidence graphs | None |
 | `ArchitectureGuardian.Analysis` | Reusable orchestration, trusted Roslyn/MSBuild workspace loading, repository normalization and dependency extraction | Core |
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
-| `ArchitectureGuardian.Cli` | Console entry point and composition | Analysis |
+| `ArchitectureGuardian.Cli` | System.CommandLine arguments, policy/service composition, diagnostics and exit codes | Analysis, Configuration |
 
 Rules return evidence-backed findings without severity. The analysis service applies
 severity policy and returns `Completed`, `Incomplete`, `Failed` or `Cancelled`,

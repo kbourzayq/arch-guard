@@ -42,7 +42,8 @@ resolved ownership used for this graph. `Graph`, `Status` and `Issues` describe
 extraction and its coverage. The builder normalizes the same workspace through
 `RepositoryModelBuilder`, performs no restore or workspace opening, and retains
 loading and normalization issues. Both snapshots survive workspace disposal.
-CLI `load` still checks workspace context only; scanning composition remains F10.
+CLI `load` checks workspace context only. F10 composes extraction and evaluation
+through [`scan`](cli.md#scan-a-solution-or-project).
 
 ## Levels and evidence
 

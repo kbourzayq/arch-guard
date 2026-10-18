@@ -13,13 +13,13 @@ records the decisions and constraints behind them.
 | Area | Current implementation | Planned work |
 | --- | --- | --- |
 | Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG003 module/layer/cycle evaluation | AG004–AG006 implementations |
-| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Scanning composition |
-| CLI | Help, version and `load` with explicit trust, coverage errors and cancellation | Scan, inspect and explain commands |
-| Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Host/CLI composition |
+| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Future host integrations |
+| CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
+| Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
 | Other adapters | None | Compiler analyzer, MCP and reports |
-| Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines and host exit-code mapping |
+| Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
 
-F01–F09 establish the current implementation. The
+F01–F10 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -36,6 +36,7 @@ flowchart LR
     Configuration["ArchitectureGuardian.Configuration<br/>YAML parsing and validation"]
 
     Cli --> Analysis
+    Cli --> Configuration
     Analysis --> Core
     Configuration --> Core
 ```
@@ -44,9 +45,9 @@ Core uses only the .NET base library. It performs no file, network or process ac
 and exposes no Roslyn, MSBuild, serializer or transport objects. Analysis converts
 technology-specific inputs into neutral facts before invoking rules. CLI can consume
 Core contracts through its transitive reference to Core.
-Configuration depends only on Core and keeps YamlDotNet outside the domain. A host
-will compose Configuration and Analysis when policy-driven commands are implemented.
-CLI currently references only Analysis.
+Configuration depends only on Core and keeps YamlDotNet outside the domain. CLI
+references Configuration and Analysis to compose policy-driven commands; its
+System.CommandLine package stays outside the shared services.
 
 The service interface and its implementation live on opposite sides of this boundary:
 
@@ -116,25 +117,26 @@ The [service sequence](../shared-contracts.md#service-execution-flow) shows the 
 and the [outcome flow](../shared-contracts.md#outcome-flow) shows how completion,
 missing coverage, failure and cancellation affect the result. CLI `load` validates
 workspace context separately. AG001–AG003 can be composed through the reusable API;
-policy-driven CLI scanning remains F10.
+CLI `scan` composes that API with policy loading, extraction and severity gates.
 
 The [catalog and documentation flow](../rule-catalog.md#how-catalog-metadata-reaches-a-diagnostic)
 explains how metadata reaches a diagnostic. Catalog access is entirely local;
 opening a documentation URL is an optional browser action after reporting.
 
-## Planned solution-wide flow
+## Solution-wide CLI flow
 
-This flow will be assembled by later features. F02 supplies reusable orchestration
+F10 assembles the CLI flow below. F02 supplies reusable orchestration
 and contracts; F03 supplies YAML loading, policy resolution, rule selection and
 severity gates. F04 supplies trusted workspace loading and F05 supplies neutral
 repository normalization and ownership composition. F06 supplies dependency
 extraction, evidence aggregation and deterministic traversal/cycles. F07 supplies
 AG001 module-dependency evaluation; F08 supplies AG002 layer-dependency evaluation.
-F09 supplies AG003 module-cycle evaluation. CLI scanning composition remains planned.
+F09 supplies AG003 module-cycle evaluation. Future MCP and report adapters reuse
+these services.
 
 ```mermaid
 flowchart TD
-    Host["CLI or MCP host<br/>Planned commands and protocol tools"]
+    Host["CLI — F10<br/>scan command; future MCP host"]
     Configuration["Configuration adapter — implemented<br/>Read and validate YAML policy — F03"]
     Workspace["Analysis workspace integration — implemented<br/>Load solution or projects — F04"]
     Context["Neutral repository model — implemented<br/>Normalize declarations and ownership — F05"]
@@ -142,7 +144,7 @@ flowchart TD
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
     Rules["Core rule implementations<br/>AG001–AG003 — implemented F07–F09"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
-    Output["Host and output adapters<br/>Console, MCP and reports — planned"]
+    Output["CLI console output — F10<br/>MCP and reports — planned"]
     Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Baselines — planned"]
 
     Host --> Configuration

@@ -12,6 +12,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/ArchitectureGuardian.Cli/ArchitectureGuardian.Cli.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/ArchitectureGuardian.Cli/ArchitectureGuardian.Cli.csproj" />
   </ItemGroup>
 </Project>

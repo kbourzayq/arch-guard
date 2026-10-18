@@ -10,9 +10,9 @@ The loader and policy APIs, [trusted workspace loading](workspace-loading.md),
 [dependency extraction](dependency-graph.md), [AG001 evaluation](rule-catalog.md#ag001-module-dependencies),
 [AG002 evaluation](rule-catalog.md#ag002-layer-dependencies) and
 [AG003 evaluation](rule-catalog.md#ag003-module-cycles) are usable today.
-Remaining rules follow in their roadmap features; CLI scanning follows in F10.
-Loading a valid policy is not an architecture scan, and the CLI does not yet consume
-this file.
+F10 exposes these services through [CLI `scan`, `inspect` and `explain`](cli.md).
+Remaining rules follow in their roadmap features. Loading a valid policy alone does
+not establish scan coverage or compliance.
 
 ## Document shape
 
@@ -200,8 +200,9 @@ var passesGate = policy.Gate.Passes(result);
 `RepositoryModel` carries the immutable policy and resolved mappings where rules
 need them. A caller can also resolve a supplied complete project inventory directly
 with `ResolvedPolicy`, without a workspace. Hosts reference Configuration and Analysis
-at composition time; Analysis and Core do not reference the YAML adapter. Policy-driven CLI composition
-is deferred to F10.
+at composition time; Analysis and Core do not reference the YAML adapter. F10
+provides this composition through `scan --policy <path>` and reports resolved
+ownership through `inspect --policy <path>`; see the [CLI guide](cli.md).
 
 The supplied inventory and graph establish AG001–AG003 scope; omission from `rules`
 disables a rule's selection. V1 rejects `enabled` and per-rule scope fields. AG001 uses
