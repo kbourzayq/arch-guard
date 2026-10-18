@@ -63,6 +63,9 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         Assert.True(layers.IsComplete);
         Assert.Empty(layers.Diagnostics);
         Assert.True(result.Repository.Policy.Gate.Passes(layers));
+        var cycles = await EvaluateDependenciesAsync(result, "AG003");
+        Assert.True(cycles.IsComplete);
+        Assert.Empty(cycles.Diagnostics);
     }
 
     /// <summary>Enforces a seeded forbidden reference using the graph's project and semantic evidence.</summary>
@@ -524,6 +527,46 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         }
     }
 
+    /// <summary>A valid acyclic project graph can still form a logical module cycle through a public contract.</summary>
+    [Fact]
+    public async Task Module_cycle_retains_real_project_and_semantic_evidence()
+    {
+        var root = Path.Combine(fixture.Root, "ModularMonolith");
+        const string billing = "src/Billing/Billing.Application/Billing.Application.csproj";
+        var projectPath = Path.Combine(root, billing);
+        var sourcePath = Path.Combine(root, "src/Billing/Billing.Application/OrderUse.cs");
+        var original = await File.ReadAllTextAsync(projectPath);
+        try
+        {
+            var xml = XDocument.Parse(original);
+            xml.Root!.Add(new XElement("ItemGroup", new XElement("ProjectReference",
+                new XAttribute("Include", "../../Orders/Orders.Application/Orders.Application.csproj"))));
+            await File.WriteAllTextAsync(projectPath, xml.ToString());
+            await File.WriteAllTextAsync(sourcePath,
+                "namespace Billing.Application; public class OrderUse { public Orders.Application.SubmitOrder? Value { get; set; } }");
+            await fixture.RestoreAsync(Path.Combine(root, "ModularMonolith.slnx"));
+            var context = await BuildAsync();
+            Complete(context);
+            var result = await EvaluateDependenciesAsync(context, "AG003");
+            Assert.True(result.IsComplete);
+            var finding = Assert.Single(result.Diagnostics);
+            Assert.Equal("Module dependency cycle: Billing → Orders → Billing.", finding.Message);
+            Assert.Contains(finding.Evidence, fact => fact.Description.Contains(billing, StringComparison.Ordinal)
+                && fact.Description.Contains(Orders, StringComparison.Ordinal));
+            Assert.Contains(finding.Evidence, fact => fact.Description.Contains(Orders, StringComparison.Ordinal)
+                && fact.Description.Contains(Contracts, StringComparison.Ordinal));
+            Assert.Contains(finding.Evidence, fact => fact.Location?.Path.EndsWith("OrderUse.cs", StringComparison.Ordinal) == true);
+            Assert.Contains(finding.Evidence, fact => fact.Location?.Path.EndsWith("SubmitOrder.cs", StringComparison.Ordinal) == true);
+        }
+        finally
+        {
+            await File.WriteAllTextAsync(projectPath, original);
+            File.Delete(sourcePath);
+            // Restore the original assets too: SDK-expanded references otherwise leak into later tests.
+            await fixture.RestoreAsync(Path.Combine(root, "ModularMonolith.slnx"));
+        }
+    }
+
     private async Task<DependencyBuildResult> BuildAsync(string? root = null)
     {
         root ??= Path.Combine(fixture.Root, "ModularMonolith");
@@ -537,11 +580,11 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
 
     private static Task<AnalysisResult> EvaluateDependenciesAsync(DependencyBuildResult context, string ruleId)
     {
-        // Evaluate an implemented dependency rule; the fixture also selects the still-unavailable AG003.
+        // Select one rule to isolate its findings from the fixture's other configured checks.
         var policy = context.Repository!.Policy;
         var selection = new ArchitecturePolicy(policy.Modules, policy.Layers,
             new Dictionary<string, DiagnosticSeverity> { [ruleId] = policy.SeverityPolicy.GetSeverity(ruleId) });
-        var rules = selection.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule(), new LayerDependenciesRule()]);
+        var rules = selection.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule()]);
         return new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, selection.SeverityPolicy));
     }
 

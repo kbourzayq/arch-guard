@@ -7,9 +7,9 @@ outside the solution when referenced by its members. Unsupported projects and em
 solutions cannot establish complete coverage. F05 adds the separate
 [repository normalization API](repository-model.md), and F06 adds the
 [dependency evidence graph](dependency-graph.md). F07 adds
-[AG001 evaluation](rule-catalog.md#ag001-module-dependencies), and F08 adds
-[AG002 evaluation](rule-catalog.md#ag002-layer-dependencies). Cycle evaluation and
-CLI scanning follow in F09–F10.
+[AG001 evaluation](rule-catalog.md#ag001-module-dependencies), F08 adds
+[AG002 evaluation](rule-catalog.md#ag002-layer-dependencies), and F09 adds
+[AG003 cycle evaluation](rule-catalog.md#ag003-module-cycles). CLI scanning follows in F10.
 
 ```sh
 dotnet restore path/to/Application.slnx
