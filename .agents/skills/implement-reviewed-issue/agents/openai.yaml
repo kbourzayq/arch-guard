@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement, Review and Publish Issue"
+  short_description: "Implement issues, review with a sub-agent, then open a PR"
+  default_prompt: "Use $implement-reviewed-issue to implement the supplied issue, review the finished changes with a sub-agent, resolve findings, and create or reuse its pull request."
