@@ -36,7 +36,8 @@ Supporting tests and documentation do not change the type of a feature or fix.
 - Name the branch `<type>/<issue-number>-<short-kebab-case-slug>`, for example `feat/123-add-json-export` or `fix/456-handle-empty-input`. Start directly with the semantic type; do not prepend `codex/`. Include the tracker key instead of a bare number when that is the repository convention.
 - Build the slug from the issue's meaning, using lowercase ASCII letters, digits, and hyphens. Validate the full name with `git check-ref-format --branch`; do not interpolate raw issue text into shell commands.
 - Use the user-specified base when provided, then the repository's documented base, otherwise the remote default branch. Fetch the relevant base when available; do not assume it is named `main` or branch from unrelated work. If fetching is unavailable, disclose use of a known local base; ask if no reliable base exists.
-- Preserve existing uncommitted work. If switching bases would mix or endanger unrelated edits, use an isolated worktree when permitted, or ask for the necessary decision. Do not stash, discard, reset, or overwrite the user's work automatically.
+- Work in the existing project folder and create or switch to the issue branch in that same checkout. Do not create an isolated worktree, another checkout or clone, or relocate implementation work to temporary directories such as `/tmp`.
+- Preserve existing uncommitted work. If switching branches or bases in the project folder would mix or endanger unrelated edits, ask how to proceed in that same checkout. Do not stash, discard, reset, or overwrite the user's work automatically.
 - Create the branch before implementation. If a matching branch already exists, inspect whether it belongs to this issue and can be continued; do not force-reset it or discard its history. Continue on the current branch when it is already the appropriate issue branch.
 
 ## Implement and synchronize
