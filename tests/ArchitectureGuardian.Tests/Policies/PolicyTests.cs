@@ -14,6 +14,39 @@ namespace ArchitectureGuardian.Tests.Policies;
 /// <summary>Verifies strict YAML loading, deterministic project resolution and independent policy decisions.</summary>
 public sealed class PolicyTests
 {
+    /// <summary>AG006 configuration is optional, immutable and scoped to each declared layer.</summary>
+    [Fact]
+    public void Domain_infrastructure_configuration_snapshots_explicit_names()
+    {
+        var yaml = ValidYaml.Replace("id: Application", "id: Application\n    domainInfrastructure:\n      forbiddenAssemblies: [Legacy.Data]\n      forbiddenNamespaces: [System.Data]\n      allowedNamespaces: [System.Data.Contracts]", StringComparison.Ordinal);
+        var policy = new YamlPolicyLoader().Parse(yaml);
+        var restrictions = policy.Layers.Single(layer => layer.Id == "Application").DomainInfrastructure!;
+        Assert.Equal(new[] { "Legacy.Data" }, restrictions.ForbiddenAssemblies);
+        Assert.Equal(new[] { "System.Data" }, restrictions.ForbiddenNamespaces);
+        Assert.Equal(new[] { "System.Data.Contracts" }, restrictions.AllowedNamespaces);
+        Assert.Null(policy.Layers.Single(layer => layer.Id == "Contracts").DomainInfrastructure);
+        var names = new[] { "System.Data" };
+        var snapshot = new DomainInfrastructurePolicy(allowedNamespaces: names);
+        names[0] = "Changed";
+        Assert.Equal("System.Data", Assert.Single(snapshot.AllowedNamespaces));
+    }
+
+    /// <summary>Malformed AG006 objects and exceptions fail with the nested field path.</summary>
+    /// <param name="fields">Invalid nested configuration.</param>
+    [Theory]
+    [InlineData("forbiddenAssemblies: [Data.*]")]
+    [InlineData("forbiddenNamespaces: [System..Data]")]
+    [InlineData("allowedNamespaces: [System.Data, System.Data]")]
+    [InlineData("allowedNamespaces: [System.*]")]
+    [InlineData("allowedNamespaces: System.Data")]
+    [InlineData("unknown: []")]
+    public void Invalid_domain_infrastructure_configuration_is_rejected(string fields)
+    {
+        var yaml = ValidYaml.Replace("id: Application", "id: Application\n    domainInfrastructure:\n      " + fields, StringComparison.Ordinal);
+        var exception = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml));
+        Assert.Contains("domainInfrastructure", exception.Message);
+    }
+
     private const string ValidYaml = """
         version: 1
         modules:

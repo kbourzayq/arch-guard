@@ -3,7 +3,7 @@
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
 `RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
 arrive in their linked features. F10 exposes CLI `scan` and local `explain <rule-id>`;
-F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004 and F14 adds AG005 in both engines. See the [CLI guide](cli.md) and
+F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004, F14 adds AG005 and F15 adds AG006 in both engines. See the [CLI guide](cli.md) and
 [compiler guide](compiler-analyzer.md).
 
 ## How catalog metadata reaches a diagnostic
@@ -12,7 +12,7 @@ F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004 and F14 adds AG005 i
 provides an ID, a title and a documentation URL. The catalog does not fetch a remote
 rule list, read this Markdown file, or contain the executable checking logic.
 
-AG001–AG005 use this evaluation flow, rendered by CLI `scan`; additional reporting
+AG001–AG006 use this evaluation flow, rendered by CLI `scan`; additional reporting
 adapters remain planned:
 
 ```mermaid
@@ -253,6 +253,40 @@ discovery. No runtime reflection or dynamic target is inferred.
 Detect domain code referencing infrastructure technology forbidden by policy.
 Implementation: [F15](https://github.com/kbourzayq/arch-guard/issues/15).
 
+`DomainInfrastructureRule` combines resolved source layer membership with bound
+assembly and namespace identities in `DependencyBuildResult`. A layer opts in through
+its [domainInfrastructure configuration](policy.md#domain-infrastructure-ag006),
+independent of its name. No persistence package, framework type or namespace is banned
+by default. Target namespace exceptions apply only to this source layer's AG006 bans;
+domain abstractions outside those bans pass without an exception.
+
+The solution rule groups by source project, target symbol, source layer and exact
+restriction, merging duplicate facts across graph levels and retaining all distinct
+source spans. Each matching assembly or namespace restriction yields its own finding;
+input order does not change its identity. The first located fact in canonical order
+supplies the primary location. Findings name the configured restriction and suggest
+replacing the technology use with a domain abstraction or revising that restriction.
+Unused references/imports are outside semantic-use scope. Missing source ownership or
+bound identities produce coverage issues; upstream incomplete, failed and cancelled
+outcomes and available findings survive. Cancellation is cooperative.
+
+**Diagnostic deduplication and overlap:** deduplicate identical evidence within each
+rule and restriction, with no cross-rule suppression. AG002 reports forbidden project
+layer dependencies, including reference-only edges. AG005 reports independent general
+module/layer reference bans. AG006 reports the domain technology contract. Selecting
+all three can yield all three IDs for one use, because they enforce separate policies
+and severities. An AG006 exception cannot silence AG002 or AG005. To avoid intentionally
+redundant reference findings, express a domain technology ban under AG006 and reserve
+AG005 for other general restrictions; omit rules only when their independent checks
+are not required. Namespace and assembly bans that both match remain independent.
+
+The compiler adapter source-links the same AG006 matching and metadata, emitting a
+located diagnostic per bound name and restriction. Framework/external targets need no
+ownership entry. See [compiler scope](compiler-analyzer.md#reporting-and-scope) for
+explicit-name coverage and broader standalone semantic extraction. Cross-engine tests
+exercise aliases, generic arguments, generated sources, framework identities, scoped
+exceptions and lookalikes against the same compilation.
+
 Severity is applied separately through `SeverityPolicy`. Rule metadata contains no
 quality-gate decision. Compiler-hosted checks must observe the scope constraints in
 [ADR 0001](architecture/decisions/0001-component-boundaries-and-analysis-engines.md).
@@ -260,7 +294,7 @@ quality-gate decision. Compiler-hosted checks must observe the scope constraints
 ## Compiler scope
 
 The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002/AG004 for bound semantic
-uses between assemblies present in its supplied ownership snapshot. AG005 also checks
+uses between assemblies present in its supplied ownership snapshot. AG005 and AG006 also check
 explicit restrictions on all bound target assemblies. The adapter shares Core's
 IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
 spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable

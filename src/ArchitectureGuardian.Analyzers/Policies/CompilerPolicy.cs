@@ -15,6 +15,8 @@ internal sealed class CompilerPolicy
 
     private readonly Dictionary<string, (string[] Assemblies, string[] Namespaces)> _restrictions = new(StringComparer.Ordinal);
 
+    private readonly Dictionary<string, (string[] Assemblies, string[] Namespaces, string[] AllowedNamespaces)> _infrastructure = new(StringComparer.Ordinal);
+
     private CompilerPolicy() { }
 
     internal static CompilerPolicy Load(AdditionalText file, CancellationToken cancellationToken)
@@ -42,8 +44,19 @@ internal sealed class CompilerPolicy
                     policy._modules.Add(Required(element, "id"), Permissions(element));
                     break;
                 case "Layer":
-                    Validate(element, "id", "allows", "forbiddenAssemblies", "forbiddenNamespaces");
+                    Validate(element, "id", "allows", "forbiddenAssemblies", "forbiddenNamespaces",
+                        "infrastructureAssemblies", "infrastructureNamespaces", "allowedInfrastructureNamespaces");
                     policy.ReadRestrictions(element);
+                    var assemblies = Permissions(element, "infrastructureAssemblies");
+                    var namespaces = Permissions(element, "infrastructureNamespaces");
+                    var allowed = Permissions(element, "allowedInfrastructureNamespaces");
+                    if (assemblies.Any(name => !ForbiddenReferenceSemantics.IsAssemblyName(name))
+                        || namespaces.Concat(allowed).Any(name => !ForbiddenReferenceSemantics.IsNamespaceName(name)))
+                    {
+                        throw new ArgumentException("Invalid AG006 infrastructure assembly or namespace name; use exact simple names and dot-separated namespace identifiers without wildcards.");
+                    }
+
+                    policy._infrastructure.Add(Required(element, "id"), (assemblies, namespaces, allowed));
                     policy._layers.Add(Required(element, "id"), Permissions(element));
                     break;
                 case "Assembly":
@@ -117,6 +130,17 @@ internal sealed class CompilerPolicy
             {
                 if (ForbiddenReferenceSemantics.MatchesNamespace(targetNamespace, name)) { yield return (scope, "forbiddenNamespaces", name); }
             }
+        }
+    }
+
+    internal IEnumerable<(string Scope, string Kind, string Name)> InfrastructureRestrictions(string sourceAssembly, string targetAssembly, string targetNamespace)
+    {
+        var layer = _assemblies[sourceAssembly].Layer;
+        var restrictions = _infrastructure[layer];
+        foreach (var (kind, name) in DomainInfrastructureSemantics.Restrictions(targetAssembly, targetNamespace,
+            restrictions.Assemblies, restrictions.Namespaces, restrictions.AllowedNamespaces))
+        {
+            yield return ("layers." + layer + ".domainInfrastructure", kind, name);
         }
     }
 

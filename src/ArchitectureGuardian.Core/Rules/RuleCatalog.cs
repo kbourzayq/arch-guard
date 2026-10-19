@@ -22,7 +22,7 @@ public static class RuleCatalog
     public static RuleDescriptor ForbiddenReferences { get; } = Create(ForbiddenReferenceSemantics.Id, ForbiddenReferenceSemantics.Title, ForbiddenReferenceSemantics.Anchor);
 
     /// <summary>Gets AG006, which checks domain references to infrastructure technology forbidden by policy.</summary>
-    public static RuleDescriptor DomainInfrastructure { get; } = Create("AG006", "Domain infrastructure references", "ag006-domain-infrastructure");
+    public static RuleDescriptor DomainInfrastructure { get; } = Create(DomainInfrastructureSemantics.Id, DomainInfrastructureSemantics.Title, DomainInfrastructureSemantics.Anchor);
 
     /// <summary>Gets the read-only canonical catalog in AG001–AG006 order.</summary>
     public static IReadOnlyList<RuleDescriptor> All { get; } = Array.AsReadOnly<RuleDescriptor>(

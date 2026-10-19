@@ -344,6 +344,68 @@ public sealed class DependencyAnalyzerTests
         await test.RunAsync();
     }
 
+    /// <summary>AG006 uses configured source layers and keeps independent diagnostics for overlapping rules.</summary>
+    /// <param name="restriction">The explicit AG006 technology restriction.</param>
+    [Theory]
+    [InlineData("infrastructureNamespaces=\"Billing\"")]
+    [InlineData("infrastructureAssemblies=\"Billing.Application\"")]
+    public async Task Domain_infrastructure_keeps_independent_layer_and_reference_findings(string restriction)
+    {
+        var policy = Policy.Replace("<Layer id=\"Application\" />",
+            $"<Layer id=\"Application\" forbiddenNamespaces=\"Billing\" {restriction} />", StringComparison.Ordinal);
+        var test = await CreateAsync("using Alias = Billing.Service; public class Order : {|#0:Alias|} { }", policy);
+        ExpectPair(test, 0);
+        test.ExpectedDiagnostics.Add(Result("AG005", 0));
+        test.ExpectedDiagnostics.Add(Result("AG006", 0));
+        await test.RunAsync();
+    }
+
+    /// <summary>AG006 exceptions have namespace segment boundaries and do not waive the independent layer rule.</summary>
+    /// <param name="exception">The explicitly allowed target namespace.</param>
+    /// <param name="excepted">Whether the bound symbol is exempt from AG006.</param>
+    [Theory]
+    [InlineData("Billing", true)]
+    [InlineData("Bill", false)]
+    [InlineData("billing", false)]
+    public async Task Domain_exceptions_are_scoped_to_AG006(string exception, bool excepted)
+    {
+        var policy = Policy.Replace("<Layer id=\"Application\" />",
+            $"<Layer id=\"Application\" infrastructureAssemblies=\"Billing.Application\" allowedInfrastructureNamespaces=\"{exception}\" />", StringComparison.Ordinal);
+        var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
+        ExpectPair(test, 0);
+        if (!excepted) { test.ExpectedDiagnostics.Add(Result("AG006", 0)); }
+        await test.RunAsync();
+    }
+
+    /// <summary>AG006 external dependencies require no target ownership entry and unconfigured source layers pass.</summary>
+    [Fact]
+    public async Task Domain_external_technology_is_configuration_driven()
+    {
+        var policy = Policy.Replace("<Layer id=\"Application\" />",
+            "<Layer id=\"Application\" infrastructureNamespaces=\"Billing\" />", StringComparison.Ordinal)
+            .Replace("<Assembly name=\"Billing.Application\" module=\"Billing\" layer=\"Infrastructure\" />", "", StringComparison.Ordinal);
+        var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
+        test.ExpectedDiagnostics.Add(Result("AG006", 0));
+        await test.RunAsync();
+        var clean = await CreateAsync("public class Order : Billing.Service { }", policy.Replace("infrastructureNamespaces=\"Billing\"", "", StringComparison.Ordinal));
+        await clean.RunAsync();
+    }
+
+    /// <summary>Malformed infrastructure bans and exceptions fail policy loading rather than silently passing.</summary>
+    /// <param name="restriction">An invalid layer-scoped AG006 attribute.</param>
+    [Theory]
+    [InlineData("infrastructureAssemblies=\"Billing.*\"")]
+    [InlineData("infrastructureNamespaces=\"Billing..Data\"")]
+    [InlineData("allowedInfrastructureNamespaces=\"Billing Billing\"")]
+    [InlineData("allowedInfrastructureNamespaces=\"Billing.*\"")]
+    public async Task Invalid_domain_restrictions_report_configuration_errors(string restriction)
+    {
+        var policy = Policy.Replace("<Layer id=\"Application\" />", $"<Layer id=\"Application\" {restriction} />", StringComparison.Ordinal);
+        var test = await CreateAsync("public class Order { }", policy);
+        test.ExpectedDiagnostics.Add(new DiagnosticResult("AG000", DiagnosticSeverity.Error));
+        await test.RunAsync();
+    }
+
     private static async Task<CSharpAnalyzerTest<DependencyAnalyzer, DefaultVerifier>> CreateAsync(string source, string policy = Policy)
     {
         var test = new CSharpAnalyzerTest<DependencyAnalyzer, DefaultVerifier>

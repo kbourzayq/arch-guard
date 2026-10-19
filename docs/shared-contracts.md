@@ -67,7 +67,7 @@ static Task<AnalysisResult> AnalyzeAsync<TContext>(
 ```
 
 The host supplies actual rule implementations and the neutral model appropriate to
-their scope, such as `DependencyBuildResult` for AG001–AG005, including the
+their scope, such as `DependencyBuildResult` for AG001–AG006, including the
 repository, graph and extraction coverage. The context must remain stable throughout
 evaluation; the service cannot defensively copy an
 arbitrary context. Workspace/transport objects must be converted at adapter boundaries.
@@ -83,9 +83,9 @@ exceptions so a composition error can be fixed by the caller.
 This sequence describes the implemented service with a supplied neutral context
 and rule instances. It shows the path where each rule completes; the
 [outcome flow](#outcome-flow) covers other outcomes. CLI `load` validates workspace
-context separately. CLI `scan` composes the reusable AG001–AG005 API with policy
+context separately. CLI `scan` composes the reusable AG001–AG006 API with policy
 loading, dependency extraction and gate evaluation; see the [CLI guide](cli.md).
-The remaining production rules remain planned work.
+All six canonical rules are available through this composition.
 
 ```mermaid
 sequenceDiagram

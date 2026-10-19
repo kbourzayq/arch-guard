@@ -86,6 +86,15 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "projects": { "$ref": "#/$defs/selectors" },
+        "domainInfrastructure": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "forbiddenAssemblies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
+            "forbiddenNamespaces": { "$ref": "#/$defs/layer/properties/forbiddenNamespaces" },
+            "allowedNamespaces": { "$ref": "#/$defs/layer/properties/forbiddenNamespaces" }
+          }
+        },
         "allowedDependencies": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
         "forbiddenAssemblies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
         "forbiddenNamespaces": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } }

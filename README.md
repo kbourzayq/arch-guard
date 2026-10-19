@@ -15,18 +15,20 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F10](https://github.com/kbourzayq/arch-guard/issues/10),
 [F11](https://github.com/kbourzayq/arch-guard/issues/11),
 [F12](https://github.com/kbourzayq/arch-guard/issues/12),
-[F13](https://github.com/kbourzayq/arch-guard/issues/13) and
-[F14](https://github.com/kbourzayq/arch-guard/issues/14): the .NET 10 solution, component
+[F13](https://github.com/kbourzayq/arch-guard/issues/13),
+[F14](https://github.com/kbourzayq/arch-guard/issues/14) and
+[F15](https://github.com/kbourzayq/arch-guard/issues/15): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
 AG001 enforcement of module and public-contract permissions, and AG002 enforcement
 of the configured layer matrix, AG003 module cycle detection, and CLI scan, inspect
 and explain commands, with compliant and deliberately violating reference solutions,
-a compiler-hosted AG001/AG002/AG004/AG005 analyzer with a semantic test harness, and
+a compiler-hosted AG001/AG002/AG004/AG005/AG006 analyzer with a semantic test harness, and
 AG004 semantic enforcement of declared implementation boundaries and AG005 explicit
-assembly/namespace restrictions in both engines.
-Remaining rules follow in the
+assembly/namespace restrictions and AG006 layer-scoped domain technology restrictions
+with namespace exceptions in both engines.
+Additional capabilities follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
 ## Architecture and flows
@@ -95,6 +97,8 @@ from external packages and adapters, and CLI process behavior. Warnings fail the
 Builds emit XML API documentation; missing documentation for public types or members
 also fails the build.
 
+AG006 tests cover configured layer membership, technology identities, scoped namespace
+exceptions, independent overlapping rules, evidence deduplication and partial coverage.
 AG005 tests cover module/layer restrictions, framework/external assemblies, namespace
 descendants, aliases/global usings, lookalikes, generated sources and cross-engine meanings.
 AG004 tests cover public implementation types, contract and same-module access,
@@ -128,7 +132,7 @@ argument validation and cancellation. The intended tool name is `archguard`; unt
 F27 packages it, use `dotnet run` as above (generated usage shows the assembly name).
 See the [CLI guide](docs/cli.md) for output, policy paths and examples.
 
-`scan` evaluates policy-selected AG001–AG005 rules and prints severity, rule ID,
+`scan` evaluates policy-selected AG001–AG006 rules and prints severity, rule ID,
 source location, affected target, evidence, remediation and documentation. Exit 0
 means completed and gate passed; 1 means completed and gate failed; 2 means invalid
 input or unreliable, incomplete, failed or cancelled work. Operational errors go to
@@ -137,8 +141,7 @@ analysis. Selected rules without implementations fail explicitly.
 
 `inspect` lists resolved modules, project/layer ownership, public contracts, direct
 permissions, selected rule severities and the gate without evaluating rules.
-`explain AG001` resolves case-sensitive canonical IDs AG001–AG006 locally, including
-metadata for planned rules. `scan` and `inspect` require an explicit `--policy` path;
+`explain AG001` resolves case-sensitive canonical IDs AG001–AG006 locally, including all six implemented rules. `scan` and `inspect` require an explicit `--policy` path;
 project identities are relative to its directory. Both accept `--configuration` and
 `--framework` with the same scope and trust requirements as `load`.
 
@@ -155,10 +158,10 @@ origin evidence, deterministic traversal/cycles and extraction coverage.
 
 | Project | Responsibility | Direct production references |
 | --- | --- | --- |
-| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG005 evaluation, gates, repository data and evidence graphs | None |
+| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG006 evaluation, gates, repository data and evidence graphs | None |
 | `ArchitectureGuardian.Analysis` | Reusable orchestration, trusted Roslyn/MSBuild workspace loading, repository normalization and dependency extraction | Core |
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
-| `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002/AG004/AG005 and AdditionalFiles policy | None; source-links pure Core semantics |
+| `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002/AG004/AG005/AG006 and AdditionalFiles policy | None; source-links pure Core semantics |
 | `ArchitectureGuardian.Cli` | System.CommandLine arguments, policy/service composition, diagnostics and exit codes | Analysis, Configuration |
 
 Rules return evidence-backed findings without severity. The analysis service applies
@@ -172,13 +175,14 @@ See the [shared contracts guide](docs/shared-contracts.md) for composition, sour
 coordinates, deterministic identities and cancellation behavior, and the
 [canonical rule catalog](docs/rule-catalog.md) for AG001–AG006. The catalog defines
 identities. `ModuleDependenciesRule`, `LayerDependenciesRule`, `ModuleCyclesRule`,
-`ImplementationBoundariesRule` and `ForbiddenReferencesRule` implement AG001–AG005 over `DependencyBuildResult`;
-AG006 remains planned. The
+`ImplementationBoundariesRule`, `ForbiddenReferencesRule` and `DomainInfrastructureRule`
+implement AG001–AG006 over `DependencyBuildResult`. The
 [AG001 guide](docs/rule-catalog.md#ag001-module-dependencies),
 [AG002 guide](docs/rule-catalog.md#ag002-layer-dependencies),
 [AG003 guide](docs/rule-catalog.md#ag003-module-cycles),
 [AG004 guide](docs/rule-catalog.md#ag004-implementation-boundaries),
-[AG005 guide](docs/rule-catalog.md#ag005-forbidden-references) and
+[AG005 guide](docs/rule-catalog.md#ag005-forbidden-references),
+[AG006 guide](docs/rule-catalog.md#ag006-domain-infrastructure) and
 [policy composition example](docs/policy.md#host-composition) explain their scope and use.
 
 The [compiler analyzer guide](docs/compiler-analyzer.md) describes package consumption,

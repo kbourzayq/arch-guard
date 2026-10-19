@@ -119,6 +119,24 @@ public sealed class CliWorkspaceTests
                     : "Forbidden namespaces (including descendants): Library", restrictions.Output);
             }
 
+            // AG006 applies to the configured source layer, even when its name is Application.
+            var domainPolicy = Policy("error", "error", true).Replace("AG003: error", "AG006: error", StringComparison.Ordinal)
+                .Replace("  - id: Application\n", "  - id: Application\n    domainInfrastructure:\n      forbiddenNamespaces: [Library]\n", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(policyPath, domainPolicy);
+            var domainScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+            Assert.True(domainScan.ExitCode == 1, domainScan.Output + domainScan.Error);
+            Assert.Empty(domainScan.Error);
+            Assert.Contains("error AG006:", domainScan.Output);
+            Assert.Contains("layers.Application.domainInfrastructure.forbiddenNamespaces", domainScan.Output);
+            Assert.Contains("Consumer.cs(1,", domainScan.Output);
+            var domainInspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
+            Assert.Equal(0, domainInspect.ExitCode);
+            Assert.Contains("AG006 infrastructure namespaces (including descendants): Library", domainInspect.Output);
+            await File.WriteAllTextAsync(policyPath, domainPolicy.Replace("forbiddenNamespaces: [Library]", "forbiddenNamespaces: [Library]\n      allowedNamespaces: [Library]", StringComparison.Ordinal));
+            var exempted = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+            Assert.True(exempted.ExitCode == 0, exempted.Output + exempted.Error);
+            Assert.Contains("0 diagnostic(s)", exempted.Output);
+
             await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
             var first = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             var second = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
@@ -143,7 +161,7 @@ public sealed class CliWorkspaceTests
         }
     }
 
-    /// <summary>Checks actionable policy/trust errors and prevents unavailable rules from being silently skipped.</summary>
+    /// <summary>Checks actionable policy/trust errors and prevents invalid inputs from claiming coverage.</summary>
     [Fact]
     public async Task Configuration_and_trust_failures_return_two()
     {
@@ -163,13 +181,6 @@ public sealed class CliWorkspaceTests
             Assert.Contains("policy.yaml", invalid.Error);
             Assert.Contains("version", invalid.Error);
             Assert.Empty(invalid.Output);
-
-            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false).Replace("AG003:", "AG006:", StringComparison.Ordinal));
-            var unavailable = await RunCli("scan", "missing.csproj", "--policy", policyPath, "--trusted");
-            Assert.Equal(2, unavailable.ExitCode);
-            Assert.Contains("unavailable", unavailable.Error);
-            Assert.Contains("AG006", unavailable.Error);
-            Assert.Empty(unavailable.Output);
 
             await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
             var untrusted = await RunCli("scan", "missing.csproj", "--policy", policyPath);

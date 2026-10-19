@@ -9,6 +9,7 @@ source span; the solution engine instead groups evidence by project pair. Diagno
 counts and snapshot identities are therefore not interchangeable across engines.
 F13 adds AG004 implementation boundaries using the same portable ownership semantics.
 F14 adds AG005 with source-linked matching and validation for explicit reference restrictions.
+F15 adds AG006 layer-scoped technology restrictions and namespace exceptions.
 
 ## Install and distribute policy
 
@@ -66,6 +67,23 @@ digits or `_`). Namespace restrictions include descendants, with segment boundar
 `global::` and escaped names are unsupported. Keep these restrictions synchronized
 with the authoritative [YAML policy](policy.md#forbidden-references-ag005).
 
+For AG006, only `Layer` elements accept `infrastructureAssemblies`,
+`infrastructureNamespaces` and `allowedInfrastructureNamespaces`. These are
+whitespace-separated unique names corresponding respectively to YAML
+`domainInfrastructure.forbiddenAssemblies`, `.forbiddenNamespaces` and
+`.allowedNamespaces` on the same layer. Absent/empty attributes ban nothing; names
+use the same validation and namespace descendant matching as AG005. For example:
+
+```xml
+<Layer id="Domain" infrastructureAssemblies="Legacy.Persistence"
+       infrastructureNamespaces="Microsoft.EntityFrameworkCore System.Data"
+       allowedInfrastructureNamespaces="System.Data.SqlTypes" />
+```
+
+The source assembly's configured layer decides scope, regardless of its name. The
+exception applies to target namespace subtrees for AG006 only, including assembly
+bans, across all target assemblies. Keep it narrow and synchronize it with YAML.
+
 Version 1 accepts only the shown root, child elements and attributes. IDs and assembly
 names are nonempty, case-sensitive tokens containing letters, digits, `.`, `_` or `-`.
 Module permissions are whitespace-separated `module:ID` or `contract:MODULE/CONTRACT`
@@ -93,6 +111,12 @@ when evaluated ownership or assembly names differ.
   symbols, even if the target assembly has no ownership entry. Diagnostics identify
   the referenced symbol and the exact module/layer restriction. Module permissions
   and public contracts do not exempt a forbidden reference.
+- AG006 checks explicit technology restrictions on the source assembly's layer,
+  including framework/external and same-project targets. Allowed target namespace
+  subtrees exempt only this layer's AG006 restrictions. There are no built-in bans.
+  AG002, AG005 and AG006 report independently when their policies overlap; identical
+  rule/use/restriction callbacks are not repeated, while distinct restrictions retain
+  separate diagnostics. See the [deduplication policy](rule-catalog.md#ag006-domain-infrastructure).
 - AG000 is an operational error for a missing, unreadable, duplicate or invalid
   snapshot or an unmapped current assembly. It is outside the canonical rule catalog
   and does not represent an architecture violation. Do not suppress it to claim coverage.
@@ -106,6 +130,7 @@ dotnet_diagnostic.AG001.severity = error
 dotnet_diagnostic.AG002.severity = warning
 dotnet_diagnostic.AG004.severity = error
 dotnet_diagnostic.AG005.severity = error
+dotnet_diagnostic.AG006.severity = error
 ```
 
 `none` disables a rule through the host. Aliases, global/static imports, partial types,
@@ -115,7 +140,7 @@ code is included, including `.g.cs` files and generated-code attributes. Diagnos
 point to each bound simple name or predefined type keyword, so one statement can
 contain several uses.
 
-AG004 and AG005 use the same bound simple-name callbacks as AG001/AG002: base classes,
+AG004, AG005 and AG006 use the same bound simple-name callbacks as AG001/AG002: base classes,
 interfaces, type constraints, field/property/parameter/return type names, generic
 names and arguments, predefined type keywords (`string`, `int`, `void`, etc.), object-creation type names, attributes, `typeof`, `nameof`,
 casts, patterns and named member/extension-method uses. Named, constructed-generic and array aliases resolve to their actual target symbols
@@ -130,12 +155,12 @@ Use solution scanning for the broader semantic evidence described in the
 [dependency graph guide](dependency-graph.md#semantic-reference-scope).
 
 AG001/AG002/AG004 require assemblies in the snapshot. Other references, including framework
-and external package assemblies, are ignored by those ownership rules; AG005 checks
+and external package assemblies, are ignored by those ownership rules; AG005 and AG006 check
 explicit restrictions against all bound target assemblies. Missing entries for referenced repository
 assemblies cannot be discovered from one compilation. Unused project references are
 not checked. Compiler errors retain the host's own diagnostics, and unresolved symbols
 do not establish a dependency. An empty analyzer result establishes neither complete
-repository coverage nor compliance with AG003 or the planned AG006 rule.
+repository coverage nor compliance with AG003.
 
 Each compilation loads its own snapshot once and concurrent callbacks only read it.
 There is no static mutable policy cache. Cancellation is forwarded to AdditionalText
@@ -156,13 +181,14 @@ it does not extend vendor support for older SDKs or IDEs.
 | SDK 8.0.100, 9.0.100, 10.0.301 command-line compiler | Packaged consumer test in CI on Linux, Windows and macOS |
 | Visual Studio UI, Rider and other interactive IDEs | No UI-level validation in this repository; IDEs must supply Roslyn 4.8+ and AdditionalFiles |
 
-The semantic suite covers AG005 framework/external restrictions and lookalikes, invalid configuration, cancellation, concurrent reuse,
+The semantic suite covers AG005/AG006 framework/external restrictions and lookalikes, invalid configuration, cancellation, concurrent reuse,
 generated sources and policy permissions. The package test checks the NuGet layout,
 loads the installed analyzer through a real SDK build, requires located AG001/AG002/AG004
 errors for a forbidden dependency, verifies that whole-module permission still yields
 AG004, then declares a public contract through the AdditionalFile and requires a passing build.
 It also adds an AG005 namespace restriction, requires a located diagnostic and checks
-that removing the restriction restores the passing build. Run it locally with an installed SDK version:
+that removing the restriction restores the passing build. It checks an AG006 ban and
+then restores the passing build through an explicit namespace exception. Run it locally with an installed SDK version:
 
 ```sh
 python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.301
