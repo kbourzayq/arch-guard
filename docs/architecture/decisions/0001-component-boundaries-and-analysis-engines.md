@@ -303,8 +303,9 @@ assume it can see every project in the solution.
 Its initial scope is semantic uses for AG001/AG002 with supplied assembly ownership;
 F13 adds AG004; F14 adds AG005 explicit assembly/namespace restrictions with source-linked
 portable matching and bound identities. The analyzer source-links only
-`DependencySemantics.cs` and `ForbiddenReferenceSemantics.cs`; boundary tests enforce
-that exact portable surface. AG006 will add further compiler-safe checks. Whole-solution cycle detection remains with Analysis. The
+`DependencySemantics.cs`, `ForbiddenReferenceSemantics.cs` and
+`DomainInfrastructureSemantics.cs`; boundary tests enforce that exact portable surface.
+F15 adds AG006 configuration-driven technology checks and layer-scoped namespace exceptions. Whole-solution cycle detection remains with Analysis. The
 two engines share rule identities and pure evaluation where their inputs support
 the same semantics; missing context is explicit. F16 will verify parity on supported
 cases and document generated-code, incomplete-compilation and host limitations.
@@ -367,3 +368,18 @@ workspaces or claim solution coverage. Generated code is included in both engine
 CLI registers AG004 for explicit policy selection. No schema, package, project or
 component boundary changes are required. See the [AG004 guide](../../rule-catalog.md#ag004-implementation-boundaries)
 and [compiler reference scope](../../compiler-analyzer.md#reporting-and-scope).
+
+### F15 domain infrastructure references
+
+Core's `DomainInfrastructureRule` combines resolved source layer membership with
+bound assembly/namespace evidence. `LayerPolicy.DomainInfrastructure` carries optional
+technology restrictions and target namespace exceptions; no layer or framework name
+is special. The YAML adapter and v1 editor schema accept this additive object. CLI
+registers AG006 and displays the restrictions during inspection. Existing policies
+retain their behavior because the object and its lists default to no restrictions.
+
+The compiler snapshot carries equivalent layer attributes and source-links only
+`DomainInfrastructureSemantics.cs` for shared matching/metadata. It keeps the existing
+explicit-name semantic surface and host severity settings. AG006 namespace exceptions
+cannot override AG002's layer matrix or AG005's general restrictions; each rule keeps
+its own findings and evidence. No project, package or component dependency is added.

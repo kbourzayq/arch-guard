@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace ArchitectureGuardian.Analyzers;
 
-/// <summary>Checks semantic AG001/AG002 dependencies, AG004 implementation access and AG005 reference restrictions in the host compilation.</summary>
+/// <summary>Checks semantic AG001/AG002 dependencies, AG004 implementation access and AG005/AG006 reference restrictions in the host compilation.</summary>
 /// <remarks>Generated code is included. Each compilation owns its immutable policy; callbacks support cancellation and concurrency.</remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class DependencyAnalyzer : DiagnosticAnalyzer
@@ -32,8 +32,12 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
         "Assembly '{0}' uses '{1}' from '{2}', violating {3}.{4} restriction '{5}'", "Architecture", DiagnosticSeverity.Warning, true,
         helpLinkUri: DependencySemantics.DocumentationRoot + ForbiddenReferenceSemantics.Anchor);
 
+    private static readonly DiagnosticDescriptor DomainInfrastructure = new(DomainInfrastructureSemantics.Id, DomainInfrastructureSemantics.Title,
+        "Assembly '{0}' uses infrastructure symbol '{1}' from '{2}', violating {3}.{4} restriction '{5}'", "Architecture", DiagnosticSeverity.Warning, true,
+        helpLinkUri: DependencySemantics.DocumentationRoot + DomainInfrastructureSemantics.Anchor);
+
     /// <inheritdoc/>
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Configuration, Modules, Layers, Implementations, ForbiddenReferences);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Configuration, Modules, Layers, Implementations, ForbiddenReferences, DomainInfrastructure);
 
     /// <summary>Registers compilation-local policy loading and concurrent semantic callbacks without opening a workspace.</summary>
     /// <param name="context">The compiler's analyzer registration context.</param>
@@ -109,6 +113,14 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
                 {
                     context.CancellationToken.ThrowIfCancellationRequested();
                     context.ReportDiagnostic(Diagnostic.Create(ForbiddenReferences, context.Node.GetLocation(), source,
+                        targetSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name,
+                        restriction.Scope, restriction.Kind, restriction.Name));
+                }
+
+                foreach (var restriction in policy.InfrastructureRestrictions(source, assembly.Name, namespaceName))
+                {
+                    context.CancellationToken.ThrowIfCancellationRequested();
+                    context.ReportDiagnostic(Diagnostic.Create(DomainInfrastructure, context.Node.GetLocation(), source,
                         targetSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name,
                         restriction.Scope, restriction.Kind, restriction.Name));
                 }

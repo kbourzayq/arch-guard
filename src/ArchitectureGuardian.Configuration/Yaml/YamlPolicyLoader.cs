@@ -128,10 +128,20 @@ public sealed class YamlPolicyLoader : IPolicyLoader
 
         private LayerPolicy Layer(YamlNode node, string path)
         {
-            var fields = Map(node, path, ["id", "projects"], ["allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces"]);
+            var fields = Map(node, path, ["id", "projects"], ["allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces", "domainInfrastructure"]);
+            DomainInfrastructurePolicy? infrastructure = null;
+            if (fields.TryGetValue("domainInfrastructure", out var value))
+            {
+                var scope = path + ".domainInfrastructure";
+                var restrictions = Map(value, scope, [], ["forbiddenAssemblies", "forbiddenNamespaces", "allowedNamespaces"]);
+                infrastructure = Construct(value, scope, () => new DomainInfrastructurePolicy(
+                    OptionalStrings(restrictions, "forbiddenAssemblies", scope), OptionalStrings(restrictions, "forbiddenNamespaces", scope),
+                    OptionalStrings(restrictions, "allowedNamespaces", scope)));
+            }
+
             return Construct(node, path, () => new LayerPolicy(Text(fields["id"], path + ".id"),
                 Strings(fields["projects"], path + ".projects"), OptionalStrings(fields, "allowedDependencies", path),
-                OptionalStrings(fields, "forbiddenAssemblies", path), OptionalStrings(fields, "forbiddenNamespaces", path)));
+                OptionalStrings(fields, "forbiddenAssemblies", path), OptionalStrings(fields, "forbiddenNamespaces", path), infrastructure));
         }
 
         private Dictionary<string, YamlNode> Map(YamlNode node, string path, string[] required, string[] optional)

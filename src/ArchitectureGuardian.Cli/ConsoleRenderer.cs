@@ -15,9 +15,7 @@ internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
     {
         output.WriteLine($"{descriptor.Id}: {descriptor.Title}");
         output.WriteLine($"  Documentation: {descriptor.DocumentationUrl}");
-        output.WriteLine(descriptor.Id is "AG001" or "AG002" or "AG003" or "AG004" or "AG005"
-            ? "  Available in scan; select this ID and its severity in the policy's rules mapping."
-            : "  Catalog metadata only; this rule is not yet available in scan.");
+        output.WriteLine("  Available in scan; select this ID and its severity in the policy's rules mapping.");
     }
 
     internal void Loaded(int projects, string configuration) => output.WriteLine(
@@ -93,7 +91,14 @@ internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
             var definition = repository.Policy.Layers.Single(item => item.Id == layer.Id);
             output.WriteLine($"Layer {layer.Id}: {string.Join(", ", layer.Projects.Select(project => project.Id))}");
             Restrictions(definition.ForbiddenAssemblies, definition.ForbiddenNamespaces);
-            output.WriteLine($"  Allowed dependencies: {Permissions(repository.Policy.Layers.Single(item => item.Id == layer.Id).AllowedDependencies)}");
+            if (definition.DomainInfrastructure is { } infrastructure)
+            {
+                output.WriteLine($"  AG006 infrastructure assemblies: {Permissions(infrastructure.ForbiddenAssemblies)}");
+                output.WriteLine($"  AG006 infrastructure namespaces (including descendants): {Permissions(infrastructure.ForbiddenNamespaces)}");
+                output.WriteLine($"  AG006 allowed namespaces (including descendants): {Permissions(infrastructure.AllowedNamespaces)}");
+            }
+
+            output.WriteLine($"  Allowed dependencies: {Permissions(definition.AllowedDependencies)}");
         }
 
         output.WriteLine("Constraints: cross-boundary dependencies require direct permission; same-module/same-layer dependencies are allowed by their respective checks.");

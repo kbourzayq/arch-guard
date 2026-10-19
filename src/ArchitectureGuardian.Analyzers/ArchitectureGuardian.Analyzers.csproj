@@ -14,6 +14,7 @@
     <!-- Share only pure, portable semantics; never load the net10 solution engine in a compiler host. -->
     <Compile Include="../ArchitectureGuardian.Core/Rules/DependencySemantics.cs" Link="Rules/DependencySemantics.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Rules/ForbiddenReferenceSemantics.cs" Link="Rules/ForbiddenReferenceSemantics.cs" />
+    <Compile Include="../ArchitectureGuardian.Core/Rules/DomainInfrastructureSemantics.cs" Link="Rules/DomainInfrastructureSemantics.cs" />
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="../../docs/compiler-analyzer.md" Pack="true" PackagePath="README.md" Visible="false" />
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />

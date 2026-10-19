@@ -28,8 +28,9 @@ Selectors must cover exactly that scope, including referenced projects. See the
 
 `--configuration` defaults to `Debug`; `--framework <tfm>` is required for
 multi-targeted projects. Coverage applies to that configuration and framework.
-`scan` registers AG001–AG005 and runs only policy-selected IDs. Selecting
-AG006 fails with the unavailable IDs before executing workspace build logic.
+`scan` registers AG001–AG006 and runs only policy-selected IDs. AG006 enforces
+layer-scoped domain technology restrictions and namespace exceptions; see the
+[policy guide](policy.md#domain-infrastructure-ag006).
 
 Each finding prints severity, canonical rule ID, message, source location when
 available, module/symbol target, deterministic diagnostic ID, supporting evidence,

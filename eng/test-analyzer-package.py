@@ -52,7 +52,7 @@ def main():
             f'<PackageReference Include="ArchitectureGuardian.Analyzers" Version="{version}" PrivateAssets="all"/>'
             '<AdditionalFiles Include="architecture.guardian.compiler.xml"/></ItemGroup></Project>')
         (orders / "Order.cs").write_text("public class Order : Billing.Service { }")
-        (orders / ".editorconfig").write_text("root = true\n\n[*.cs]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = error\ndotnet_diagnostic.AG004.severity = error\ndotnet_diagnostic.AG005.severity = error\n")
+        (orders / ".editorconfig").write_text("root = true\n\n[*.cs]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = error\ndotnet_diagnostic.AG004.severity = error\ndotnet_diagnostic.AG005.severity = error\ndotnet_diagnostic.AG006.severity = error\n")
         policy = '''<ArchitectureGuardian version="1">
           <Module id="Orders"/><Module id="Billing"/>
           <Layer id="Application"/><Layer id="Infrastructure"/>
@@ -88,7 +88,17 @@ def main():
             assert failure not in restricted.stdout + restricted.stderr, restricted.stdout
         snapshot.write_text(contract)
         assert run(build, root).returncode == 0, "Removing AG005 restriction did not restore passing build"
-        print(f"Analyzer package passed forbidden/allowed and AG005 builds with SDK {args.sdk}")
+        snapshot.write_text(contract.replace('<Layer id="Application" allows="Infrastructure"/>',
+            '<Layer id="Application" allows="Infrastructure" infrastructureNamespaces="Billing"/>'))
+        domain = run(build, root)
+        assert domain.returncode != 0 and "error AG006" in domain.stdout and "Order.cs(" in domain.stdout, domain.stdout
+        assert "layers.Application.domainInfrastructure.forbiddenNamespaces restriction 'Billing'" in domain.stdout, domain.stdout
+        for failure in ("CS8032", "CS9057", "AD0001", "AG000", "error AG001", "error AG002", "error AG004", "error AG005"):
+            assert failure not in domain.stdout + domain.stderr, domain.stdout
+        snapshot.write_text(snapshot.read_text().replace('infrastructureNamespaces="Billing"',
+            'infrastructureNamespaces="Billing" allowedInfrastructureNamespaces="Billing"'))
+        assert run(build, root).returncode == 0, "AG006 namespace exception did not restore passing build"
+        print(f"Analyzer package passed forbidden/allowed and AG005/AG006 builds with SDK {args.sdk}")
 
 
 if __name__ == "__main__":

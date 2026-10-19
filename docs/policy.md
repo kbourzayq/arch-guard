@@ -11,9 +11,10 @@ The loader and policy APIs, [trusted workspace loading](workspace-loading.md),
 [AG002 evaluation](rule-catalog.md#ag002-layer-dependencies) and
 [AG003 evaluation](rule-catalog.md#ag003-module-cycles),
 [AG004 evaluation](rule-catalog.md#ag004-implementation-boundaries) and
-[AG005 evaluation](rule-catalog.md#ag005-forbidden-references) are usable today.
+[AG005 evaluation](rule-catalog.md#ag005-forbidden-references) and
+[AG006 evaluation](rule-catalog.md#ag006-domain-infrastructure) are usable today.
 F10 exposes these services through [CLI `scan`, `inspect` and `explain`](cli.md).
-Remaining rules follow in their roadmap features. Loading a valid policy alone does
+Additional capabilities follow in the roadmap. Loading a valid policy alone does
 not establish scan coverage or compliance.
 
 ## Document shape
@@ -46,7 +47,8 @@ are unique within their module. IDs follow `[A-Za-z][A-Za-z0-9_.-]*` and compare
 ordinally, including case. Module and layer IDs may share a spelling.
 
 `contracts`, `allowedDependencies`, `forbiddenAssemblies` and `forbiddenNamespaces`
-default to empty lists. `gate` defaults to
+default to empty lists. Layers may also declare the optional
+[`domainInfrastructure`](#domain-infrastructure-ag006) object. `gate` defaults to
 `failOn: error`; when present it must contain `failOn`. Duplicate list values,
 duplicate YAML keys, missing fields, unknown fields and unknown rule IDs are errors.
 No policy inheritance, environment expansion, implicit exclusion or fallback policy
@@ -184,6 +186,40 @@ restrictions use their bound assembly identity, which can differ from a referenc
 facade or package name. Existing policies remain valid. Select AG005 in `rules` to
 run it; declaring restrictions alone does not select a rule.
 
+## Domain infrastructure (AG006)
+
+A layer's optional `domainInfrastructure` object marks that layer as a source of
+AG006 checks. Membership comes from its project selectors; no layer name (including
+`Domain`) or technology is special. For example:
+
+```yaml
+layers:
+  - id: Domain
+    projects: ["src/**/*.Domain.csproj"]
+    domainInfrastructure:
+      forbiddenAssemblies: [Legacy.Persistence]
+      forbiddenNamespaces: [Microsoft.EntityFrameworkCore, System.Data]
+      allowedNamespaces: [System.Data.SqlTypes]
+rules:
+  AG006: error
+```
+
+Use this fragment inside a complete v1 document. All three lists are optional,
+unique and may be empty. Names and descendant matching follow AG005's exact assembly
+and namespace rules above. An absent or empty object bans nothing. `allowedNamespaces`
+exempts bound target namespaces and descendants from **both** AG006 assembly and
+namespace bans, only for projects in this source layer. It does not exempt similarly
+prefixed namespaces or another layer. Namespace exceptions authorize all types and
+members in that namespace subtree, regardless of assembly; use a narrow namespace.
+Allowed domain abstractions outside the configured technology identities pass.
+
+AG006 checks bound type/member evidence, including framework, package, repository and
+same-project symbols. It does not ban a technology merely because an unused reference
+or import exists. Module permissions, contracts and the layer dependency matrix do
+not waive these restrictions. Select AG006 to execute it; declaring the object alone
+does not select it. Exceptions do not override AG002 or AG005; see the
+[overlap policy](rule-catalog.md#ag006-domain-infrastructure).
+
 ## Rule selection, severity and gates
 
 The `rules` mapping explicitly selects canonical IDs AG001–AG006. Omitted IDs are
@@ -209,7 +245,7 @@ F22 will add baseline-aware gate semantics; v1 has no baseline setting.
 
 F06's `DependencyGraphBuilder` composes workspace normalization, policy resolution
 and extraction into a neutral `DependencyBuildResult`, as shown in the
-[dependency graph guide](dependency-graph.md#build-a-graph). The AG001–AG005 rules
+[dependency graph guide](dependency-graph.md#build-a-graph). The AG001–AG006 rules
 consume that result directly, preserving upstream coverage and issues alongside findings.
 For a policy selecting any of these rules, a host can compose evaluation as follows:
 
@@ -227,7 +263,7 @@ if (context.Repository is null)
 }
 var policy = context.Repository.Policy;
 IArchitectureRule<DependencyBuildResult>[] availableRules =
-    [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule()];
+    [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule(), new DomainInfrastructureRule()];
 var selected = policy.SelectRules(availableRules);
 var service = new AnalysisService<DependencyBuildResult>(selected);
 var result = await service.AnalyzeAsync(
@@ -242,7 +278,7 @@ at composition time; Analysis and Core do not reference the YAML adapter. F10
 provides this composition through `scan --policy <path>` and reports resolved
 ownership through `inspect --policy <path>`; see the [CLI guide](cli.md).
 
-The supplied inventory and graph establish AG001–AG005 scope; omission from `rules`
+The supplied inventory and graph establish AG001–AG006 scope; omission from `rules`
 disables a rule's selection. V1 rejects `enabled` and per-rule scope fields. AG001 uses
 project pairs from the graph's evidence, so approved contracts never mask forbidden
 implementation dependencies inside the same aggregated module edge. Unmapped pairs
@@ -252,7 +288,7 @@ evidence. See the [AG002 guide](rule-catalog.md#ag002-layer-dependencies).
 AG003 independently detects cycles even when every dependency has module or contract
 permission. See the [AG003 guide](rule-catalog.md#ag003-module-cycles). The repository
 and modular-monolith example policies select AG001–AG003 and can now be evaluated
-through this composition. AG004 is also available when selected and checks semantic implementation access independently of module permissions. Policies selecting AG006 still requires its implementation.
+through this composition. AG004 is also available when selected and checks semantic implementation access independently of module permissions. AG006 checks configured domain technology restrictions and scoped exceptions when selected.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
 logical field path and corrective message. Contract/reference errors may point to

@@ -9,10 +9,12 @@ public sealed class LayerPolicy
     /// <param name="allowedDependencies">Exact declared layer IDs, or null for none.</param>
     /// <param name="forbiddenAssemblies">Exact assembly simple names forbidden at semantic use sites, or null for none.</param>
     /// <param name="forbiddenNamespaces">Namespace names including their descendants forbidden at semantic use sites, or null for none.</param>
+    /// <param name="domainInfrastructure">Optional AG006 restrictions for this source layer, independent of its name.</param>
     /// <exception cref="ArgumentException">An identity or selector is invalid, or a collection contains null or duplicates.</exception>
     public LayerPolicy(string id, IEnumerable<string> projects, IEnumerable<string>? allowedDependencies = null, IEnumerable<string>? forbiddenAssemblies = null,
-        IEnumerable<string>? forbiddenNamespaces = null)
+        IEnumerable<string>? forbiddenNamespaces = null, DomainInfrastructurePolicy? domainInfrastructure = null)
     {
+        DomainInfrastructure = domainInfrastructure;
         Id = PolicyData.Id(id);
         Projects = PolicyData.Patterns(projects);
         AllowedDependencies = PolicyData.Strings(allowedDependencies ?? []);
@@ -34,4 +36,6 @@ public sealed class LayerPolicy
 
     /// <summary>Gets case-sensitive namespace restrictions; each includes its child namespaces.</summary>
     public IReadOnlyList<string> ForbiddenNamespaces { get; }
+    /// <summary>Gets the optional layer-scoped AG006 technology restrictions and exceptions.</summary>
+    public DomainInfrastructurePolicy? DomainInfrastructure { get; }
 }

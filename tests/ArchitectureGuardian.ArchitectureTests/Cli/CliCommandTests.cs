@@ -6,7 +6,7 @@ namespace ArchitectureGuardian.ArchitectureTests.Cli;
 /// <summary>Verifies parsing and early cancellation without executing repository build logic.</summary>
 public sealed class CliCommandTests
 {
-    /// <summary>Checks local catalog lookup, including IDs whose implementations are still planned.</summary>
+    /// <summary>Checks local catalog lookup, including the domain infrastructure rule.</summary>
     /// <param name="id">A canonical rule ID.</param>
     [Theory]
     [InlineData("AG001")]
@@ -25,14 +25,7 @@ public sealed class CliCommandTests
         Assert.StartsWith(id + ":", output.ToString());
         Assert.Contains("Documentation: https://github.com/kbourzayq/arch-guard/", output.ToString());
         Assert.Empty(error.ToString());
-        if (id is "AG006")
-        {
-            Assert.Contains("not yet available", output.ToString());
-        }
-        else
-        {
-            Assert.Contains("Available in scan", output.ToString());
-        }
+        Assert.Contains("Available in scan", output.ToString());
     }
 
     /// <summary>Rejects missing, unknown, repeated or blank values before evaluating a workspace.</summary>
