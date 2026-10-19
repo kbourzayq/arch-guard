@@ -52,7 +52,7 @@ def main():
             f'<PackageReference Include="ArchitectureGuardian.Analyzers" Version="{version}" PrivateAssets="all"/>'
             '<AdditionalFiles Include="architecture.guardian.compiler.xml"/></ItemGroup></Project>')
         (orders / "Order.cs").write_text("public class Order : Billing.Service { }")
-        (orders / ".editorconfig").write_text("root = true\n\n[*.cs]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = error\ndotnet_diagnostic.AG004.severity = error\n")
+        (orders / ".editorconfig").write_text("root = true\n\n[*.cs]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = error\ndotnet_diagnostic.AG004.severity = error\ndotnet_diagnostic.AG005.severity = error\n")
         policy = '''<ArchitectureGuardian version="1">
           <Module id="Orders"/><Module id="Billing"/>
           <Layer id="Application"/><Layer id="Infrastructure"/>
@@ -78,7 +78,17 @@ def main():
         assert "error AG001" not in implementation.stdout and "error AG002" not in implementation.stdout, implementation.stdout
         snapshot.write_text(permitted.replace('layer="Infrastructure"/>', 'layer="Infrastructure" contract="api"/>'))
         assert run(build, root).returncode == 0, "Allowed contract failed after AdditionalFile update"
-        print(f"Analyzer package passed forbidden/allowed builds with SDK {args.sdk}")
+        contract = snapshot.read_text()
+        snapshot.write_text(contract.replace('<Module id="Orders" allows="module:Billing"/>',
+            '<Module id="Orders" allows="module:Billing" forbiddenNamespaces="Billing"/>'))
+        restricted = run(build, root)
+        assert restricted.returncode != 0 and "error AG005" in restricted.stdout and "Order.cs(" in restricted.stdout, restricted.stdout
+        assert "modules.Orders.forbiddenNamespaces restriction 'Billing'" in restricted.stdout, restricted.stdout
+        for failure in ("CS8032", "CS9057", "AD0001", "AG000", "error AG001", "error AG002", "error AG004"):
+            assert failure not in restricted.stdout + restricted.stderr, restricted.stdout
+        snapshot.write_text(contract)
+        assert run(build, root).returncode == 0, "Removing AG005 restriction did not restore passing build"
+        print(f"Analyzer package passed forbidden/allowed and AG005 builds with SDK {args.sdk}")
 
 
 if __name__ == "__main__":

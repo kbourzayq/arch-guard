@@ -447,7 +447,7 @@ public sealed class DependencyGraphBuilder
                 ?? origin?.ContainingNamespace ?? context.Compilation.Assembly.GlobalNamespace);
             var evidence = new DependencyEvidence(context.Model.Id, owner?.Model.Id,
                 new($"'{origin?.ToDisplayString() ?? context.Model.Assembly.Name}' uses '{targetSymbol}'.", Location(context, location)),
-                origin?.ToDisplayString(), targetSymbol);
+                origin?.ToDisplayString(), targetSymbol, targetAssembly: type.ContainingAssembly.Name, targetNamespace: namespaceName);
             Add(AssemblyNode(context.Model), targetAssembly, evidence);
             Add(NamespaceNode(context.Model.Assembly.Namespaces.Single(ns => ns.Name == sourceNamespace)), targetNamespace, evidence);
             if (sourceType is { IsImplicitlyDeclared: false })
@@ -493,7 +493,7 @@ public sealed class DependencyGraphBuilder
 
         private void Add(DependencyNode source, DependencyNode target, DependencyEvidence evidence)
         {
-            if (source.Id != target.Id)
+            if (source.Id != target.Id || evidence.TargetSymbol is not null && source.Kind is DependencyKind.Assembly or DependencyKind.Namespace)
             {
                 _edges.Add(new(source, target, [evidence]));
             }

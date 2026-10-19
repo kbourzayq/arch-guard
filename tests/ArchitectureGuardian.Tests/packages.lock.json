@@ -280,6 +280,9 @@
           "Microsoft.CodeAnalysis.Workspaces.MSBuild": "[5.0.0, )"
         }
       },
+      "architectureguardian.analyzers": {
+        "type": "Project"
+      },
       "architectureguardian.configuration": {
         "type": "Project",
         "dependencies": {

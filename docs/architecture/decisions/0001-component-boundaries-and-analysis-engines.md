@@ -301,7 +301,10 @@ must not launch the CLI, open an MSBuildWorkspace, perform an independent restor
 assume it can see every project in the solution.
 
 Its initial scope is semantic uses for AG001/AG002 with supplied assembly ownership;
-F13 adds AG004; AG005–AG006 will add further compiler-safe checks. Whole-solution cycle detection remains with Analysis. The
+F13 adds AG004; F14 adds AG005 explicit assembly/namespace restrictions with source-linked
+portable matching and bound identities. The analyzer source-links only
+`DependencySemantics.cs` and `ForbiddenReferenceSemantics.cs`; boundary tests enforce
+that exact portable surface. AG006 will add further compiler-safe checks. Whole-solution cycle detection remains with Analysis. The
 two engines share rule identities and pure evaluation where their inputs support
 the same semantics; missing context is explicit. F16 will verify parity on supported
 cases and document generated-code, incomplete-compilation and host limitations.

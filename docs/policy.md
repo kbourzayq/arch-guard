@@ -3,13 +3,15 @@
 [F03](https://github.com/kbourzayq/arch-guard/issues/3) defines
 `architecture.guardian.yaml`, the [v1 JSON Schema](schema/architecture.guardian.v1.schema.json),
 the YAML loader and pure policy resolution. The [repository policy](../architecture.guardian.yaml)
-maps this solution's six projects. The [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
+maps this solution's eight projects. The [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
 illustrates public contracts. Both are loaded and resolved by tests.
 
 The loader and policy APIs, [trusted workspace loading](workspace-loading.md),
 [dependency extraction](dependency-graph.md), [AG001 evaluation](rule-catalog.md#ag001-module-dependencies),
 [AG002 evaluation](rule-catalog.md#ag002-layer-dependencies) and
-[AG003 evaluation](rule-catalog.md#ag003-module-cycles) are usable today.
+[AG003 evaluation](rule-catalog.md#ag003-module-cycles),
+[AG004 evaluation](rule-catalog.md#ag004-implementation-boundaries) and
+[AG005 evaluation](rule-catalog.md#ag005-forbidden-references) are usable today.
 F10 exposes these services through [CLI `scan`, `inspect` and `explain`](cli.md).
 Remaining rules follow in their roadmap features. Loading a valid policy alone does
 not establish scan coverage or compliance.
@@ -43,7 +45,8 @@ Module and layer IDs are unique within their respective collections; contract ID
 are unique within their module. IDs follow `[A-Za-z][A-Za-z0-9_.-]*` and compare
 ordinally, including case. Module and layer IDs may share a spelling.
 
-`contracts` and `allowedDependencies` default to empty lists. `gate` defaults to
+`contracts`, `allowedDependencies`, `forbiddenAssemblies` and `forbiddenNamespaces`
+default to empty lists. `gate` defaults to
 `failOn: error`; when present it must contain `failOn`. Duplicate list values,
 duplicate YAML keys, missing fields, unknown fields and unknown rule IDs are errors.
 No policy inheritance, environment expansion, implicit exclusion or fallback policy
@@ -146,6 +149,41 @@ and findings to module permission decisions; AG002's `LayerDependenciesRule` doe
 the same for layer permission decisions. Neither assumes fixed layer names or a
 universal Clean Architecture layout.
 
+## Forbidden references (AG005)
+
+Modules and layers optionally declare `forbiddenAssemblies` and `forbiddenNamespaces`:
+
+```yaml
+modules:
+  - id: Orders
+    projects: ["src/Orders/**/*.csproj"]
+    forbiddenAssemblies: [Legacy.Data]
+    forbiddenNamespaces: [System.Net]
+layers:
+  - id: Domain
+    projects: ["src/**/*.Domain.csproj"]
+    forbiddenNamespaces: [Microsoft.EntityFrameworkCore]
+rules:
+  AG005: error
+```
+
+This fragment belongs in a complete v1 document. Both lists default to empty and may
+be empty. Values must be unique. Assembly restrictions are exact, case-sensitive
+simple names using ASCII letters, digits, `.`, `_` and `-`; no paths, versions,
+wildcards or NuGet package IDs are interpreted. Namespace restrictions are
+case-sensitive, dot-separated ASCII identifiers (letter or `_` first, then letters,
+digits or `_`). Each restriction includes the exact namespace and its descendants:
+`System.Net` matches `System.Net.Http`, while `System.NetLike` passes. Do not use
+`global::`, `@` escapes or wildcards in policy names.
+
+A project's module and layer restrictions apply independently; allowed dependencies,
+contracts and same-module ownership do not waive them. Framework, package, repository
+and same-project symbols are included. AG005 checks bound type/member uses, not
+strings, comments, unused imports or unused assembly/project references. Framework
+restrictions use their bound assembly identity, which can differ from a reference
+facade or package name. Existing policies remain valid. Select AG005 in `rules` to
+run it; declaring restrictions alone does not select a rule.
+
 ## Rule selection, severity and gates
 
 The `rules` mapping explicitly selects canonical IDs AG001–AG006. Omitted IDs are
@@ -171,7 +209,7 @@ F22 will add baseline-aware gate semantics; v1 has no baseline setting.
 
 F06's `DependencyGraphBuilder` composes workspace normalization, policy resolution
 and extraction into a neutral `DependencyBuildResult`, as shown in the
-[dependency graph guide](dependency-graph.md#build-a-graph). The AG001–AG004 rules
+[dependency graph guide](dependency-graph.md#build-a-graph). The AG001–AG005 rules
 consume that result directly, preserving upstream coverage and issues alongside findings.
 For a policy selecting any of these rules, a host can compose evaluation as follows:
 
@@ -189,7 +227,7 @@ if (context.Repository is null)
 }
 var policy = context.Repository.Policy;
 IArchitectureRule<DependencyBuildResult>[] availableRules =
-    [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule()];
+    [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule()];
 var selected = policy.SelectRules(availableRules);
 var service = new AnalysisService<DependencyBuildResult>(selected);
 var result = await service.AnalyzeAsync(
@@ -204,7 +242,7 @@ at composition time; Analysis and Core do not reference the YAML adapter. F10
 provides this composition through `scan --policy <path>` and reports resolved
 ownership through `inspect --policy <path>`; see the [CLI guide](cli.md).
 
-The supplied inventory and graph establish AG001–AG004 scope; omission from `rules`
+The supplied inventory and graph establish AG001–AG005 scope; omission from `rules`
 disables a rule's selection. V1 rejects `enabled` and per-rule scope fields. AG001 uses
 project pairs from the graph's evidence, so approved contracts never mask forbidden
 implementation dependencies inside the same aggregated module edge. Unmapped pairs
@@ -214,7 +252,7 @@ evidence. See the [AG002 guide](rule-catalog.md#ag002-layer-dependencies).
 AG003 independently detects cycles even when every dependency has module or contract
 permission. See the [AG003 guide](rule-catalog.md#ag003-module-cycles). The repository
 and modular-monolith example policies select AG001–AG003 and can now be evaluated
-through this composition. AG004 is also available when selected and checks semantic implementation access independently of module permissions. Policies selecting AG005–AG006 still require those implementations.
+through this composition. AG004 is also available when selected and checks semantic implementation access independently of module permissions. Policies selecting AG006 still requires its implementation.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
 logical field path and corrective message. Contract/reference errors may point to

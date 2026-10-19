@@ -87,7 +87,10 @@ fact. Its source coordinates are one-based with an exclusive end, as defined by
 the [shared contracts](shared-contracts.md#locations-immutability-and-reproducibility). Project
 references retain both project paths without inventing a source line for evaluated
 or imported declarations. Semantic facts retain the bound source symbol and actual
-syntax span. AG001–AG004 reuse these facts in their violation evidence.
+syntax span. Semantic evidence also carries the bound target assembly simple name
+and namespace independently of display text. Assembly and namespace self edges retain
+semantic evidence so AG005 can check references inside the same project/namespace.
+AG001–AG005 reuse these facts in their violation evidence.
 
 For example, Orders referencing Billing.Infrastructure creates a project edge with
 the reference path, and using `VisibleStore` creates semantic edges with the source

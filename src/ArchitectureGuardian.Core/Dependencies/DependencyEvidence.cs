@@ -14,8 +14,11 @@ public sealed record DependencyEvidence
     /// <param name="sourceSymbol">The originating source symbol, when available.</param>
     /// <param name="targetSymbol">The referenced symbol, when available.</param>
     /// <param name="projectReference">The evaluated referenced project path for project-reference evidence.</param>
+    /// <param name="targetAssembly">The bound target assembly simple name, independent of display text.</param>
+    /// <param name="targetNamespace">The bound target namespace, empty for the global namespace.</param>
     public DependencyEvidence(string sourceProject, string? targetProject, DiagnosticEvidence fact,
-        string? sourceSymbol = null, string? targetSymbol = null, string? projectReference = null)
+        string? sourceSymbol = null, string? targetSymbol = null, string? projectReference = null,
+        string? targetAssembly = null, string? targetNamespace = null)
     {
         SourceProject = ProjectPattern.NormalizeIdentity(sourceProject);
         TargetProject = targetProject is null ? null : ProjectPattern.NormalizeIdentity(targetProject);
@@ -23,6 +26,8 @@ public sealed record DependencyEvidence
         Fact = fact;
         SourceSymbol = sourceSymbol;
         TargetSymbol = targetSymbol;
+        TargetAssembly = targetAssembly;
+        TargetNamespace = targetNamespace;
         ProjectReference = projectReference is null ? null : ProjectPattern.NormalizeIdentity(projectReference);
     }
 
@@ -39,6 +44,11 @@ public sealed record DependencyEvidence
     /// <summary>Gets the evaluated project reference, or null for semantic and metadata-reference evidence.</summary>
     public string? ProjectReference { get; }
 
+    /// <summary>Gets the bound assembly simple name for semantic evidence, or null for older/nonsemantic evidence.</summary>
+    public string? TargetAssembly { get; }
+    /// <summary>Gets the bound namespace for semantic evidence, or null for older/nonsemantic evidence.</summary>
+    public string? TargetNamespace { get; }
+
     internal string SortKey => CanonicalData.Encode(SourceProject, TargetProject, SourceSymbol, TargetSymbol,
-        ProjectReference, Fact.CanonicalKey);
+        ProjectReference, TargetAssembly, TargetNamespace, Fact.CanonicalKey);
 }

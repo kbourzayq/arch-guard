@@ -287,6 +287,45 @@ public sealed class PolicyTests
         Assert.Throws<NotSupportedException>(() => ((IList<ModulePolicy>)policy.Modules).Clear());
     }
 
+    /// <summary>Loads module/layer restrictions, snapshots inputs and keeps existing policies compatible.</summary>
+    [Fact]
+    public void Forbidden_references_are_explicit_immutable_policy_data()
+    {
+        var yaml = ValidYaml.Replace("allowedDependencies: [\"contract:Billing/api\"]",
+            "allowedDependencies: [\"contract:Billing/api\"]\n    forbiddenAssemblies: [Forbidden.Library]\n    forbiddenNamespaces: [System.Net]", StringComparison.Ordinal)
+            .Replace("allowedDependencies: [Contracts]", "allowedDependencies: [Contracts]\n    forbiddenNamespaces: [System.Data]", StringComparison.Ordinal);
+        var policy = new YamlPolicyLoader().Parse(yaml);
+        var orders = policy.Modules.Single(module => module.Id == "Orders");
+        Assert.Equal("Forbidden.Library", Assert.Single(orders.ForbiddenAssemblies));
+        Assert.Equal("System.Net", Assert.Single(orders.ForbiddenNamespaces));
+        Assert.All(policy.Layers.Where(layer => layer.AllowedDependencies.Count > 0),
+            layer => Assert.Equal("System.Data", Assert.Single(layer.ForbiddenNamespaces)));
+        var names = new List<string> { "System.Net" };
+        var module = new ModulePolicy("App", ["App.csproj"], forbiddenNamespaces: names);
+        names.Clear();
+        Assert.Single(module.ForbiddenNamespaces);
+        Assert.Throws<NotSupportedException>(() => ((IList<string>)module.ForbiddenNamespaces).Clear());
+        Assert.All(new YamlPolicyLoader().Parse(ValidYaml).Modules, item => Assert.Empty(item.ForbiddenNamespaces));
+    }
+
+    /// <summary>Rejects ambiguous patterns, malformed identities, duplicates and non-array restriction fields.</summary>
+    /// <param name="field">An invalid module restriction declaration.</param>
+    [Theory]
+    [InlineData("forbiddenAssemblies: [System.*]")]
+    [InlineData("forbiddenAssemblies: ['Library, Version=1.0.0.0']")]
+    [InlineData("forbiddenAssemblies: [Library, Library]")]
+    [InlineData("forbiddenNamespaces: [System..Net]")]
+    [InlineData("forbiddenNamespaces: [System.Net.*]")]
+    [InlineData("forbiddenNamespaces: [global::System.Net]")]
+    [InlineData("forbiddenNamespaces: [1Invalid.Name]")]
+    [InlineData("forbiddenNamespaces: System.Net")]
+    public void Invalid_reference_restrictions_are_actionable(string field)
+    {
+        var yaml = ValidYaml.Replace("allowedDependencies: [\"contract:Billing/api\"]", field, StringComparison.Ordinal);
+        var error = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml));
+        Assert.Contains("modules", error.Message);
+    }
+
     private static string RepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

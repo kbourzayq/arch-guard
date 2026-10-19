@@ -74,7 +74,9 @@
           "type": "array",
           "uniqueItems": true,
           "items": { "type": "string", "pattern": "^(module:[A-Za-z][A-Za-z0-9_.-]*|contract:[A-Za-z][A-Za-z0-9_.-]*/[A-Za-z][A-Za-z0-9_.-]*)$" }
-        }
+        },
+        "forbiddenAssemblies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
+        "forbiddenNamespaces": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } }
       }
     },
     "layer": {
@@ -84,7 +86,9 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "projects": { "$ref": "#/$defs/selectors" },
-        "allowedDependencies": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
+        "allowedDependencies": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "forbiddenAssemblies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
+        "forbiddenNamespaces": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } }
       }
     }
   }

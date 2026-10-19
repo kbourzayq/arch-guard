@@ -112,7 +112,7 @@ public sealed class YamlPolicyLoader : IPolicyLoader
 
         private ModulePolicy Module(YamlNode node, string path)
         {
-            var fields = Map(node, path, ["id", "projects"], ["contracts", "allowedDependencies"]);
+            var fields = Map(node, path, ["id", "projects"], ["contracts", "allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces"]);
             var contracts = fields.TryGetValue("contracts", out var value)
                 ? Sequence(value, path + ".contracts", allowEmpty: true).Select((contract, index) =>
                 {
@@ -122,14 +122,16 @@ public sealed class YamlPolicyLoader : IPolicyLoader
                         Strings(contractFields["projects"], contractPath + ".projects")));
                 }).ToArray() : [];
             return Construct(node, path, () => new ModulePolicy(Text(fields["id"], path + ".id"),
-                Strings(fields["projects"], path + ".projects"), contracts, OptionalStrings(fields, "allowedDependencies", path)));
+                Strings(fields["projects"], path + ".projects"), contracts, OptionalStrings(fields, "allowedDependencies", path),
+                OptionalStrings(fields, "forbiddenAssemblies", path), OptionalStrings(fields, "forbiddenNamespaces", path)));
         }
 
         private LayerPolicy Layer(YamlNode node, string path)
         {
-            var fields = Map(node, path, ["id", "projects"], ["allowedDependencies"]);
+            var fields = Map(node, path, ["id", "projects"], ["allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces"]);
             return Construct(node, path, () => new LayerPolicy(Text(fields["id"], path + ".id"),
-                Strings(fields["projects"], path + ".projects"), OptionalStrings(fields, "allowedDependencies", path)));
+                Strings(fields["projects"], path + ".projects"), OptionalStrings(fields, "allowedDependencies", path),
+                OptionalStrings(fields, "forbiddenAssemblies", path), OptionalStrings(fields, "forbiddenNamespaces", path)));
         }
 
         private Dictionary<string, YamlNode> Map(YamlNode node, string path, string[] required, string[] optional)
