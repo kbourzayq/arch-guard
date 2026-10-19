@@ -24,6 +24,7 @@ public sealed class DependencyAnalyzerTests
     private const string Billing = """
         namespace Billing {
           public class Service { public static void Run() { } }
+          public class CatalogDbContext { public static void Save() { } }
           public class Box<T> { }
           public class TagAttribute : System.Attribute { }
         }
@@ -107,6 +108,7 @@ public sealed class DependencyAnalyzerTests
         var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
         if (moduleViolation) { test.ExpectedDiagnostics.Add(Result("AG001", 0)); }
         if (layerViolation) { test.ExpectedDiagnostics.Add(Result("AG002", 0)); }
+        if (module != "Orders" && contract.Length == 0) { test.ExpectedDiagnostics.Add(Result("AG004", 0)); }
         await test.RunAsync();
     }
 
@@ -115,7 +117,7 @@ public sealed class DependencyAnalyzerTests
     public async Task Host_options_control_severity_and_editorconfig_suppresses_rules()
     {
         var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }");
-        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", "root = true\n\n[*]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = none\n"));
+        test.TestState.AnalyzerConfigFiles.Add(("/.editorconfig", "root = true\n\n[*]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = none\ndotnet_diagnostic.AG004.severity = none\n"));
         // The testing driver applies host severity through CompilationOptions; the SDK smoke test checks editorconfig promotion.
         test.SolutionTransforms.Add((solution, id) => solution.WithProjectCompilationOptions(id,
             solution.GetProject(id)!.CompilationOptions!.WithSpecificDiagnosticOptions(
@@ -167,6 +169,34 @@ public sealed class DependencyAnalyzerTests
         await test.RunAsync();
     }
 
+    /// <summary>Whole-module permission cannot expose a public implementation type as a declared contract.</summary>
+    /// <param name="source">A semantic use of the implementation with its diagnostic span marked.</param>
+    [Theory]
+    [InlineData("public class Order : Billing.{|#0:CatalogDbContext|} { }")]
+    [InlineData("using Store = Billing.CatalogDbContext; public class Order { public {|#0:Store|} Context; }")]
+    [InlineData("public class Order { public System.Collections.Generic.List<Billing.{|#0:CatalogDbContext|}> Context; }")]
+    [InlineData("using Stores = System.Collections.Generic.List<Billing.CatalogDbContext>; public class Order { public {|#0:Stores|} Context; }")]
+    [InlineData("using Stores = Billing.CatalogDbContext[]; public class Order { public {|#0:Stores|} Context; }")]
+    [InlineData("using static Billing.CatalogDbContext; public class Order { public void Run() { {|#0:Save|}(); } }")]
+    [InlineData("public class Order { public object Create() => new Billing.{|#0:CatalogDbContext|}(); }")]
+    [InlineData("public class Order { public string Name() => nameof(Billing.{|#0:CatalogDbContext|}); }")]
+    public async Task Public_implementation_is_forbidden_even_with_whole_module_permission(string source)
+    {
+        var policy = Policy.Replace("<Module id=\"Orders\" />", "<Module id=\"Orders\" allows=\"module:Billing\" />", StringComparison.Ordinal)
+            .Replace("<Layer id=\"Application\" />", "<Layer id=\"Application\" allows=\"Infrastructure\" />", StringComparison.Ordinal);
+        var test = await CreateAsync(source, policy);
+        test.ExpectedDiagnostics.Add(Result("AG004", 0));
+        await test.RunAsync();
+    }
+
+    /// <summary>Unused imports and local lookalike names do not establish access to implementation symbols.</summary>
+    [Fact]
+    public async Task Imports_and_local_lookalikes_do_not_report_implementation_access()
+    {
+        var test = await CreateAsync("using Store = Billing.CatalogDbContext; public class CatalogDbContext { } public class Order : CatalogDbContext { }");
+        await test.RunAsync();
+    }
+
     /// <summary>Reuses one analyzer concurrently with different snapshots without leaking policy state between compilations.</summary>
     [Fact]
     public async Task Concurrent_compilations_are_isolated_and_repeatable()
@@ -178,7 +208,7 @@ public sealed class DependencyAnalyzerTests
         {
             var driver = await DriverAsync(analyzer, index % 2 == 0 ? Policy : permitted);
             var diagnostics = await driver.GetAnalyzerDiagnosticsAsync();
-            Assert.Equal(index % 2 == 0 ? new[] { "AG001", "AG002" } : [], diagnostics.Select(item => item.Id).Order().ToArray());
+            Assert.Equal(index % 2 == 0 ? new[] { "AG001", "AG002", "AG004" } : new[] { "AG004" }, diagnostics.Select(item => item.Id).Order().ToArray());
         });
         await Task.WhenAll(runs);
     }
@@ -229,6 +259,7 @@ public sealed class DependencyAnalyzerTests
     {
         test.ExpectedDiagnostics.Add(Result("AG001", location));
         test.ExpectedDiagnostics.Add(Result("AG002", location));
+        test.ExpectedDiagnostics.Add(Result("AG004", location));
     }
 
     private static async Task<CompilationWithAnalyzers> DriverAsync(DependencyAnalyzer analyzer, string policy, CancellationTokenSource? cancelOnRead = null)

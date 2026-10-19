@@ -7,6 +7,7 @@ restores projects or invokes CLI. AG001 and AG002 use the same permission predic
 IDs, titles and help URLs as Core. Findings identify a bound type/member use and its
 source span; the solution engine instead groups evidence by project pair. Diagnostic
 counts and snapshot identities are therefore not interchangeable across engines.
+F13 adds AG004 implementation boundaries using the same portable ownership semantics.
 
 ## Install and distribute policy
 
@@ -71,6 +72,11 @@ when evaluated ownership or assembly names differ.
   target module or its exact public contract. Same-module uses are allowed.
 - AG002 independently checks the configured directional layer matrix; same-layer uses
   are allowed. Permissions are direct and are never inferred transitively.
+- AG004 rejects semantic uses of implementation assemblies in another module,
+  including C# `public` types such as `CatalogDbContext`. A declared whole-project
+  contract (`contract` on the assembly snapshot) or same-module ownership passes.
+  A `module:ID` permission does not exempt implementation access. AG001 still decides
+  whether a contract dependency is permitted, and AG002 still checks layers.
 - AG000 is an operational error for a missing, unreadable, duplicate or invalid
   snapshot or an unmapped current assembly. It is outside the canonical rule catalog
   and does not represent an architecture violation. Do not suppress it to claim coverage.
@@ -82,6 +88,7 @@ read the YAML rule severities or apply the solution's severity gate:
 [*.cs]
 dotnet_diagnostic.AG001.severity = error
 dotnet_diagnostic.AG002.severity = warning
+dotnet_diagnostic.AG004.severity = error
 ```
 
 `none` disables a rule through the host. Aliases, global/static imports, partial types,
@@ -90,12 +97,26 @@ Roslyn symbols. Imports alone do not produce findings; their bound uses do. Gene
 code is included, including `.g.cs` files and generated-code attributes. Diagnostics
 point to each bound simple name, so one statement can contain several uses.
 
+AG004 uses the same bound simple-name callbacks as AG001/AG002: base classes,
+interfaces, type constraints, field/property/parameter/return type names, generic
+names and arguments, object-creation type names, attributes, `typeof`, `nameof`,
+casts, patterns and named member/extension-method uses. Named, constructed-generic and array aliases resolve to their actual target symbols
+and nested type arguments at the alias use span. Partial declarations retain each use's own file/span;
+there is no finding merely for declaring a partial type. Generated trees supplied by
+the host are analyzed and reported with the same rules as authored trees.
+
+This compiler surface does not walk implicit operations such as overloaded operators,
+implicit conversions, target-typed `new`, inferred generic arguments or `foreach`/`await`
+pattern methods. Bound explicit names within those expressions are still checked.
+Use solution scanning for the broader semantic evidence described in the
+[dependency graph guide](dependency-graph.md#semantic-reference-scope).
+
 Only assemblies in the snapshot are in scope. Other references, including framework
 and external package assemblies, are ignored; missing entries for referenced repository
 assemblies cannot be discovered from one compilation. Unused project references are
 not checked. Compiler errors retain the host's own diagnostics, and unresolved symbols
 do not establish a dependency. An empty analyzer result establishes neither complete
-repository coverage nor compliance with AG003 or the planned AG004–AG006 rules.
+repository coverage nor compliance with AG003 or the planned AG005–AG006 rules.
 
 Each compilation loads its own snapshot once and concurrent callbacks only read it.
 There is no static mutable policy cache. Cancellation is forwarded to AdditionalText
@@ -118,9 +139,9 @@ it does not extend vendor support for older SDKs or IDEs.
 
 The semantic suite covers invalid configuration, cancellation, concurrent reuse,
 generated sources and policy permissions. The package test checks the NuGet layout,
-loads the installed analyzer through a real SDK build, requires located AG001/AG002
-errors for a forbidden dependency, then updates only the AdditionalFile and requires
-a passing build. Run it locally with an installed SDK version:
+loads the installed analyzer through a real SDK build, requires located AG001/AG002/AG004
+errors for a forbidden dependency, verifies that whole-module permission still yields
+AG004, then declares a public contract through the AdditionalFile and requires a passing build. Run it locally with an installed SDK version:
 
 ```sh
 python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.301

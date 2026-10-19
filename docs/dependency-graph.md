@@ -66,6 +66,8 @@ The SDK can expand transitive project references into that compilation context;
 these also appear as evaluated reference facts. The graph does not compute its own
 transitive closure.
 
+## Semantic reference scope
+
 Semantic extraction includes base types, interfaces, constraints, attributes,
 generic arguments, nested types, arrays, pointers, function pointers, inferred
 expression types, aliases at use sites, member/constructor calls, user-defined
@@ -85,7 +87,7 @@ fact. Its source coordinates are one-based with an exclusive end, as defined by
 the [shared contracts](shared-contracts.md#locations-immutability-and-reproducibility). Project
 references retain both project paths without inventing a source line for evaluated
 or imported declarations. Semantic facts retain the bound source symbol and actual
-syntax span. AG001–AG003 reuse these facts in their violation evidence.
+syntax span. AG001–AG004 reuse these facts in their violation evidence.
 
 For example, Orders referencing Billing.Infrastructure creates a project edge with
 the reference path, and using `VisibleStore` creates semantic edges with the source
@@ -100,12 +102,14 @@ Aggregation includes direct edges only. It suppresses intra-module/intra-layer
 self edges and excludes external metadata. It does not infer transitive permissions,
 evaluate rules, assign severities or render reports.
 
-`ModuleDependenciesRule`, `LayerDependenciesRule` and `ModuleCyclesRule` evaluate the complete
+`ModuleDependenciesRule`, `LayerDependenciesRule`, `ModuleCyclesRule` and
+`ImplementationBoundariesRule` evaluate the complete
 `DependencyBuildResult` separately from extraction. They check original project
 pairs at any graph level, deduplicate facts and preserve upstream status/issues.
 See the [AG001 guide](rule-catalog.md#ag001-module-dependencies),
 [AG002 guide](rule-catalog.md#ag002-layer-dependencies),
-[AG003 guide](rule-catalog.md#ag003-module-cycles) and [policy composition example](policy.md#host-composition).
+[AG003 guide](rule-catalog.md#ag003-module-cycles),
+[AG004 guide](rule-catalog.md#ag004-implementation-boundaries) and [policy composition example](policy.md#host-composition).
 
 ## Stable identities and ordering
 

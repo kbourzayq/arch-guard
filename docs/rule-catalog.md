@@ -3,7 +3,7 @@
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
 `RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
 arrive in their linked features. F10 exposes CLI `scan` and local `explain <rule-id>`;
-F12 adds compiler AG001/AG002 semantic uses. See the [CLI guide](cli.md) and
+F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004 in both engines. See the [CLI guide](cli.md) and
 [compiler guide](compiler-analyzer.md).
 
 ## How catalog metadata reaches a diagnostic
@@ -12,7 +12,7 @@ F12 adds compiler AG001/AG002 semantic uses. See the [CLI guide](cli.md) and
 provides an ID, a title and a documentation URL. The catalog does not fetch a remote
 rule list, read this Markdown file, or contain the executable checking logic.
 
-AG001–AG003 use this evaluation flow, rendered by CLI `scan`; additional reporting
+AG001–AG004 use this evaluation flow, rendered by CLI `scan`; additional reporting
 adapters remain planned:
 
 ```mermaid
@@ -183,6 +183,38 @@ invocation cannot establish it. CLI `scan` composes this evaluation in F10.
 Detect access to another module's internal implementation across declared boundaries.
 Implementation: [F13](https://github.com/kbourzayq/arch-guard/issues/13).
 
+`ImplementationBoundariesRule` evaluates semantic evidence in `DependencyBuildResult`.
+A bound type/member owned by another module must belong to a declared public-contract
+project. Types in non-contract projects remain implementation even when C# declares
+them `public`; namespaces, type names and accessibility do not declare contracts.
+Same-module uses (including between projects) and external metadata pass. A module
+with no contracts exposes no implementation to other modules when AG004 is selected.
+Version 1 contracts cover whole projects, not individual types or namespace selectors.
+
+AG004 is independent of AG001 permissions: `module:Catalog` permits a module dependency
+for AG001 but does not allow AG004 access to `CatalogDbContext` in Catalog's implementation.
+A declared contract use passes AG004 even if AG001 denies the dependency; select both
+rules to enforce permission and encapsulation. AG002 independently enforces layers.
+
+Unused project/assembly references and imports are not semantic implementation uses.
+The solution rule groups findings by original source project, target project and bound
+target symbol, preserving distinct source spans and descriptions, including aliases,
+generic arguments, inheritance and uses in partial/generated declarations. Graph-level
+and aggregate copies are deduplicated without mixing contract evidence into findings.
+The first located fact in canonical order supplies the primary span. Symbol evidence
+comes from the extractor's [semantic reference scope](dependency-graph.md#semantic-reference-scope).
+
+CLI `scan` runs AG004 when selected in the policy's `rules` mapping. Omit it to disable
+selection; severity and gates remain separate. Upstream coverage/issues and partial
+findings survive evaluation. Unmapped semantic project evidence reports an AG004
+`dependency-project-unmapped` issue and prevents completed coverage. Cancellation is
+cooperative. No workspace or compiler objects enter Core.
+
+The compiler adapter shares the same ownership predicate, ID, title and help URL,
+reporting one finding per bound name. Its supported references, generated-code behavior
+and limitations are specified in the [compiler guide](compiler-analyzer.md#reporting-and-scope).
+Neither engine discovers runtime reflection or dynamic dispatch targets.
+
 ## AG005: Forbidden references
 
 Detect assembly or namespace references forbidden by policy.
@@ -199,7 +231,7 @@ quality-gate decision. Compiler-hosted checks must observe the scope constraints
 
 ## Compiler scope
 
-The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002 for bound semantic
+The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002/AG004 for bound semantic
 uses between assemblies present in its supplied ownership snapshot. It shares Core's
 IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
 spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable

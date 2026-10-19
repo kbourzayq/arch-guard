@@ -171,7 +171,7 @@ F22 will add baseline-aware gate semantics; v1 has no baseline setting.
 
 F06's `DependencyGraphBuilder` composes workspace normalization, policy resolution
 and extraction into a neutral `DependencyBuildResult`, as shown in the
-[dependency graph guide](dependency-graph.md#build-a-graph). The AG001–AG003 rules
+[dependency graph guide](dependency-graph.md#build-a-graph). The AG001–AG004 rules
 consume that result directly, preserving upstream coverage and issues alongside findings.
 For a policy selecting any of these rules, a host can compose evaluation as follows:
 
@@ -189,7 +189,7 @@ if (context.Repository is null)
 }
 var policy = context.Repository.Policy;
 IArchitectureRule<DependencyBuildResult>[] availableRules =
-    [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule()];
+    [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule()];
 var selected = policy.SelectRules(availableRules);
 var service = new AnalysisService<DependencyBuildResult>(selected);
 var result = await service.AnalyzeAsync(
@@ -204,7 +204,7 @@ at composition time; Analysis and Core do not reference the YAML adapter. F10
 provides this composition through `scan --policy <path>` and reports resolved
 ownership through `inspect --policy <path>`; see the [CLI guide](cli.md).
 
-The supplied inventory and graph establish AG001–AG003 scope; omission from `rules`
+The supplied inventory and graph establish AG001–AG004 scope; omission from `rules`
 disables a rule's selection. V1 rejects `enabled` and per-rule scope fields. AG001 uses
 project pairs from the graph's evidence, so approved contracts never mask forbidden
 implementation dependencies inside the same aggregated module edge. Unmapped pairs
@@ -214,7 +214,7 @@ evidence. See the [AG002 guide](rule-catalog.md#ag002-layer-dependencies).
 AG003 independently detects cycles even when every dependency has module or contract
 permission. See the [AG003 guide](rule-catalog.md#ag003-module-cycles). The repository
 and modular-monolith example policies select AG001–AG003 and can now be evaluated
-through this composition. Policies selecting AG004–AG006 still require those implementations.
+through this composition. AG004 is also available when selected and checks semantic implementation access independently of module permissions. Policies selecting AG005–AG006 still require those implementations.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
 logical field path and corrective message. Contract/reference errors may point to
