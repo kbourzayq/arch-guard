@@ -21,13 +21,17 @@ public sealed class ForbiddenReferencesParityTests(WorkspaceFixture fixture) : I
 {
     /// <summary>Aliases, generated/partial sources, framework types and same-namespace uses share restriction meanings.</summary>
     /// <param name="restrictAssembly">Also checks the bound framework assembly through the source layer.</param>
+    /// <param name="forwardSlashInput">Supplies forward slashes even when the host uses backslashes.</param>
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Both_engines_resolve_the_same_forbidden_symbols_and_preserve_spans(bool restrictAssembly)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Both_engines_resolve_the_same_forbidden_symbols_and_preserve_spans(bool restrictAssembly, bool forwardSlashInput)
     {
         var root = Path.Combine(fixture.Root, "ModularMonolith");
-        var project = Path.Combine(root, "src/Orders/Orders.Application/Orders.Application.csproj");
+        var project = Path.Combine(root, "src", "Orders", "Orders.Application", "Orders.Application.csproj");
+        var inputPath = forwardSlashInput ? project.Replace('\\', '/') : project;
         var source = Path.Combine(Path.GetDirectoryName(project)!, "Restricted.cs");
         var generated = Path.Combine(Path.GetDirectoryName(project)!, "Restricted.g.cs");
         await File.WriteAllTextAsync(source, """
@@ -50,9 +54,11 @@ public sealed class ForbiddenReferencesParityTests(WorkspaceFixture fixture) : I
             """);
         try
         {
-            using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(project, isTrusted: true));
+            using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(inputPath, isTrusted: true));
             Assert.Equal(AnalysisStatus.Completed, workspace.Status);
-            var sourceCompilation = (await workspace.Solution!.Projects.Single(input => input.FilePath == project).GetCompilationAsync())!;
+            // Roslyn normalizes host paths; the fixture's assembly identity is independent of input path spelling.
+            var sourceProject = Assert.Single(workspace.Solution!.Projects, input => input.AssemblyName == "Orders.Application");
+            var sourceCompilation = (await sourceProject.GetCompilationAsync())!;
             var frameworkAssembly = sourceCompilation.GetTypeByMetadataName("System.Text.StringBuilder")!.ContainingAssembly.Name;
             var policy = new ArchitecturePolicy([new("All", ["**/*.csproj"], forbiddenNamespaces: ["System.Text"])],
                 [new("All", ["**/*.csproj"], forbiddenAssemblies: restrictAssembly ? [frameworkAssembly] : [])],
