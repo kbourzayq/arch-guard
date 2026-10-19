@@ -4,7 +4,8 @@
 `RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
 arrive in their linked features. F10 exposes CLI `scan` and local `explain <rule-id>`;
 F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004, F14 adds AG005 and F15 adds AG006 in both engines. See the [CLI guide](cli.md) and
-[compiler guide](compiler-analyzer.md).
+[compiler guide](compiler-analyzer.md). The [semantic accuracy matrix](semantic-accuracy.md)
+lists each rule's execution engines, precision, known limits and reproducibility requirements.
 
 ## How catalog metadata reaches a diagnostic
 

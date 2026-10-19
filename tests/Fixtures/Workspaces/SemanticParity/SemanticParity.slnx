@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Orders/Orders.csproj" />
+  <Project Path="Orders.Unused/Orders.Unused.csproj" />
+  <Project Path="Billing.Contracts/Billing.Contracts.csproj" />
+  <Project Path="Billing.Persistence/Billing.Persistence.csproj" />
+</Solution>

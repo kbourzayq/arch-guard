@@ -1,0 +1,12 @@
+<ArchitectureGuardian version="1">
+  <Module id="Orders" allows="contract:Billing/api" forbiddenNamespaces="Legacy.Data" />
+  <Module id="Billing" />
+  <Layer id="Domain" allows="Contracts" forbiddenAssemblies="Billing.Persistence"
+         infrastructureNamespaces="Legacy.Data" allowedInfrastructureNamespaces="Legacy.Data.Allowed" />
+  <Layer id="Contracts" />
+  <Layer id="Infrastructure" />
+  <Assembly name="Orders" module="Orders" layer="Domain" />
+  <Assembly name="Orders.Unused" module="Orders" layer="Domain" />
+  <Assembly name="Billing.Contracts" module="Billing" layer="Contracts" contract="api" />
+  <Assembly name="Billing.Persistence" module="Billing" layer="Infrastructure" />
+</ArchitectureGuardian>

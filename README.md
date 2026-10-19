@@ -16,8 +16,9 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F11](https://github.com/kbourzayq/arch-guard/issues/11),
 [F12](https://github.com/kbourzayq/arch-guard/issues/12),
 [F13](https://github.com/kbourzayq/arch-guard/issues/13),
-[F14](https://github.com/kbourzayq/arch-guard/issues/14) and
-[F15](https://github.com/kbourzayq/arch-guard/issues/15): the .NET 10 solution, component
+[F14](https://github.com/kbourzayq/arch-guard/issues/14),
+[F15](https://github.com/kbourzayq/arch-guard/issues/15) and
+[F16](https://github.com/kbourzayq/arch-guard/issues/16): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
@@ -27,7 +28,7 @@ and explain commands, with compliant and deliberately violating reference soluti
 a compiler-hosted AG001/AG002/AG004/AG005/AG006 analyzer with a semantic test harness, and
 AG004 semantic enforcement of declared implementation boundaries and AG005 explicit
 assembly/namespace restrictions and AG006 layer-scoped domain technology restrictions
-with namespace exceptions in both engines.
+with namespace exceptions in both engines, plus labeled semantic accuracy and engine parity fixtures.
 Additional capabilities follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
@@ -99,6 +100,9 @@ also fails the build.
 
 AG006 tests cover configured layer membership, technology identities, scoped namespace
 exceptions, independent overlapping rules, evidence deduplication and partial coverage.
+The [semantic accuracy guide](docs/semantic-accuracy.md) records exactly which rules run
+in each engine, per-rule precision and limits, and reproducible parity checks across
+frameworks/configurations, generated sources and unavailable references.
 AG005 tests cover module/layer restrictions, framework/external assemblies, namespace
 descendants, aliases/global usings, lookalikes, generated sources and cross-engine meanings.
 AG004 tests cover public implementation types, contract and same-module access,

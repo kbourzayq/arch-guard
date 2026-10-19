@@ -1,0 +1,29 @@
+version: 1
+modules:
+  - id: Orders
+    projects: [Orders*/*.csproj]
+    allowedDependencies: [contract:Billing/api]
+    forbiddenNamespaces: [Legacy.Data]
+  - id: Billing
+    projects: [Billing.*/*.csproj]
+    contracts:
+      - id: api
+        projects: [Billing.Contracts/*.csproj]
+layers:
+  - id: Domain
+    projects: [Orders*/*.csproj]
+    allowedDependencies: [Contracts]
+    forbiddenAssemblies: [Billing.Persistence]
+    domainInfrastructure:
+      forbiddenNamespaces: [Legacy.Data]
+      allowedNamespaces: [Legacy.Data.Allowed]
+  - id: Contracts
+    projects: [Billing.Contracts/*.csproj]
+  - id: Infrastructure
+    projects: [Billing.Persistence/*.csproj]
+rules:
+  AG001: error
+  AG002: error
+  AG004: error
+  AG005: error
+  AG006: error

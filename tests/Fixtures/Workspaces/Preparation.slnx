@@ -2,6 +2,9 @@
   <Project Path="App/App.csproj" />
   <Project Path="Library/Library.csproj" />
   <Project Path="Multi/Multi.csproj" />
+  <Project Path="SemanticParity/Orders/Orders.csproj" />
+  <Project Path="SemanticParity/Orders.Unused/Orders.Unused.csproj" />
+  <Project Path="PartialReference/PartialReference.csproj" />
   <Project Path="SolutionReference/SolutionReference.csproj" />
   <Project Path="Generators/FixtureGenerator.csproj" />
   <Project Path="GeneratorConsumer/GeneratorConsumer.csproj" />

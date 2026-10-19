@@ -307,8 +307,9 @@ portable matching and bound identities. The analyzer source-links only
 `DomainInfrastructureSemantics.cs`; boundary tests enforce that exact portable surface.
 F15 adds AG006 configuration-driven technology checks and layer-scoped namespace exceptions. Whole-solution cycle detection remains with Analysis. The
 two engines share rule identities and pure evaluation where their inputs support
-the same semantics; missing context is explicit. F16 will verify parity on supported
-cases and document generated-code, incomplete-compilation and host limitations.
+the same semantics; missing context is explicit. F16 verifies parity on supported
+cases and documents generated-code, incomplete-compilation and host limitations in
+the [semantic accuracy guide](../../semantic-accuracy.md).
 
 All three initial projects target `net10.0`. This does **not** establish compiler-host
 compatibility: a `net10.0` Core assembly cannot simply be packaged with a broadly
