@@ -5,7 +5,8 @@ namespace ArchitectureGuardian.Core.Policies;
 /// <summary>Matches an ordinal, repository-relative project path using the v1 glob grammar.</summary>
 public sealed class ProjectPattern
 {
-    private readonly Regex _matcher;
+    private readonly Regex? _matcher;
+    private readonly string _literalPrefix;
 
     /// <summary>Creates a selector; * and ? stay within a segment, and a whole ** segment spans directories.</summary>
     /// <param name="pattern">A slash-separated relative path or glob without empty, dot or parent segments.</param>
@@ -14,6 +15,12 @@ public sealed class ProjectPattern
     {
         ValidatePath(pattern, allowWildcards: true);
         Value = pattern;
+        var wildcard = pattern.IndexOfAny(['*', '?']);
+        _literalPrefix = wildcard < 0 ? pattern : pattern[..wildcard];
+        if (wildcard < 0)
+        {
+            return;
+        }
         var segments = pattern.Split('/');
         var expressions = segments.Select((segment, index) => segment == "**"
             ? (index == segments.Length - 1 ? ".*" : "(?:[^/]+/)*")
@@ -30,7 +37,12 @@ public sealed class ProjectPattern
     /// <param name="projectPath">A repository-relative project path; incoming backslashes normalize to slashes.</param>
     /// <returns>Whether the complete, case-sensitive path matches.</returns>
     /// <exception cref="ArgumentException">The project identity is blank or noncanonical.</exception>
-    public bool IsMatch(string projectPath) => _matcher.IsMatch(NormalizeIdentity(projectPath));
+    public bool IsMatch(string projectPath) => IsMatchNormalized(NormalizeIdentity(projectPath));
+
+    // Policy inventories are validated once before matching their paths against every selector.
+    internal bool IsMatchNormalized(string projectPath) => _matcher is null
+        ? projectPath == Value
+        : projectPath.StartsWith(_literalPrefix, StringComparison.Ordinal) && _matcher.IsMatch(projectPath);
 
     /// <summary>Normalizes an adapter-provided identity and rejects rooted or noncanonical paths.</summary>
     /// <param name="projectPath">A project path relative to the policy directory.</param>

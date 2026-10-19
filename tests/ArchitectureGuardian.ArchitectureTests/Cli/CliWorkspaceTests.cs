@@ -1,14 +1,15 @@
 using System.Reflection;
 using ArchitectureGuardian.ArchitectureTests.Infrastructure;
+using ArchitectureGuardian.Cli;
 using Xunit;
 
 namespace ArchitectureGuardian.ArchitectureTests.Cli;
 
-/// <summary>Exercises policy-driven commands against restored projects with a real forbidden dependency.</summary>
+/// <summary>Exercises policy-driven commands in process, retaining representative public process checks.</summary>
 [Trait("Category", "Integration")]
 public sealed class CliWorkspaceTests
 {
-    /// <summary>Checks actual findings, severity gates, partial coverage and inspection from the public process interface.</summary>
+    /// <summary>Checks findings, gates, partial coverage and inspection without repeatedly cold-starting the workspace host.</summary>
     [Fact]
     public async Task Scan_and_inspect_preserve_policy_and_coverage_contracts()
     {
@@ -16,6 +17,7 @@ public sealed class CliWorkspaceTests
         Directory.CreateDirectory(directory);
         try
         {
+            File.Copy(Path.Combine(Repository.Root, "global.json"), Path.Combine(directory, "global.json"));
             Directory.CreateDirectory(Path.Combine(directory, "App"));
             Directory.CreateDirectory(Path.Combine(directory, "Library"));
             await File.WriteAllTextAsync(Path.Combine(directory, "App", "App.csproj"), """
@@ -65,6 +67,12 @@ public sealed class CliWorkspaceTests
                 {
                     Assert.Contains("0 diagnostic(s)", result.Output);
                 }
+                if (severity == "error" && !allowed)
+                {
+                    var process = await RunCliProcess("scan", solution, "--policy", policyPath, "--trusted",
+                        "--configuration", "Release", "--framework", "net10.0");
+                    Assert.Equal(result, process);
+                }
             }
 
             var inspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
@@ -77,6 +85,7 @@ public sealed class CliWorkspaceTests
             Assert.Contains("Layer Domain:", inspect.Output);
             Assert.Contains("Rule AG003: error", inspect.Output);
             Assert.Contains("No architecture rules evaluated", inspect.Output);
+            Assert.Equal(inspect, await RunCliProcess("inspect", solution, "--policy", policyPath, "--trusted"));
 
             // Project input includes its referenced project and uses the same policy-relative inventory.
             var projectScan = await RunCli("scan", Path.Combine(directory, "App", "App.csproj"), "--policy", policyPath, "--trusted");
@@ -144,14 +153,14 @@ public sealed class CliWorkspaceTests
             Assert.Equal(first.Output, second.Output);
 
             await File.AppendAllTextAsync(source, " public class Broken : MissingType { }");
-            var incomplete = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+            var incomplete = await RunCliProcess("scan", solution, "--policy", policyPath, "--trusted");
             Assert.Equal(2, incomplete.ExitCode);
             Assert.Contains("AG001:", incomplete.Output);
             Assert.Contains("incomplete", incomplete.Error);
             Assert.Contains("MissingType", incomplete.Error);
             Assert.DoesNotContain("Gate passed", incomplete.Output);
             Assert.DoesNotContain("Gate failed", incomplete.Output);
-            var incompleteInspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
+            var incompleteInspect = await RunCliProcess("inspect", solution, "--policy", policyPath, "--trusted");
             Assert.Equal(2, incompleteInspect.ExitCode);
             Assert.Contains("incomplete", incompleteInspect.Error);
         }
@@ -224,7 +233,16 @@ public sealed class CliWorkspaceTests
           failOn: {{threshold}}
         """;
 
-    private static Task<CommandResult> RunCli(params string[] arguments)
+    private static async Task<CommandResult> RunCli(params string[] arguments)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var exitCode = await CliApplication.RunAsync(arguments, output, error, timeout.Token);
+        return new(exitCode, output.ToString(), error.ToString());
+    }
+
+    private static Task<CommandResult> RunCliProcess(params string[] arguments)
     {
         var configuration = typeof(CliWorkspaceTests).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
         var assembly = Path.Combine(Repository.Root, "src", "ArchitectureGuardian.Cli", "bin", configuration,

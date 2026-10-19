@@ -126,8 +126,17 @@ public sealed class PolicyTests
     [InlineData("src/A.csproj", "src/a.csproj", false)]
     [InlineData("**/A.csproj", "A.csproj", true)]
     [InlineData("src/**", "src/a/A.csproj", true)]
+    [InlineData("src/A*.csproj", "src/Another.csproj", true)]
+    [InlineData("src/A*.csproj", "src/B.csproj", false)]
+    [InlineData("*.csproj", "A.csproj", true)]
+    [InlineData("src/A.csproj", "src\\A.csproj", true)]
     public void Globs_have_defined_segment_and_case_semantics(string pattern, string path, bool matches) =>
         Assert.Equal(matches, new ProjectPattern(pattern).IsMatch(path));
+
+    /// <summary>Prefix rejection must not bypass validation of a caller-supplied identity.</summary>
+    [Fact]
+    public void Nonmatching_prefix_still_rejects_invalid_identity() =>
+        Assert.Throws<ArgumentException>(() => new ProjectPattern("src/*.csproj").IsMatch("other/../A.csproj"));
 
     /// <summary>Rejects unsupported glob forms instead of assigning broader or platform-dependent meanings.</summary>
     /// <param name="pattern">An invalid selector.</param>

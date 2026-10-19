@@ -196,9 +196,19 @@ public sealed class ModuleCyclesRuleTests
     public async Task Deep_cycle_does_not_require_recursion()
     {
         var names = Enumerable.Range(0, 2000).Select(index => $"M{index:D4}").ToArray();
-        var facts = Facts(string.Join(';', names.Zip(names.Skip(1).Append(names[0]), (source, target) => $"{source}>{target}")));
-        var result = await new ModuleCyclesRule().EvaluateAsync(Context(facts, allowDependencies: false));
+        // Stress cycle traversal, without the unrelated contract/glob inventory used by permission cases.
+        var policy = new ArchitecturePolicy(names.Select(name => new ModulePolicy(name, [name + ".csproj"])),
+            [new("All", ["**/*.csproj"])], new Dictionary<string, DiagnosticSeverity> { ["AG003"] = DiagnosticSeverity.Error });
+        var projects = names.Select(name => new RepositoryProject(name + ".csproj", name, new(name + ".csproj", name, []))).ToArray();
+        var repository = new RepositoryModel("App.slnx", policy, projects);
+        var nodes = projects.Select(project => new DependencyNode(DependencyKind.Project, project.Id, project.Id, project.Id)).ToArray();
+        var edges = nodes.Zip(nodes.Skip(1).Append(nodes[0]), (source, target) => new DependencyEdge(source, target,
+            [new(source.ProjectPath!, target.ProjectPath, new($"Project '{source.Identity}' references '{target.Identity}'."),
+                projectReference: target.ProjectPath)]));
+        var context = new DependencyBuildResult(repository, new DependencyGraph(nodes, edges), AnalysisStatus.Completed);
+        var result = await new ModuleCyclesRule().EvaluateAsync(context);
 
+        Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Equal(names.Length, Assert.Single(result.Violations).Evidence.Count);
     }
 

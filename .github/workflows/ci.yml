@@ -34,18 +34,36 @@ jobs:
       - name: Check formatting
         run: dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
       - name: Test contracts, analysis, architecture boundaries and CLI
-        run: dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore
-      - name: Pack compiler analyzer
-        run: dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-build --no-restore --output artifacts/analyzers
+        run: dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore --logger trx --results-directory TestResults
       - uses: actions/upload-artifact@v4
-        if: matrix.os == 'ubuntu-latest'
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: TestResults/*.trx
+
+  pack-analyzer:
+    name: Pack compiler analyzer
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Restore locked analyzer dependencies
+        run: dotnet restore src/ArchitectureGuardian.Analyzers --locked-mode
+      - name: Build and pack compiler analyzer
+        run: dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
+      - uses: actions/upload-artifact@v4
         with:
           name: compiler-analyzer
           path: artifacts/analyzers/*.nupkg
 
   compiler-hosts:
     name: Compiler host (${{ matrix.os }}, SDK ${{ matrix.sdk }})
-    needs: build-and-test
+    needs: pack-analyzer
     strategy:
       fail-fast: false
       matrix:

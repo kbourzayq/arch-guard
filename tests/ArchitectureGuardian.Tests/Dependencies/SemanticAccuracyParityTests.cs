@@ -20,7 +20,7 @@ namespace ArchitectureGuardian.Tests.Dependencies;
 /// <summary>Compares labeled semantic decisions and explicit coverage limits over real MSBuild compilations.</summary>
 /// <param name="fixture">Isolated, restored production-shaped inputs.</param>
 [Trait("Category", "Integration")]
-public sealed class SemanticAccuracyParityTests(WorkspaceFixture fixture) : IClassFixture<WorkspaceFixture>
+public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture) : IClassFixture<SemanticWorkspaceFixture>
 {
     private static readonly string[] SharedRules = ["AG001", "AG002", "AG004", "AG005", "AG006"];
     private static readonly string[] ForbiddenCases = ["attribute", "base", "interface", "constraint", "alias", "array-alias",

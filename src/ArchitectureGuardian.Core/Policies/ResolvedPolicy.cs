@@ -99,13 +99,13 @@ public sealed class ResolvedPolicy
             : throw new ArgumentException($"Project '{identity}' is absent from the resolved inventory.");
     }
 
-    private static bool Matches(IReadOnlyList<ProjectPattern> patterns, string path) => patterns.Any(pattern => pattern.IsMatch(path));
+    private static bool Matches(IReadOnlyList<ProjectPattern> patterns, string path) => patterns.Any(pattern => pattern.IsMatchNormalized(path));
 
     private static void RequireMatches(IReadOnlyList<ProjectPattern> patterns, IReadOnlyList<string> paths, string location)
     {
         foreach (var pattern in patterns)
         {
-            if (!paths.Any(pattern.IsMatch))
+            if (!paths.Any(pattern.IsMatchNormalized))
             {
                 throw new ArgumentException($"{location}: Selector '{pattern.Value}' matches no project; check its case and path relative to the policy directory.");
             }

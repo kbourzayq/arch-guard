@@ -77,12 +77,20 @@ dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj -
 Use `--filter "Category=Integration"` for the MSBuild/Roslyn workspace, CLI process
 and evaluated dependency-boundary tests. The unfiltered command above runs both
 categories and remains required before publishing. Integration fixtures keep separate
-project copies per test class, but batch their valid-project restores through
-`tests/Fixtures/Workspaces/Preparation.slnx` to reduce process startup. Deliberately
-broken and unrestored fixtures are excluded from that preparation.
+project copies per test class, restoring only each suite's required contexts through
+`Preparation.slnx`, `SemanticPreparation.slnx` or the modular-monolith solution under
+`tests/Fixtures/Workspaces`. The generator builds once as a build-only test project
+dependency; fixture setup stages its binary instead of rebuilding it for every class.
+Deliberately broken and unrestored fixtures are excluded from preparation.
+Repeated CLI policy permutations run through the real command pipeline in process;
+representative scan/inspect outcomes, reference solutions, SDK failures and smoke
+checks still exercise separate CLI processes.
 
 The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs these checks on Linux,
-Windows and macOS for pull requests and pushes to `main`. Tests cover diagnostic
+Windows and macOS for pull requests and pushes to `main`, uploading TRX timings for
+each OS. A separate Linux job builds the analyzer package once, so compiler-host
+checks can start without waiting for the slowest OS test job. All validation jobs
+remain required for a successful workflow. Tests cover diagnostic
 identity and ordering, YAML validation, policy references, portable globs, inventory
 resolution, rule selection, severity gates, analysis outcomes and cancellation,
 normalized source declarations, multi-project modules, contract membership and

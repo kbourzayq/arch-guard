@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SemanticParity/Orders/Orders.csproj" />
+  <Project Path="SemanticParity/Orders.Unused/Orders.Unused.csproj" />
+  <Project Path="PartialReference/PartialReference.csproj" />
+  <Project Path="GeneratorConsumer/GeneratorConsumer.csproj" />
+</Solution>
