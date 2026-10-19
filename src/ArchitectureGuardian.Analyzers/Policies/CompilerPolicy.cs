@@ -13,6 +13,8 @@ internal sealed class CompilerPolicy
     private readonly Dictionary<string, string[]> _layers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Ownership> _assemblies = new(StringComparer.Ordinal);
 
+    private readonly Dictionary<string, (string[] Assemblies, string[] Namespaces)> _restrictions = new(StringComparer.Ordinal);
+
     private CompilerPolicy() { }
 
     internal static CompilerPolicy Load(AdditionalText file, CancellationToken cancellationToken)
@@ -35,11 +37,13 @@ internal sealed class CompilerPolicy
             switch (element.Name.ToString())
             {
                 case "Module":
-                    Validate(element, "id", "allows");
+                    Validate(element, "id", "allows", "forbiddenAssemblies", "forbiddenNamespaces");
+                    policy.ReadRestrictions(element);
                     policy._modules.Add(Required(element, "id"), Permissions(element));
                     break;
                 case "Layer":
-                    Validate(element, "id", "allows");
+                    Validate(element, "id", "allows", "forbiddenAssemblies", "forbiddenNamespaces");
+                    policy.ReadRestrictions(element);
                     policy._layers.Add(Required(element, "id"), Permissions(element));
                     break;
                 case "Assembly":
@@ -98,6 +102,37 @@ internal sealed class CompilerPolicy
         }
     }
 
+    internal IEnumerable<(string Scope, string Kind, string Name)> Restrictions(string sourceAssembly, string targetAssembly, string targetNamespace)
+    {
+        var owner = _assemblies[sourceAssembly];
+        foreach (var scope in new[] { "modules." + owner.Module, "layers." + owner.Layer })
+        {
+            var restrictions = _restrictions[scope];
+            foreach (var name in restrictions.Assemblies)
+            {
+                if (targetAssembly == name) { yield return (scope, "forbiddenAssemblies", name); }
+            }
+
+            foreach (var name in restrictions.Namespaces)
+            {
+                if (ForbiddenReferenceSemantics.MatchesNamespace(targetNamespace, name)) { yield return (scope, "forbiddenNamespaces", name); }
+            }
+        }
+    }
+
+    private void ReadRestrictions(XElement element)
+    {
+        var assemblies = Permissions(element, "forbiddenAssemblies");
+        var namespaces = Permissions(element, "forbiddenNamespaces");
+        if (assemblies.Any(name => !ForbiddenReferenceSemantics.IsAssemblyName(name))
+            || namespaces.Any(name => !ForbiddenReferenceSemantics.IsNamespaceName(name)))
+        {
+            throw new ArgumentException("Invalid forbiddenAssemblies or forbiddenNamespaces; use exact simple names and dot-separated namespace identifiers without wildcards.");
+        }
+
+        _restrictions.Add((element.Name == "Module" ? "modules." : "layers.") + Required(element, "id"), (assemblies, namespaces));
+    }
+
     private static string Required(XElement element, string attribute)
     {
         var value = (string?)element.Attribute(attribute);
@@ -109,9 +144,9 @@ internal sealed class CompilerPolicy
         return value!;
     }
 
-    private static string[] Permissions(XElement element)
+    private static string[] Permissions(XElement element, string attribute = "allows")
     {
-        var values = ((string?)element.Attribute("allows") ?? "").Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var values = ((string?)element.Attribute(attribute) ?? "").Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         if (values.Distinct(StringComparer.Ordinal).Count() != values.Length)
         {
             throw new ArgumentException("Duplicate permissions in " + element.Name + ".");

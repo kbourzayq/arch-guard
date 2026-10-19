@@ -14,16 +14,18 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F09](https://github.com/kbourzayq/arch-guard/issues/9),
 [F10](https://github.com/kbourzayq/arch-guard/issues/10),
 [F11](https://github.com/kbourzayq/arch-guard/issues/11),
-[F12](https://github.com/kbourzayq/arch-guard/issues/12) and
-[F13](https://github.com/kbourzayq/arch-guard/issues/13): the .NET 10 solution, component
+[F12](https://github.com/kbourzayq/arch-guard/issues/12),
+[F13](https://github.com/kbourzayq/arch-guard/issues/13) and
+[F14](https://github.com/kbourzayq/arch-guard/issues/14): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
 AG001 enforcement of module and public-contract permissions, and AG002 enforcement
 of the configured layer matrix, AG003 module cycle detection, and CLI scan, inspect
 and explain commands, with compliant and deliberately violating reference solutions,
-a compiler-hosted AG001/AG002/AG004 analyzer with a semantic test harness, and
-AG004 semantic enforcement of declared implementation boundaries in both engines.
+a compiler-hosted AG001/AG002/AG004/AG005 analyzer with a semantic test harness, and
+AG004 semantic enforcement of declared implementation boundaries and AG005 explicit
+assembly/namespace restrictions in both engines.
 Remaining rules follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
@@ -93,6 +95,8 @@ from external packages and adapters, and CLI process behavior. Warnings fail the
 Builds emit XML API documentation; missing documentation for public types or members
 also fails the build.
 
+AG005 tests cover module/layer restrictions, framework/external assemblies, namespace
+descendants, aliases/global usings, lookalikes, generated sources and cross-engine meanings.
 AG004 tests cover public implementation types, contract and same-module access,
 aliases (including generic/array aliases), partial/generated sources and evidence retention.
 AG001–AG003 tests cover approved contracts, configured layers, seeded forbidden
@@ -124,7 +128,7 @@ argument validation and cancellation. The intended tool name is `archguard`; unt
 F27 packages it, use `dotnet run` as above (generated usage shows the assembly name).
 See the [CLI guide](docs/cli.md) for output, policy paths and examples.
 
-`scan` evaluates policy-selected AG001–AG004 rules and prints severity, rule ID,
+`scan` evaluates policy-selected AG001–AG005 rules and prints severity, rule ID,
 source location, affected target, evidence, remediation and documentation. Exit 0
 means completed and gate passed; 1 means completed and gate failed; 2 means invalid
 input or unreliable, incomplete, failed or cancelled work. Operational errors go to
@@ -151,10 +155,10 @@ origin evidence, deterministic traversal/cycles and extraction coverage.
 
 | Project | Responsibility | Direct production references |
 | --- | --- | --- |
-| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG004 evaluation, gates, repository data and evidence graphs | None |
+| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG005 evaluation, gates, repository data and evidence graphs | None |
 | `ArchitectureGuardian.Analysis` | Reusable orchestration, trusted Roslyn/MSBuild workspace loading, repository normalization and dependency extraction | Core |
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
-| `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002/AG004 and AdditionalFiles policy | None; source-links pure Core semantics |
+| `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002/AG004/AG005 and AdditionalFiles policy | None; source-links pure Core semantics |
 | `ArchitectureGuardian.Cli` | System.CommandLine arguments, policy/service composition, diagnostics and exit codes | Analysis, Configuration |
 
 Rules return evidence-backed findings without severity. The analysis service applies
@@ -167,13 +171,14 @@ incomplete, failed or cancelled results regardless of their diagnostic count.
 See the [shared contracts guide](docs/shared-contracts.md) for composition, source
 coordinates, deterministic identities and cancellation behavior, and the
 [canonical rule catalog](docs/rule-catalog.md) for AG001–AG006. The catalog defines
-identities. `ModuleDependenciesRule`, `LayerDependenciesRule`, `ModuleCyclesRule` and
-`ImplementationBoundariesRule` implement AG001–AG004 over `DependencyBuildResult`;
-AG005–AG006 remain planned. The
+identities. `ModuleDependenciesRule`, `LayerDependenciesRule`, `ModuleCyclesRule`,
+`ImplementationBoundariesRule` and `ForbiddenReferencesRule` implement AG001–AG005 over `DependencyBuildResult`;
+AG006 remains planned. The
 [AG001 guide](docs/rule-catalog.md#ag001-module-dependencies),
 [AG002 guide](docs/rule-catalog.md#ag002-layer-dependencies),
 [AG003 guide](docs/rule-catalog.md#ag003-module-cycles),
-[AG004 guide](docs/rule-catalog.md#ag004-implementation-boundaries) and
+[AG004 guide](docs/rule-catalog.md#ag004-implementation-boundaries),
+[AG005 guide](docs/rule-catalog.md#ag005-forbidden-references) and
 [policy composition example](docs/policy.md#host-composition) explain their scope and use.
 
 The [compiler analyzer guide](docs/compiler-analyzer.md) describes package consumption,

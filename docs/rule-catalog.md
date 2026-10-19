@@ -3,7 +3,7 @@
 [F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
 `RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
 arrive in their linked features. F10 exposes CLI `scan` and local `explain <rule-id>`;
-F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004 in both engines. See the [CLI guide](cli.md) and
+F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004 and F14 adds AG005 in both engines. See the [CLI guide](cli.md) and
 [compiler guide](compiler-analyzer.md).
 
 ## How catalog metadata reaches a diagnostic
@@ -12,7 +12,7 @@ F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004 in both engines. See
 provides an ID, a title and a documentation URL. The catalog does not fetch a remote
 rule list, read this Markdown file, or contain the executable checking logic.
 
-AG001–AG004 use this evaluation flow, rendered by CLI `scan`; additional reporting
+AG001–AG005 use this evaluation flow, rendered by CLI `scan`; additional reporting
 adapters remain planned:
 
 ```mermaid
@@ -220,6 +220,34 @@ Neither engine discovers runtime reflection or dynamic dispatch targets.
 Detect assembly or namespace references forbidden by policy.
 Implementation: [F14](https://github.com/kbourzayq/arch-guard/issues/14).
 
+`ForbiddenReferencesRule` checks bound semantic evidence in `DependencyBuildResult`
+against the source module's and layer's `forbiddenAssemblies` and
+`forbiddenNamespaces` lists. [Policy configuration](policy.md#forbidden-references-ag005)
+defines exact assembly names and namespace descendant matching. There are no built-in
+technology bans: framework, package, repository and same-project symbols are checked
+only against explicit restrictions. Permissions and contracts never override a ban.
+
+Aliases, global/static imports, generic arguments and partial/generated sources use
+bound identities, rather than source spelling or diagnostic display strings. Unused
+imports/references, strings, comments and allowed lookalikes do not create findings.
+Each finding identifies the target symbol, source project and exact configured
+module/layer restriction. The standalone engine groups by project, symbol and
+restriction, deduplicating aggregate evidence and preserving source spans. Distinct
+matching module/layer or parent/child restrictions produce independent findings.
+
+The compiler adapter shares Core's matching, validation and metadata, reporting at
+bound name use sites, including target assemblies outside its ownership snapshot.
+Supported compiler forms and broader standalone extraction differ as documented in
+the [compiler scope](compiler-analyzer.md#reporting-and-scope) and
+[semantic graph scope](dependency-graph.md#semantic-reference-scope); counts and
+snapshot IDs need not match. Cross-engine tests use the same compilation for aliases,
+framework types, generated sources, lookalikes and same-project namespace references.
+
+Upstream coverage, issues and partial findings are preserved. Unmapped source projects
+or semantic evidence missing bound assembly/namespace identities prevent completed
+coverage. CLI `scan` runs AG005 only when selected; severity and gates apply after
+discovery. No runtime reflection or dynamic target is inferred.
+
 ## AG006: Domain infrastructure
 
 Detect domain code referencing infrastructure technology forbidden by policy.
@@ -232,7 +260,8 @@ quality-gate decision. Compiler-hosted checks must observe the scope constraints
 ## Compiler scope
 
 The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002/AG004 for bound semantic
-uses between assemblies present in its supplied ownership snapshot. It shares Core's
+uses between assemblies present in its supplied ownership snapshot. AG005 also checks
+explicit restrictions on all bound target assemblies. The adapter shares Core's
 IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
 spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable
 compiler configuration and is an operational adapter diagnostic, outside AG001–AG006.

@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace ArchitectureGuardian.Analyzers;
 
-/// <summary>Checks semantic AG001/AG002 dependencies and AG004 implementation access using only the host compilation and an explicit ownership snapshot.</summary>
+/// <summary>Checks semantic AG001/AG002 dependencies, AG004 implementation access and AG005 reference restrictions in the host compilation.</summary>
 /// <remarks>Generated code is included. Each compilation owns its immutable policy; callbacks support cancellation and concurrency.</remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class DependencyAnalyzer : DiagnosticAnalyzer
@@ -28,8 +28,12 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
         "Module '{0}' must not access implementation of module '{1}': assembly '{2}' uses '{3}' from '{4}'", "Architecture", DiagnosticSeverity.Warning, true,
         helpLinkUri: DependencySemantics.DocumentationRoot + DependencySemantics.ImplementationAnchor);
 
+    private static readonly DiagnosticDescriptor ForbiddenReferences = new(ForbiddenReferenceSemantics.Id, ForbiddenReferenceSemantics.Title,
+        "Assembly '{0}' uses '{1}' from '{2}', violating {3}.{4} restriction '{5}'", "Architecture", DiagnosticSeverity.Warning, true,
+        helpLinkUri: DependencySemantics.DocumentationRoot + ForbiddenReferenceSemantics.Anchor);
+
     /// <inheritdoc/>
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Configuration, Modules, Layers, Implementations);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Configuration, Modules, Layers, Implementations, ForbiddenReferences);
 
     /// <summary>Registers compilation-local policy loading and concurrent semantic callbacks without opening a workspace.</summary>
     /// <param name="context">The compiler's analyzer registration context.</param>
@@ -64,7 +68,7 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            start.RegisterSyntaxNodeAction(node => Analyze(node, policy, source), SyntaxKind.IdentifierName, SyntaxKind.GenericName);
+            start.RegisterSyntaxNodeAction(node => Analyze(node, policy, source), SyntaxKind.IdentifierName, SyntaxKind.GenericName, SyntaxKind.PredefinedType);
         });
     }
 
@@ -78,7 +82,9 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
         }
 
         var alias = context.SemanticModel.GetAliasInfo(context.Node, context.CancellationToken);
-        var symbol = alias?.Target ?? context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol;
+        var symbol = context.Node is PredefinedTypeSyntax
+            ? context.SemanticModel.GetTypeInfo(context.Node, context.CancellationToken).Type
+            : alias?.Target ?? context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol;
         if (symbol is null)
         {
             return;
@@ -90,7 +96,25 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
         foreach (var targetSymbol in symbols)
         {
             var assembly = targetSymbol?.ContainingAssembly;
-            if (targetSymbol is INamespaceSymbol || assembly is null || SymbolEqualityComparer.Default.Equals(assembly, context.Compilation.Assembly))
+            if (targetSymbol is INamespaceSymbol || assembly is null)
+            {
+                continue;
+            }
+
+            if (targetSymbol is INamedTypeSymbol or IMethodSymbol or IPropertySymbol or IFieldSymbol or IEventSymbol)
+            {
+                var ns = targetSymbol.ContainingNamespace;
+                var namespaceName = NamespaceName(ns);
+                foreach (var restriction in policy.Restrictions(source, assembly.Name, namespaceName))
+                {
+                    context.CancellationToken.ThrowIfCancellationRequested();
+                    context.ReportDiagnostic(Diagnostic.Create(ForbiddenReferences, context.Node.GetLocation(), source,
+                        targetSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name,
+                        restriction.Scope, restriction.Kind, restriction.Name));
+                }
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(assembly, context.Compilation.Assembly))
             {
                 continue;
             }
@@ -108,6 +132,17 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
                     source, targetSymbol!.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name));
             }
         }
+    }
+
+    private static string NamespaceName(INamespaceSymbol? symbol)
+    {
+        var names = new Stack<string>();
+        for (var current = symbol; current is not null && !current.IsGlobalNamespace; current = current.ContainingNamespace)
+        {
+            names.Push(current.Name);
+        }
+
+        return string.Join(".", names);
     }
 
     private static IEnumerable<ISymbol> AliasSymbols(ISymbol target, CancellationToken cancellationToken)

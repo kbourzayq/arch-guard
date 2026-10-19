@@ -13,6 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/ArchitectureGuardian.Analysis/ArchitectureGuardian.Analysis.csproj" />
+    <ProjectReference Include="../../src/ArchitectureGuardian.Analyzers/ArchitectureGuardian.Analyzers.csproj" />
     <ProjectReference Include="../../src/ArchitectureGuardian.Configuration/ArchitectureGuardian.Configuration.csproj" />
   </ItemGroup>
 </Project>

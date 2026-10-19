@@ -15,7 +15,7 @@ internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
     {
         output.WriteLine($"{descriptor.Id}: {descriptor.Title}");
         output.WriteLine($"  Documentation: {descriptor.DocumentationUrl}");
-        output.WriteLine(descriptor.Id is "AG001" or "AG002" or "AG003" or "AG004"
+        output.WriteLine(descriptor.Id is "AG001" or "AG002" or "AG003" or "AG004" or "AG005"
             ? "  Available in scan; select this ID and its severity in the policy's rules mapping."
             : "  Catalog metadata only; this rule is not yet available in scan.");
     }
@@ -82,13 +82,17 @@ internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
                 output.WriteLine($"  Contract {contract.Id}: {string.Join(", ", contract.Projects.Select(project => project.Id))}");
             }
 
-            var permissions = repository.Policy.Modules.Single(item => item.Id == module.Id).AllowedDependencies;
+            var definition = repository.Policy.Modules.Single(item => item.Id == module.Id);
+            Restrictions(definition.ForbiddenAssemblies, definition.ForbiddenNamespaces);
+            var permissions = definition.AllowedDependencies;
             output.WriteLine($"  Allowed dependencies: {Permissions(permissions)}");
         }
 
         foreach (var layer in repository.Layers)
         {
+            var definition = repository.Policy.Layers.Single(item => item.Id == layer.Id);
             output.WriteLine($"Layer {layer.Id}: {string.Join(", ", layer.Projects.Select(project => project.Id))}");
+            Restrictions(definition.ForbiddenAssemblies, definition.ForbiddenNamespaces);
             output.WriteLine($"  Allowed dependencies: {Permissions(repository.Policy.Layers.Single(item => item.Id == layer.Id).AllowedDependencies)}");
         }
 
@@ -99,6 +103,12 @@ internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
         }
 
         output.WriteLine($"Gate: fail on {repository.Policy.Gate.FailOn.ToString().ToLowerInvariant()} or higher. No architecture rules evaluated.");
+    }
+
+    private void Restrictions(IReadOnlyList<string> assemblies, IReadOnlyList<string> namespaces)
+    {
+        output.WriteLine($"  Forbidden assemblies: {Permissions(assemblies)}");
+        output.WriteLine($"  Forbidden namespaces (including descendants): {Permissions(namespaces)}");
     }
 
     private static string Permissions(IReadOnlyList<string> values) => values.Count == 0 ? "(none)" : string.Join(", ", values);

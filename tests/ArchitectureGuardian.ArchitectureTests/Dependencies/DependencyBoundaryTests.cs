@@ -72,7 +72,8 @@ public sealed class DependencyBoundaryTests
             var sourceLinks = items.GetProperty("Compile").EnumerateArray()
                 .Select(item => item.GetProperty("FullPath").GetString()!)
                 .Where(path => !path.StartsWith(Path.Combine(Repository.Root, "src", project) + Path.DirectorySeparatorChar, StringComparison.Ordinal));
-            Assert.Equal([Path.Combine(Repository.Root, "src", "ArchitectureGuardian.Core", "Rules", "DependencySemantics.cs")], sourceLinks);
+            Assert.Equal(new[] { "DependencySemantics.cs", "ForbiddenReferenceSemantics.cs" }
+                .Select(name => Path.Combine(Repository.Root, "src", "ArchitectureGuardian.Core", "Rules", name)).Order(), sourceLinks.Order());
             var packages = items.GetProperty("PackageReference").EnumerateArray()
                 .Where(item => item.GetProperty("Identity").GetString() != "NETStandard.Library").ToArray();
             Assert.Equal(["Microsoft.CodeAnalysis.Analyzers", "Microsoft.CodeAnalysis.CSharp"],

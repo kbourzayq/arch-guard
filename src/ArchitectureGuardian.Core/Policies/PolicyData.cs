@@ -26,6 +26,20 @@ internal static class PolicyData
         return Array.AsReadOnly(values.Select(pattern => new ProjectPattern(pattern)).ToArray());
     }
 
+    internal static IReadOnlyList<string> ReferenceNames(IEnumerable<string> values, bool assembly)
+    {
+        var names = Strings(values);
+        if (names.Any(name => assembly ? !Rules.ForbiddenReferenceSemantics.IsAssemblyName(name)
+            : !Rules.ForbiddenReferenceSemantics.IsNamespaceName(name)))
+        {
+            throw new ArgumentException(assembly
+                ? "forbiddenAssemblies requires exact simple names (letters, digits, '.', '_' or '-'); wildcards and full assembly identities are unsupported."
+                : "forbiddenNamespaces requires dot-separated identifiers; wildcards and global:: are unsupported.");
+        }
+
+        return names;
+    }
+
     internal static IReadOnlyList<string> Strings(IEnumerable<string> values) => Unique(values, value =>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);

@@ -19,7 +19,7 @@ public static class RuleCatalog
     public static RuleDescriptor ImplementationBoundaries { get; } = Create(DependencySemantics.ImplementationId, DependencySemantics.ImplementationTitle, DependencySemantics.ImplementationAnchor);
 
     /// <summary>Gets AG005, which checks assembly or namespace references forbidden by policy.</summary>
-    public static RuleDescriptor ForbiddenReferences { get; } = Create("AG005", "Forbidden assembly/namespace references", "ag005-forbidden-references");
+    public static RuleDescriptor ForbiddenReferences { get; } = Create(ForbiddenReferenceSemantics.Id, ForbiddenReferenceSemantics.Title, ForbiddenReferenceSemantics.Anchor);
 
     /// <summary>Gets AG006, which checks domain references to infrastructure technology forbidden by policy.</summary>
     public static RuleDescriptor DomainInfrastructure { get; } = Create("AG006", "Domain infrastructure references", "ag006-domain-infrastructure");

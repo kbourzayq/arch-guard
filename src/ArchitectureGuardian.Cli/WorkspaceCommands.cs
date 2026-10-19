@@ -19,7 +19,7 @@ internal static class WorkspaceCommands
         var policy = fullPolicyPath is null ? null : await new YamlPolicyLoader().LoadAsync(fullPolicyPath, cancellationToken);
         // Selection fails before executing repository build logic when the engine lacks a requested rule.
         var rules = command == "scan" ? policy!.SelectRules<DependencyBuildResult>(
-            [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule()]) : null;
+            [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule()]) : null;
         using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(request, cancellationToken);
         if (command == "load")
         {

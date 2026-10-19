@@ -99,6 +99,26 @@ public sealed class CliWorkspaceTests
             Assert.DoesNotContain("AG001:", implementationScan.Output);
             Assert.DoesNotContain("AG002:", implementationScan.Output);
 
+            // AG005 is selected through the CLI and bans references even to an allowed public contract.
+            foreach (var field in new[] { "forbiddenAssemblies", "forbiddenNamespaces" })
+            {
+                var restrictedPolicy = Policy("error", "error", true).Replace("AG003: error", "AG005: error", StringComparison.Ordinal)
+                    .Replace("  - id: App\n", $"  - id: App\n    {field}: [Library]\n", StringComparison.Ordinal);
+                await File.WriteAllTextAsync(policyPath, restrictedPolicy);
+                var restricted = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+                Assert.True(restricted.ExitCode == 1, restricted.Output + restricted.Error);
+                Assert.Empty(restricted.Error);
+                Assert.Contains("error AG005:", restricted.Output);
+                Assert.Contains($"modules.App.{field} restriction 'Library'", restricted.Output);
+                Assert.Contains("symbol=Library.Contract", restricted.Output);
+                Assert.Contains("Consumer.cs(1,", restricted.Output);
+                Assert.DoesNotContain("AG001:", restricted.Output);
+                var restrictions = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
+                Assert.Equal(0, restrictions.ExitCode);
+                Assert.Contains(field == "forbiddenAssemblies" ? "Forbidden assemblies: Library"
+                    : "Forbidden namespaces (including descendants): Library", restrictions.Output);
+            }
+
             await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
             var first = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             var second = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
@@ -144,11 +164,11 @@ public sealed class CliWorkspaceTests
             Assert.Contains("version", invalid.Error);
             Assert.Empty(invalid.Output);
 
-            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false).Replace("AG003:", "AG005:", StringComparison.Ordinal));
+            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false).Replace("AG003:", "AG006:", StringComparison.Ordinal));
             var unavailable = await RunCli("scan", "missing.csproj", "--policy", policyPath, "--trusted");
             Assert.Equal(2, unavailable.ExitCode);
             Assert.Contains("unavailable", unavailable.Error);
-            Assert.Contains("AG005", unavailable.Error);
+            Assert.Contains("AG006", unavailable.Error);
             Assert.Empty(unavailable.Output);
 
             await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
