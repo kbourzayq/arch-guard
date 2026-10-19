@@ -66,6 +66,9 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         var cycles = await EvaluateDependenciesAsync(result, "AG003");
         Assert.True(cycles.IsComplete);
         Assert.Empty(cycles.Diagnostics);
+        var boundaries = await EvaluateDependenciesAsync(result, "AG004");
+        Assert.True(boundaries.IsComplete);
+        Assert.Empty(boundaries.Diagnostics);
     }
 
     /// <summary>Enforces a seeded forbidden reference using the graph's project and semantic evidence.</summary>
@@ -129,6 +132,16 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 && fact.Description.Contains("VisibleStore", StringComparison.Ordinal));
             Assert.DoesNotContain(layerDiagnostic.Evidence, fact => fact.Description.Contains("IInvoice", StringComparison.Ordinal));
             Assert.False(result.Repository.Policy.Gate.Passes(layers));
+            var boundaries = await EvaluateDependenciesAsync(result, "AG004");
+            Assert.True(boundaries.IsComplete);
+            Assert.NotEmpty(boundaries.Diagnostics);
+            Assert.All(boundaries.Diagnostics, item =>
+            {
+                Assert.Equal("AG004", item.RuleId);
+                Assert.Contains("VisibleStore", item.Target.Symbol);
+                Assert.Equal("src/Orders/Orders.Application/Forbidden.cs", item.Location!.Path);
+                Assert.All(item.Evidence, fact => Assert.NotNull(fact.Location));
+            });
         }
         finally
         {
@@ -584,7 +597,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         var policy = context.Repository!.Policy;
         var selection = new ArchitecturePolicy(policy.Modules, policy.Layers,
             new Dictionary<string, DiagnosticSeverity> { [ruleId] = policy.SeverityPolicy.GetSeverity(ruleId) });
-        var rules = selection.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule()]);
+        var rules = selection.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule(), new ImplementationBoundariesRule()]);
         return new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, selection.SeverityPolicy));
     }
 

@@ -12,11 +12,11 @@ records the decisions and constraints behind them.
 
 | Area | Current implementation | Planned work |
 | --- | --- | --- |
-| Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG003 module/layer/cycle evaluation | AG004–AG006 implementations |
+| Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG004 module/layer/cycle/implementation evaluation | AG005–AG006 implementations |
 | Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Future host integrations |
 | CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
-| Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002 semantic uses, AdditionalFiles snapshot | AG004–AG006, extended parity |
+| Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004 semantic uses, AdditionalFiles snapshot | AG005–AG006, extended parity |
 | Other adapters | None | MCP and reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
 
@@ -71,7 +71,7 @@ The service interface and its implementation live on opposite sides of this boun
 | Carry findings, reporting levels and coverage | Core | [`RuleViolation`](../../src/ArchitectureGuardian.Core/Rules/RuleViolation.cs), [`Diagnostic`](../../src/ArchitectureGuardian.Core/Diagnostics/Diagnostic.cs), [`AnalysisResult`](../../src/ArchitectureGuardian.Core/Analysis/AnalysisResult.cs) |
 
 The generic context is supplied by the caller and must stay stable throughout the
-run. AG001–AG003 consume `DependencyBuildResult`, including F05's `RepositoryModel`,
+run. AG001–AG004 consume `DependencyBuildResult`, including F05's `RepositoryModel`,
 F06's graph and extraction coverage; the service also supports other neutral scopes.
 Concrete rule implementations remain separate
 from catalog metadata.
@@ -89,7 +89,7 @@ nested implementation helpers stay with their owner.
 | --- | --- | --- |
 | Core | `Analysis` | Requests, results, coverage outcomes and the analysis service port |
 | Core | `Diagnostics` | Reported findings, evidence, affected targets, severity levels and source coordinates |
-| Core | `Rules` | Evaluation contracts, rule descriptors, catalog, AG001–AG003 dependency/cycle rules and severity-free violations |
+| Core | `Rules` | Evaluation contracts, rule descriptors, catalog, AG001–AG004 dependency/cycle rules and severity-free violations |
 | Core | `Policies` | Architecture declarations, loading port, matching, resolution, permissions, severity and gate policy |
 | Core | `Repositories` | Immutable repository, project, assembly, namespace, type, module, contract and layer data and build coverage |
 | Core | `Dependencies` | Immutable evidence graphs, aggregation, traversal, cyclic components and extraction coverage |
@@ -119,7 +119,7 @@ remain separate from architecture violations.
 The [service sequence](../shared-contracts.md#service-execution-flow) shows the calls,
 and the [outcome flow](../shared-contracts.md#outcome-flow) shows how completion,
 missing coverage, failure and cancellation affect the result. CLI `load` validates
-workspace context separately. AG001–AG003 can be composed through the reusable API;
+workspace context separately. AG001–AG004 can be composed through the reusable API;
 CLI `scan` composes that API with policy loading, extraction and severity gates.
 
 The [catalog and documentation flow](../rule-catalog.md#how-catalog-metadata-reaches-a-diagnostic)
@@ -145,7 +145,7 @@ flowchart TD
     Context["Neutral repository model — implemented<br/>Normalize declarations and ownership — F05"]
     Graph["Dependency graph — implemented<br/>Evidence, aggregation and traversal — F06"]
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
-    Rules["Core rule implementations<br/>AG001–AG003 — implemented F07–F09"]
+    Rules["Core rule implementations<br/>AG001–AG004 — implemented F07–F09 and F13"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
     Output["CLI console output — F10<br/>MCP and reports — planned"]
     Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Baselines — planned"]
@@ -188,7 +188,7 @@ current compilation from its host and maps only the facts available in that scop
 flowchart TD
     Host["Compiler or IDE host<br/>Current Roslyn compilation"]
     Adapter["Compiler adapter — F12<br/>Map available facts to neutral inputs"]
-    Rules["Source-linked Core dependency semantics<br/>AG001/AG002; AG004–AG006 planned"]
+    Rules["Source-linked Core dependency semantics<br/>AG001/AG002/AG004; AG005–AG006 planned"]
     Diagnostics["Compiler adapter<br/>Map findings to Roslyn diagnostics"]
 
     Host --> Adapter
@@ -203,7 +203,7 @@ the compiler adapter additional coverage.
 
 The compiler adapter targets netstandard2.0 with a Roslyn 4.8 API floor and has no
 project references. It source-links the small pure Core `DependencySemantics` source
-for shared AG001/AG002 metadata and permissions. The [compiler guide](../compiler-analyzer.md)
+for shared AG001/AG002/AG004 metadata and permissions. The [compiler guide](../compiler-analyzer.md)
 documents policy distribution, generated code, scope and host validation. The other
 projects remain net10.0. F16 will extend parity where both engines have sufficient context.
 

@@ -87,6 +87,11 @@ internal sealed class CompilerPolicy
             yield return (DependencySemantics.ModuleId, source.Module, target.Module);
         }
 
+        if (!DependencySemantics.AllowsImplementation(source.Module, target.Module, target.Contract))
+        {
+            yield return (DependencySemantics.ImplementationId, source.Module, target.Module);
+        }
+
         if (!DependencySemantics.AllowsLayer(source.Layer, target.Layer, _layers[source.Layer]))
         {
             yield return (DependencySemantics.LayerId, source.Layer, target.Layer);

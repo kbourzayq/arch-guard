@@ -52,7 +52,7 @@ def main():
             f'<PackageReference Include="ArchitectureGuardian.Analyzers" Version="{version}" PrivateAssets="all"/>'
             '<AdditionalFiles Include="architecture.guardian.compiler.xml"/></ItemGroup></Project>')
         (orders / "Order.cs").write_text("public class Order : Billing.Service { }")
-        (orders / ".editorconfig").write_text("root = true\n\n[*.cs]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = error\n")
+        (orders / ".editorconfig").write_text("root = true\n\n[*.cs]\ndotnet_diagnostic.AG001.severity = error\ndotnet_diagnostic.AG002.severity = error\ndotnet_diagnostic.AG004.severity = error\n")
         policy = '''<ArchitectureGuardian version="1">
           <Module id="Orders"/><Module id="Billing"/>
           <Layer id="Application"/><Layer id="Infrastructure"/>
@@ -66,13 +66,18 @@ def main():
         build = ["dotnet", "build", "Orders/Orders.csproj", "--no-restore", "-p:UseSharedCompilation=false"]
         forbidden = run(build, root)
         assert forbidden.returncode != 0, "Forbidden semantic dependency passed"
-        for diagnostic in ("error AG001", "error AG002", "Order.cs("):
+        for diagnostic in ("error AG001", "error AG002", "error AG004", "Order.cs("):
             assert diagnostic in forbidden.stdout, forbidden.stdout
         for failure in ("CS8032", "CS9057", "AD0001", "AG000"):
             assert failure not in forbidden.stdout + forbidden.stderr, forbidden.stdout
-        snapshot.write_text(policy.replace('<Module id="Orders"/>', '<Module id="Orders" allows="module:Billing"/>')
-                            .replace('<Layer id="Application"/>', '<Layer id="Application" allows="Infrastructure"/>'))
-        assert run(build, root).returncode == 0, "Allowed dependency failed after AdditionalFile update"
+        permitted = policy.replace('<Module id="Orders"/>', '<Module id="Orders" allows="module:Billing"/>') \
+            .replace('<Layer id="Application"/>', '<Layer id="Application" allows="Infrastructure"/>')
+        snapshot.write_text(permitted)
+        implementation = run(build, root)
+        assert implementation.returncode != 0 and "error AG004" in implementation.stdout, implementation.stdout
+        assert "error AG001" not in implementation.stdout and "error AG002" not in implementation.stdout, implementation.stdout
+        snapshot.write_text(permitted.replace('layer="Infrastructure"/>', 'layer="Infrastructure" contract="api"/>'))
+        assert run(build, root).returncode == 0, "Allowed contract failed after AdditionalFile update"
         print(f"Analyzer package passed forbidden/allowed builds with SDK {args.sdk}")
 
 

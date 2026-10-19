@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace ArchitectureGuardian.Analyzers;
 
-/// <summary>Checks semantic AG001/AG002 dependencies using only the host compilation and an explicit ownership snapshot.</summary>
+/// <summary>Checks semantic AG001/AG002 dependencies and AG004 implementation access using only the host compilation and an explicit ownership snapshot.</summary>
 /// <remarks>Generated code is included. Each compilation owns its immutable policy; callbacks support cancellation and concurrency.</remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class DependencyAnalyzer : DiagnosticAnalyzer
@@ -24,8 +24,12 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
         "Layer '{0}' must not depend on layer '{1}': assembly '{2}' uses '{3}' from '{4}'", "Architecture", DiagnosticSeverity.Warning, true,
         helpLinkUri: DependencySemantics.DocumentationRoot + DependencySemantics.LayerAnchor);
 
+    private static readonly DiagnosticDescriptor Implementations = new(DependencySemantics.ImplementationId, DependencySemantics.ImplementationTitle,
+        "Module '{0}' must not access implementation of module '{1}': assembly '{2}' uses '{3}' from '{4}'", "Architecture", DiagnosticSeverity.Warning, true,
+        helpLinkUri: DependencySemantics.DocumentationRoot + DependencySemantics.ImplementationAnchor);
+
     /// <inheritdoc/>
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Configuration, Modules, Layers);
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Configuration, Modules, Layers, Implementations);
 
     /// <summary>Registers compilation-local policy loading and concurrent semantic callbacks without opening a workspace.</summary>
     /// <param name="context">The compiler's analyzer registration context.</param>
@@ -73,24 +77,75 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var symbol = context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol;
-        if (symbol is IAliasSymbol alias)
-        {
-            symbol = alias.Target;
-        }
-
-        var assembly = symbol?.ContainingAssembly;
-        if (symbol is INamespaceSymbol || assembly is null || SymbolEqualityComparer.Default.Equals(assembly, context.Compilation.Assembly))
+        var alias = context.SemanticModel.GetAliasInfo(context.Node, context.CancellationToken);
+        var symbol = alias?.Target ?? context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol;
+        if (symbol is null)
         {
             return;
         }
 
-        foreach (var violation in policy.Violations(source, assembly.Name))
+        // Alias declarations are skipped as imports, so inspect their full type at each use.
+        // Ordinary generic names have separate callbacks for their authored type arguments.
+        var symbols = alias is null ? new[] { symbol } : AliasSymbols(alias.Target, context.CancellationToken);
+        foreach (var targetSymbol in symbols)
         {
-            context.CancellationToken.ThrowIfCancellationRequested();
-            var descriptor = violation.RuleId == DependencySemantics.ModuleId ? Modules : Layers;
-            context.ReportDiagnostic(Diagnostic.Create(descriptor, context.Node.GetLocation(), violation.Source, violation.Target,
-                source, symbol!.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name));
+            var assembly = targetSymbol?.ContainingAssembly;
+            if (targetSymbol is INamespaceSymbol || assembly is null || SymbolEqualityComparer.Default.Equals(assembly, context.Compilation.Assembly))
+            {
+                continue;
+            }
+
+            foreach (var violation in policy.Violations(source, assembly.Name))
+            {
+                context.CancellationToken.ThrowIfCancellationRequested();
+                var descriptor = violation.RuleId switch
+                {
+                    DependencySemantics.ModuleId => Modules,
+                    DependencySemantics.LayerId => Layers,
+                    _ => Implementations,
+                };
+                context.ReportDiagnostic(Diagnostic.Create(descriptor, context.Node.GetLocation(), violation.Source, violation.Target,
+                    source, targetSymbol!.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name));
+            }
+        }
+    }
+
+    private static IEnumerable<ISymbol> AliasSymbols(ISymbol target, CancellationToken cancellationToken)
+    {
+        var pending = new Stack<ISymbol>();
+        var visited = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+        pending.Push(target);
+        while (pending.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var symbol = pending.Pop();
+            if (!visited.Add(symbol))
+            {
+                continue;
+            }
+
+            switch (symbol)
+            {
+                case IArrayTypeSymbol array:
+                    pending.Push(array.ElementType);
+                    break;
+                case IPointerTypeSymbol pointer:
+                    pending.Push(pointer.PointedAtType);
+                    break;
+                case INamedTypeSymbol named:
+                    yield return named;
+                    foreach (var argument in named.TypeArguments)
+                    {
+                        pending.Push(argument);
+                    }
+
+                    if (named.ContainingType is not null)
+                    {
+                        pending.Push(named.ContainingType);
+                    }
+
+                    break;
+            }
         }
     }
 }

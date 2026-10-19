@@ -16,7 +16,7 @@ public static class RuleCatalog
     public static RuleDescriptor ModuleCycles { get; } = Create("AG003", "Module cycles", "ag003-module-cycles");
 
     /// <summary>Gets AG004, which checks access across module implementation boundaries.</summary>
-    public static RuleDescriptor ImplementationBoundaries { get; } = Create("AG004", "Implementation boundaries", "ag004-implementation-boundaries");
+    public static RuleDescriptor ImplementationBoundaries { get; } = Create(DependencySemantics.ImplementationId, DependencySemantics.ImplementationTitle, DependencySemantics.ImplementationAnchor);
 
     /// <summary>Gets AG005, which checks assembly or namespace references forbidden by policy.</summary>
     public static RuleDescriptor ForbiddenReferences { get; } = Create("AG005", "Forbidden assembly/namespace references", "ag005-forbidden-references");

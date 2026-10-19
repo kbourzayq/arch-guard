@@ -301,7 +301,7 @@ must not launch the CLI, open an MSBuildWorkspace, perform an independent restor
 assume it can see every project in the solution.
 
 Its initial scope is semantic uses for AG001/AG002 with supplied assembly ownership;
-AG004–AG006 will add further compiler-safe checks. Whole-solution cycle detection remains with Analysis. The
+F13 adds AG004; AG005–AG006 will add further compiler-safe checks. Whole-solution cycle detection remains with Analysis. The
 two engines share rule identities and pure evaluation where their inputs support
 the same semantics; missing context is explicit. F16 will verify parity on supported
 cases and document generated-code, incomplete-compilation and host limitations.
@@ -347,3 +347,20 @@ The [compiler guide](../../compiler-analyzer.md) specifies snapshot distribution
 source-linked semantics, generated-code behavior, cancellation, concurrent isolation,
 the supported compiler API baseline and package validation matrix. Interactive IDE
 UI testing remains separate from driver/workspace compatibility validation.
+
+## F13: semantic implementation boundaries
+
+Core's `ImplementationBoundariesRule` consumes F06's semantic target symbols and
+original project ownership. It rejects cross-module uses of non-contract projects,
+including public implementation types, without treating unused project references as
+semantic access. Findings group by project pair and target symbol with deduplicated
+source evidence. Same-module and declared whole-project contract uses pass AG004;
+AG001 permissions and AG002 layers remain independent.
+
+The compiler adapter reuses the portable `DependencySemantics` ownership predicate
+and canonical AG004 metadata through the existing source link. It checks bound names
+in its host compilation using the existing immutable snapshot; it does not load
+workspaces or claim solution coverage. Generated code is included in both engines.
+CLI registers AG004 for explicit policy selection. No schema, package, project or
+component boundary changes are required. See the [AG004 guide](../../rule-catalog.md#ag004-implementation-boundaries)
+and [compiler reference scope](../../compiler-analyzer.md#reporting-and-scope).

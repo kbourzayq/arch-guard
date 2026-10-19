@@ -15,7 +15,7 @@ internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
     {
         output.WriteLine($"{descriptor.Id}: {descriptor.Title}");
         output.WriteLine($"  Documentation: {descriptor.DocumentationUrl}");
-        output.WriteLine(descriptor.Id is "AG001" or "AG002" or "AG003"
+        output.WriteLine(descriptor.Id is "AG001" or "AG002" or "AG003" or "AG004"
             ? "  Available in scan; select this ID and its severity in the policy's rules mapping."
             : "  Catalog metadata only; this rule is not yet available in scan.");
     }

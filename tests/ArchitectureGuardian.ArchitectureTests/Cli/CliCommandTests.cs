@@ -25,9 +25,13 @@ public sealed class CliCommandTests
         Assert.StartsWith(id + ":", output.ToString());
         Assert.Contains("Documentation: https://github.com/kbourzayq/arch-guard/", output.ToString());
         Assert.Empty(error.ToString());
-        if (id is "AG004" or "AG005" or "AG006")
+        if (id is "AG005" or "AG006")
         {
             Assert.Contains("not yet available", output.ToString());
+        }
+        else
+        {
+            Assert.Contains("Available in scan", output.ToString());
         }
     }
 

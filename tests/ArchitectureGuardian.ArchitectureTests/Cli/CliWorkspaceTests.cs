@@ -82,6 +82,23 @@ public sealed class CliWorkspaceTests
             var projectScan = await RunCli("scan", Path.Combine(directory, "App", "App.csproj"), "--policy", policyPath, "--trusted");
             Assert.True(projectScan.ExitCode == 0, projectScan.Output + projectScan.Error);
 
+            // AG004 treats public types outside declared contracts as implementation, even with module permission.
+            var contractPolicy = Policy("error", "error", true).Replace("AG003: error", "AG004: error", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(policyPath, contractPolicy);
+            var contractScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+            Assert.True(contractScan.ExitCode == 0, contractScan.Output + contractScan.Error);
+            var implementationPolicy = contractPolicy.Replace("contract:Library/api", "module:Library", StringComparison.Ordinal)
+                .Replace("    contracts:\n      - id: api\n        projects: [\"Library/*.csproj\"]\n", "", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(policyPath, implementationPolicy);
+            var implementationScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+            Assert.True(implementationScan.ExitCode == 1, implementationScan.Output + implementationScan.Error);
+            Assert.Empty(implementationScan.Error);
+            Assert.Contains("error AG004:", implementationScan.Output);
+            Assert.Contains("symbol=Library.Contract", implementationScan.Output);
+            Assert.Contains("Consumer.cs(1,", implementationScan.Output);
+            Assert.DoesNotContain("AG001:", implementationScan.Output);
+            Assert.DoesNotContain("AG002:", implementationScan.Output);
+
             await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
             var first = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             var second = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
@@ -127,11 +144,11 @@ public sealed class CliWorkspaceTests
             Assert.Contains("version", invalid.Error);
             Assert.Empty(invalid.Output);
 
-            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false).Replace("AG003:", "AG004:", StringComparison.Ordinal));
+            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false).Replace("AG003:", "AG005:", StringComparison.Ordinal));
             var unavailable = await RunCli("scan", "missing.csproj", "--policy", policyPath, "--trusted");
             Assert.Equal(2, unavailable.ExitCode);
             Assert.Contains("unavailable", unavailable.Error);
-            Assert.Contains("AG004", unavailable.Error);
+            Assert.Contains("AG005", unavailable.Error);
             Assert.Empty(unavailable.Output);
 
             await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
