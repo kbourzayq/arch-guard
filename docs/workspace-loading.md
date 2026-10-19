@@ -126,9 +126,10 @@ The fixtures under `tests/Fixtures/Workspaces` cover the three input formats,
 project references, conditional source inclusion and compilation, two frameworks,
 missing SDKs/references, solution-conditioned references, generator diagnostics and
 failed restore. The `ModularMonolith` fixture adds multi-project modules, contract
-references and normalized model identity checks. The generator fixture has its own locked restore. Integration tests
+references and normalized model identity checks. The generator fixture has its own locked restore
+and builds once through a build-only reference from the test project. Integration tests
 copy inputs to isolated temporary directories and stage generator DLLs with test
-build artifacts: Roslyn's process-lifetime loader can keep those DLLs locked on
+build artifacts without rebuilding them per class: Roslyn's process-lifetime loader can keep those DLLs locked on
 Windows. Fixture restores serialize project restoration, including relocated inputs,
 to avoid competing writes through temporary-directory path aliases. The loader
 validates the current evaluated snapshot; it does not guarantee

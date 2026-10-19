@@ -1,12 +1,28 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Xml.Linq;
 using Xunit;
 
 namespace ArchitectureGuardian.Tests.Workspaces;
 
 /// <summary>Copies and restores isolated workspace fixtures without sharing intermediate outputs with the checkout.</summary>
-public sealed class WorkspaceFixture : IAsyncLifetime
+public class WorkspaceFixture : IAsyncLifetime
 {
+    private readonly string _preparationInput;
+    private readonly bool _includesGenerators;
+
+    /// <summary>Prepares the general workspace loading, normalization and extraction fixtures.</summary>
+    public WorkspaceFixture() : this("Preparation.slnx", includesGenerators: true) { }
+
+    /// <summary>Limits restore and generator staging to the context required by a test class.</summary>
+    /// <param name="preparationInput">The fixture-relative solution to restore.</param>
+    /// <param name="includesGenerators">Whether the context consumes the prebuilt generator.</param>
+    protected WorkspaceFixture(string preparationInput, bool includesGenerators)
+    {
+        _preparationInput = preparationInput;
+        _includesGenerators = includesGenerators;
+    }
+
     /// <summary>Gets the isolated fixture root.</summary>
     public string Root { get; } = Path.Combine(Path.GetTempPath(), "arch-guard-workspaces-" + Guid.NewGuid().ToString("N"));
 
@@ -42,16 +58,20 @@ public sealed class WorkspaceFixture : IAsyncLifetime
         File.Copy(Path.Combine(repository.FullName, "global.json"), Path.Combine(Root, "global.json"));
         // Restore valid fixtures in one process; broken and unrestored inputs stay outside preparation.
         // Each class keeps its own copied project files and intermediate outputs for mutation tests.
-        await RestoreAsync("Preparation.slnx");
-        var build = await DotnetAsync("build", "Generators/FixtureGenerator.csproj", "--configuration", "Debug", "--no-restore");
-        Assert.True(build.ExitCode == 0, build.Output + build.Error);
+        await RestoreAsync(_preparationInput);
+        if (!_includesGenerators)
+        {
+            return;
+        }
 
         // Roslyn loads generators into a process-lifetime context and can lock their DLLs on Windows.
         // Keep the loaded binary with test build artifacts so the temporary fixture can still be deleted.
         var generatorDirectory = Path.Combine(AppContext.BaseDirectory, "WorkspaceFixtures", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(generatorDirectory);
         var generatorPath = Path.Combine(generatorDirectory, "FixtureGenerator.dll");
-        File.Copy(Path.Combine(Root, "Generators", "bin", "Debug", "netstandard2.0", "FixtureGenerator.dll"), generatorPath);
+        var configuration = typeof(WorkspaceFixture).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
+        File.Copy(Path.Combine(RepositoryRoot, "tests", "Fixtures", "Workspaces", "Generators", "bin", configuration,
+            "netstandard2.0", "FixtureGenerator.dll"), generatorPath);
         var consumerPath = Path.Combine(Root, "GeneratorConsumer", "GeneratorConsumer.csproj");
         var consumer = XDocument.Load(consumerPath);
         consumer.Descendants("Analyzer").Single().SetAttributeValue("Include", generatorPath);

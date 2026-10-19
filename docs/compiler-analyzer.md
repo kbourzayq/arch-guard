@@ -195,5 +195,6 @@ python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.An
 ```
 
 CI results are distinct from local verification; interactive IDE UI behavior remains
-a release validation limitation. F16 will extend cross-engine parity checks where
-both engines have sufficient context.
+a release validation limitation. The [semantic accuracy and parity guide](semantic-accuracy.md)
+documents F16's shared AG001/AG002/AG004/AG005/AG006 expectations, framework/configuration
+matrix, generated sources, incomplete references and intentional engine differences.

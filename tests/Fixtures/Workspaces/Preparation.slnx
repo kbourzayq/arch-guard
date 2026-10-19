@@ -3,7 +3,6 @@
   <Project Path="Library/Library.csproj" />
   <Project Path="Multi/Multi.csproj" />
   <Project Path="SolutionReference/SolutionReference.csproj" />
-  <Project Path="Generators/FixtureGenerator.csproj" />
   <Project Path="GeneratorConsumer/GeneratorConsumer.csproj" />
   <Project Path="ModularMonolith/src/Billing/Billing.Domain/Billing.Domain.csproj" />
   <Project Path="ModularMonolith/src/Billing/Billing.Application/Billing.Application.csproj" />

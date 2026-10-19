@@ -16,7 +16,7 @@ records the decisions and constraints behind them.
 | Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Future host integrations |
 | CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
-| Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot | Extended parity |
+| Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
 | Other adapters | None | MCP and reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
 
@@ -208,7 +208,8 @@ project references. It source-links the small pure Core `DependencySemantics`,
 AG001/AG002/AG004/AG005/AG006 metadata,
 permissions and explicit reference matching. The [compiler guide](../compiler-analyzer.md)
 documents policy distribution, generated code, scope and host validation. The other
-projects remain net10.0. F16 will extend parity where both engines have sufficient context.
+projects remain net10.0. F16 validates the shared semantic surface and explicit coverage
+differences in the [semantic accuracy matrix](../semantic-accuracy.md).
 
 ## Where to read next
 

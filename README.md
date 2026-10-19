@@ -16,8 +16,9 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F11](https://github.com/kbourzayq/arch-guard/issues/11),
 [F12](https://github.com/kbourzayq/arch-guard/issues/12),
 [F13](https://github.com/kbourzayq/arch-guard/issues/13),
-[F14](https://github.com/kbourzayq/arch-guard/issues/14) and
-[F15](https://github.com/kbourzayq/arch-guard/issues/15): the .NET 10 solution, component
+[F14](https://github.com/kbourzayq/arch-guard/issues/14),
+[F15](https://github.com/kbourzayq/arch-guard/issues/15) and
+[F16](https://github.com/kbourzayq/arch-guard/issues/16): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
@@ -27,7 +28,7 @@ and explain commands, with compliant and deliberately violating reference soluti
 a compiler-hosted AG001/AG002/AG004/AG005/AG006 analyzer with a semantic test harness, and
 AG004 semantic enforcement of declared implementation boundaries and AG005 explicit
 assembly/namespace restrictions and AG006 layer-scoped domain technology restrictions
-with namespace exceptions in both engines.
+with namespace exceptions in both engines, plus labeled semantic accuracy and engine parity fixtures.
 Additional capabilities follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
@@ -76,12 +77,20 @@ dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj -
 Use `--filter "Category=Integration"` for the MSBuild/Roslyn workspace, CLI process
 and evaluated dependency-boundary tests. The unfiltered command above runs both
 categories and remains required before publishing. Integration fixtures keep separate
-project copies per test class, but batch their valid-project restores through
-`tests/Fixtures/Workspaces/Preparation.slnx` to reduce process startup. Deliberately
-broken and unrestored fixtures are excluded from that preparation.
+project copies per test class, restoring only each suite's required contexts through
+`Preparation.slnx`, `SemanticPreparation.slnx` or the modular-monolith solution under
+`tests/Fixtures/Workspaces`. The generator builds once as a build-only test project
+dependency; fixture setup stages its binary instead of rebuilding it for every class.
+Deliberately broken and unrestored fixtures are excluded from preparation.
+Repeated CLI policy permutations run through the real command pipeline in process;
+representative scan/inspect outcomes, reference solutions, SDK failures and smoke
+checks still exercise separate CLI processes.
 
 The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs these checks on Linux,
-Windows and macOS for pull requests and pushes to `main`. Tests cover diagnostic
+Windows and macOS for pull requests and pushes to `main`, uploading TRX timings for
+each OS. A separate Linux job builds the analyzer package once, so compiler-host
+checks can start without waiting for the slowest OS test job. All validation jobs
+remain required for a successful workflow. Tests cover diagnostic
 identity and ordering, YAML validation, policy references, portable globs, inventory
 resolution, rule selection, severity gates, analysis outcomes and cancellation,
 normalized source declarations, multi-project modules, contract membership and
@@ -99,6 +108,9 @@ also fails the build.
 
 AG006 tests cover configured layer membership, technology identities, scoped namespace
 exceptions, independent overlapping rules, evidence deduplication and partial coverage.
+The [semantic accuracy guide](docs/semantic-accuracy.md) records exactly which rules run
+in each engine, per-rule precision and limits, and reproducible parity checks across
+frameworks/configurations, generated sources and unavailable references.
 AG005 tests cover module/layer restrictions, framework/external assemblies, namespace
 descendants, aliases/global usings, lookalikes, generated sources and cross-engine meanings.
 AG004 tests cover public implementation types, contract and same-module access,

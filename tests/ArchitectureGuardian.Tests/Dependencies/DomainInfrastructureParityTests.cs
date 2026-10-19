@@ -17,7 +17,7 @@ namespace ArchitectureGuardian.Tests.Dependencies;
 /// <summary>Checks both AG006 engines against the same real compilation and explicit source ownership.</summary>
 /// <param name="fixture">Restored workspace inputs.</param>
 [Trait("Category", "Integration")]
-public sealed class DomainInfrastructureParityTests(WorkspaceFixture fixture) : IClassFixture<WorkspaceFixture>
+public sealed class DomainInfrastructureParityTests(ModularWorkspaceFixture fixture) : IClassFixture<ModularWorkspaceFixture>
 {
     /// <summary>Aliases, generated/partial sources, framework types and same-namespace uses share restriction meanings.</summary>
     /// <param name="restrictAssembly">Also checks the bound framework assembly through the source layer.</param>
