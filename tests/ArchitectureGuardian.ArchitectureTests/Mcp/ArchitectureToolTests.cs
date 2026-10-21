@@ -21,7 +21,7 @@ public sealed class ArchitectureToolTests
         await ToolRegistrationTests.WithServer(async (client, token) =>
         {
             var tools = await client.ListToolsAsync(cancellationToken: token);
-            foreach (var name in new[] { "list_rules", "get_architecture", "analyze_solution", "analyze_changes" })
+            foreach (var name in new[] { "list_rules", "get_architecture", "analyze_solution", "analyze_changes", "explain_violation" })
             {
                 var tool = Assert.Single(tools, tool => tool.Name == name);
                 Assert.True(tool.ProtocolTool.Annotations!.ReadOnlyHint);

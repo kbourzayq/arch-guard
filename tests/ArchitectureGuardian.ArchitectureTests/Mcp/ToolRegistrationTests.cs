@@ -42,6 +42,7 @@ public sealed class ToolRegistrationTests
     [InlineData("list_rules")]
     [InlineData("analyze_solution")]
     [InlineData("analyze_changes")]
+    [InlineData("explain_violation")]
     public async Task Sdk_cancellation_reaches_the_injected_service(string toolName)
     {
         var loader = new BlockingPolicyLoader();
@@ -49,7 +50,8 @@ public sealed class ToolRegistrationTests
         {
             var requestId = new RequestId("cancel-policy");
             var arguments = new JsonObject { ["policyPath"] = "architecture.guardian.yaml" };
-            if (toolName != "list_rules") { arguments["inputPath"] = "ArchitectureGuardian.slnx"; }
+            if (toolName == "explain_violation") { arguments["ruleId"] = "AG001"; }
+            if (toolName is "analyze_solution" or "analyze_changes") { arguments["inputPath"] = "ArchitectureGuardian.slnx"; }
             if (toolName == "analyze_changes")
             {
                 arguments["baseReference"] = "HEAD~1";

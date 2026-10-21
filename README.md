@@ -81,8 +81,8 @@ host compilation and a separate XML ownership snapshot; it does not check module
 cycles or establish whole-solution coverage. See the [engine comparison](docs/semantic-accuracy.md).
 
 For MCP, publish the server and configure its executable and workspace root using
-the [portable configuration templates](docs/mcp.md#configure-your-client). All four
-tools are read-only: `get_architecture`, `list_rules`, `analyze_solution` and the
+the [portable configuration templates](docs/mcp.md#configure-your-client). All five
+tools are read-only: `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and the
 reserved `analyze_changes` interface. Workspace execution requires operator trust.
 
 ## Understand the result

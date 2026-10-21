@@ -83,7 +83,9 @@ public sealed class ModuleCyclesRule : IArchitectureRule<DependencyBuildResult>
             violations.Add(new(Descriptor, $"Module dependency cycle: {string.Join(" → ", names)}.",
                 new(module: path[0].Source.Identity), evidence,
                 "Break the cycle by removing or inverting a dependency, or moving a shared contract to an independent module. Allowed dependencies do not exempt cycles.",
-                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location));
+                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location,
+                new ViolationContext(path.Select(edge => new ViolationPathNode("module", edge.Source.Identity))
+                    .Append(new("module", path[0].Source.Identity)), [new("rule:AG003", "acyclicModules", [])])));
         }
 
         var status = context.Status == AnalysisStatus.Completed && issues.Count > 0 ? AnalysisStatus.Incomplete : context.Status;

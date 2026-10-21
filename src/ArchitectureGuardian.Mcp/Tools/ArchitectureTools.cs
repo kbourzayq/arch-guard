@@ -109,7 +109,7 @@ internal sealed class ArchitectureTools(WorkspaceFiles files, IOptions<Workspace
         policy.AllowedDependencies, policy.ForbiddenAssemblies, policy.ForbiddenNamespaces,
         policy.DomainInfrastructure is { } constraints ? new(constraints.ForbiddenAssemblies, constraints.ForbiddenNamespaces, constraints.AllowedNamespaces) : null);
 
-    private static RuleContext[] Rules(ArchitecturePolicy policy)
+    internal static RuleContext[] Rules(ArchitecturePolicy policy)
     {
         var available = SolutionRules.All.Select(rule => rule.Descriptor.Id).ToHashSet(StringComparer.Ordinal);
         return RuleCatalog.All.Select(rule => new RuleContext(rule.Id, rule.Title, rule.DocumentationUrl.AbsoluteUri,

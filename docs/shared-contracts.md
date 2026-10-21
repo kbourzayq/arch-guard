@@ -25,6 +25,18 @@ evidence and remediation. At least one module or symbol and one evidence item ar
 required. The rule descriptor provides an absolute HTTP/HTTPS documentation URL.
 `Diagnostic` exposes these values directly alongside severity and identity.
 
+The canonical solution evaluators also retain an immutable `RuleViolation.Context`.
+`ViolationContext.DependencyPath` preserves directed endpoint order: project paths
+for AG001/AG002, the representative module cycle (including the closing module)
+for AG003, project/project/symbol for AG004, and project/symbol for AG005/AG006.
+`PolicyConstraints` identifies symbolic scope, setting and relevant configured
+values. AG003 instead identifies its built-in `rule:AG003` / `acyclicModules`
+invariant. `PublicContracts` lists declared alternatives for the target module of
+AG001/AG004; these do not promise a suitable replacement API or independent
+module/layer permission. Provenance is captured during evaluation, never recovered
+by parsing display text. Its addition leaves the v1 diagnostic identity unchanged;
+custom findings may omit it. See [MCP explanations](mcp.md#explain_violation).
+
 `SeverityPolicy` supplies per-rule overrides and a default severity (`Error` unless
 configured otherwise). The supported severities are `Info`, `Warning` and `Error`.
 Rule IDs use ordinal, case-sensitive matching. Changing severity does not rerun or

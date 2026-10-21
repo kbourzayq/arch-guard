@@ -92,7 +92,8 @@ public sealed class ForbiddenReferencesRule : IArchitectureRule<DependencyBuildR
                 $"Project '{project}' uses '{symbol}', violating {scope}.{kind} restriction '{name}'.",
                 new(module: repository.ResolvedPolicy.Projects[project].ModuleId, symbol: symbol), evidence,
                 $"Remove the reference to '{symbol}' or revise the explicit {scope}.{kind} restriction '{name}'.",
-                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location);
+                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location,
+                new ViolationContext([new("project", project), new("symbol", symbol)], [new(scope, kind, [name])]));
         }).ToArray();
         var status = context.Status == AnalysisStatus.Completed && issues.Count > 0 ? AnalysisStatus.Incomplete : context.Status;
         return Task.FromResult(new RuleEvaluationResult(status, violations, issues));

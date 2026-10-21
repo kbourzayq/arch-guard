@@ -74,7 +74,12 @@ public sealed class ModuleDependenciesRule : IArchitectureRule<DependencyBuildRe
                 $"Module '{source.ModuleId}' must not depend on module '{target.ModuleId}': project '{pair.Source}' depends on '{pair.Target}'.",
                 new(module: source.ModuleId), evidence,
                 $"Remove the dependency or use a public contract of module '{target.ModuleId}' explicitly permitted by module '{source.ModuleId}'. If intended, declare the exact module or contract permission in allowedDependencies.",
-                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location));
+                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location,
+                new ViolationContext([new("project", pair.Source), new("project", pair.Target)],
+                    [new("modules." + source.ModuleId, "allowedDependencies",
+                        context.Repository.Policy.Modules.Single(module => module.Id == source.ModuleId).AllowedDependencies)],
+                    context.Repository.Policy.Modules.Single(module => module.Id == target.ModuleId).Contracts
+                        .Select(contract => $"contract:{target.ModuleId}/{contract.Id}"))));
         }
 
         var status = context.Status == AnalysisStatus.Completed && issues.Count > 0 ? AnalysisStatus.Incomplete : context.Status;
