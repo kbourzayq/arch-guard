@@ -90,7 +90,7 @@ before changing component responsibilities or dependencies.
   dotnet restore ArchitectureGuardian.slnx --locked-mode
   dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
   dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
-  dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore
+  dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore -m:1
   ```
 
 - Keep changes compatible with Linux, Windows and macOS. Use path APIs and portable

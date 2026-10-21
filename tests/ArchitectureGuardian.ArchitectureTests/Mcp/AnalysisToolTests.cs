@@ -92,7 +92,7 @@ public sealed class AnalysisToolTests
         await File.WriteAllTextAsync(Path.Combine(root, "Library", "Target.cs"), "namespace Library; public class Target { }");
         var source = Path.Combine(root, "App", "Use.cs");
         await File.WriteAllTextAsync(source, "public class Use : Library.Target { }");
-        var restore = await Repository.Dotnet("restore", inputPath, "--source", root, "--disable-parallel", "--disable-build-servers");
+        var restore = await Repository.Dotnet(TimeSpan.FromSeconds(60), "restore", inputPath, "--source", root, "--disable-parallel", "--disable-build-servers");
         Assert.True(restore.ExitCode == 0, restore.Output + restore.Error);
         await ToolRegistrationTests.WithServer(async (client, token) =>
         {

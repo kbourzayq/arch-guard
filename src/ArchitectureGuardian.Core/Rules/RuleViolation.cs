@@ -14,10 +14,11 @@ public sealed class RuleViolation
     /// <param name="evidence">At least one supporting fact; input order does not affect identity.</param>
     /// <param name="remediation">Guidance for correcting the violation.</param>
     /// <param name="location">The primary source range, when one is available.</param>
+    /// <param name="context">Optional structured provenance supplied by the evaluator; not part of the v1 finding identity.</param>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     /// <exception cref="ArgumentException">Message or remediation is blank, or evidence is empty or contains null.</exception>
     public RuleViolation(RuleDescriptor rule, string message, DiagnosticTarget target,
-        IEnumerable<DiagnosticEvidence> evidence, string remediation, SourceLocation? location = null)
+        IEnumerable<DiagnosticEvidence> evidence, string remediation, SourceLocation? location = null, ViolationContext? context = null)
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
@@ -35,6 +36,7 @@ public sealed class RuleViolation
 
         Remediation = remediation;
         Location = location;
+        Context = context;
         // The version tag allows future identity formats to be distinguished. Severity is excluded
         // so reporting policy can change without changing the identity of this snapshot's finding.
         Id = CanonicalData.Hash(CanonicalData.Encode("ag-diagnostic-v1", rule.Id, target.Module, target.Symbol,
@@ -63,6 +65,10 @@ public sealed class RuleViolation
 
     /// <summary>Gets the primary source range, or <see langword="null"/> when unavailable.</summary>
     public SourceLocation? Location { get; }
+
+    /// <summary>Gets evaluator-owned explanation details, or null for findings without structured provenance.</summary>
+    /// <remarks>This additive projection does not change the existing v1 diagnostic identity.</remarks>
+    public ViolationContext? Context { get; }
 
     internal string SortKey => CanonicalData.Encode(Rule.Id, Id);
 }

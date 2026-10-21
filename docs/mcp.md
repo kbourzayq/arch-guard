@@ -2,13 +2,14 @@
 
 Connect an MCP-compatible coding agent to your repository's architecture policy
 and solution analysis. The server runs locally over stdio and shares the CLI's
-policy, workspace and rule engine. It registers four read-only tools:
+policy, workspace and rule engine. It registers five read-only tools:
 
 | Tool | Purpose | Build trust required |
 | --- | --- | --- |
 | `list_rules` | Read rule selection, effective severities and engine availability from YAML | No |
 | `get_architecture` | Resolve modules, layers, ownership, public contracts and constraints | Yes |
 | `analyze_solution` | Scan the complete input and return coverage, gate, counts and evidence | Yes |
+| `explain_violation` | Explain a rule or resolve a current diagnostic with evidence, path, policy and remediation | Diagnostic mode only |
 | `analyze_changes` | Reserved graph-comparison interface; currently returns `unsupported` | No |
 
 No prompts or resources are registered. Source/policy/baseline mutation, automatic
@@ -144,9 +145,9 @@ The operator selects one existing absolute workspace directory. Tools receive
 `WorkspaceOptions` through `IOptions<WorkspaceOptions>`. Build trust defaults to false;
 set `--Workspace:Trusted true` or `Workspace__Trusted=true` to authorize
 workspace execution. Client roots cannot change these settings, and the host does
-not request client roots. `list_rules` reads policy without build trust.
+not request client roots. `list_rules` and rule-mode `explain_violation` read policy without build trust.
 `get_architecture` and `analyze_solution` pass the operator
-trust setting to the shared loader; a client cannot enable it per call.
+trust setting to the shared loader; diagnostic-mode `explain_violation` does the same; a client cannot enable it per call.
 
 Explicit policy/input paths are resolved relative to the operator root, must name
 existing files inside it, and cannot traverse symbolic links or reparse points
@@ -176,6 +177,7 @@ exceptions into `isError: true` results with generic messages. A deliberate
 `McpException` can carry an actionable message; `McpProtocolException` produces a
 protocol error, and requested `OperationCanceledException` retains cancellation
 semantics. `get_architecture` and `analyze_solution` preserve incomplete/failed coverage and its operational issues.
+Diagnostic-mode `explain_violation` preserves the same coverage/issue and trust contracts.
 Requested cancellation is propagated to SDK cancellation even though the shared
 workspace services internally represent it as a coverage status. Invalid policies,
 unknown filters and oversized output produce tool errors, without partial payloads.
@@ -334,6 +336,83 @@ claim or passing gate. Ref existence, shallow clones, policy changes, removed/re
 projects, staged/unstaged/untracked files and dirty-tree semantics will be defined
 and verified by complete base/candidate snapshot comparison.
 
+### `explain_violation`
+
+Required: `policyPath` and **exactly one** of `ruleId` or `diagnosticId`.
+Both modes return deterministic guidance from policy and shared rule semantics;
+no LLM or remote service is used.
+
+For **rule guidance**, use a canonical case-sensitive AG001–AG006 ID:
+
+```json
+{"policyPath":"architecture.guardian.yaml","ruleId":"AG004"}
+```
+
+This reads policy only, including deselected rules, without build trust or project
+selector resolution. `status: "completed"` means the policy was validated, with
+`scope: "rule"`, null `diagnostic`/input/build fields and an empty `dependencyPath`.
+`policyConstraints` describes the declared settings for that rule; these are not
+claims that a violation or resolved inventory exists. `inputPath` is rejected in
+this mode. `configuration`/`targetFramework` are validated but unused in rule mode.
+
+For an **instance explanation**, copy the exact lowercase 64-character ID from
+`analyze_solution` and reuse its input, policy and build arguments. Replace the
+example ID below with an ID returned by your scan:
+
+```json
+{"policyPath":"architecture.guardian.yaml","inputPath":"MyApp.slnx","configuration":"Release","diagnosticId":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+```
+
+`inputPath` is required for diagnostic mode; optional `configuration` defaults to
+`Debug` and `targetFramework` follows the scan contract. Workspace trust is required
+for fresh analysis, which runs on every instance request. There is no session cache,
+stored snapshot or ability to submit fabricated diagnostic objects as evidence.
+A reference remains valid if its v1 finding content is unchanged, including across
+severity-only policy changes. This ID is not a repository-wide snapshot hash.
+
+| Response field | Meaning |
+| --- | --- |
+| `schemaVersion` | 1 |
+| `status` | `completed`, `incomplete`, `failed` or `cancelled`; coverage, never gate compliance |
+| `scope` | `rule` or `diagnostic` |
+| `policyPath`, `inputPath`, `configuration`, `targetFramework` | Root-relative paths and requested build context; input/build values null in rule mode |
+| `rule` | Same `Rule` metadata as `list_rules`; null if incomplete analysis cannot resolve the diagnostic |
+| `explanation` | Rule semantics, the original diagnostic message, or an explanation of unresolved coverage |
+| `diagnostic` | Unmodified diagnostic projection from `analyze_solution`, including all evidence and available source ranges; null in rule mode or unresolved incomplete analysis |
+| `dependencyPath` | Ordered `{kind, identity}` endpoints from the evaluator; empty without an instance |
+| `policyConstraints` | `{scope, setting, values: string[]}`; symbolic owning scope and relevant configured values, without fabricated YAML coordinates |
+| `publicContracts` | Declared `contract:MODULE/ID` alternatives, not verified replacement APIs or permission guarantees |
+| `remediation` | Rule-specific guidance, naming declared contracts for AG001/AG004 where available |
+| `issues` | All operational issues from fresh analysis, or empty in rule mode |
+
+AG001/AG002 paths identify source and target projects; AG003 returns its actual
+representative directed module cycle, repeating the starting module. AG004 returns
+source project, target project and bound target symbol; AG005/AG006 return source
+project and bound target symbol, including external metadata. These paths describe
+observed references/uses, without inventing transitive dependencies. Locations and
+supporting facts remain in `diagnostic`; a project/assembly reference with no source
+span stays unlocated. AG003 has a built-in acyclic-module invariant, represented by
+`scope: "rule:AG003"`, `setting: "acyclicModules"`, `values: []`, rather than an
+invented YAML setting. Other scopes use symbolic `modules.ID`, `layers.ID` or
+`layers.ID.domainInfrastructure` labels, not parseable YAML source paths. Instance
+values are the relevant allowed list, contract IDs or matched forbidden value.
+
+Unknown rules, malformed diagnostic IDs, ambiguous mode arguments and unknown/stale
+IDs after **complete** analysis return `isError: true` with actionable messages.
+After incomplete/failed analysis, a found instance retains its evidence and coverage
+issues; an absent instance returns that noncompleted status with null `diagnostic`
+and empty path/constraint/contract arrays. Missing coverage cannot prove an ID stale.
+Resolve the issues and rerun the scan. Policy changes, source changes or a different
+build/input can invalidate IDs; severity alone does not change finding identity.
+Configured contracts are suggestions for investigation, never fabricated replacement
+symbols. Module permissions, layer permissions and API suitability remain independent.
+When the target module declares no contracts, remediation states that explicitly.
+
+Paths, policy bounds, input/build lengths, requested cancellation and the 65536-byte
+payload cap follow the existing tools. Oversized evidence or guidance fails without
+partial structured content. Both JSON copies and generated input/output schemas use
+the same response contract. No gate is evaluated by this tool.
+
 ## Tool composition
 
 `AddArchitectureGuardianMcp` registers `IOptions<WorkspaceOptions>` and the existing
@@ -374,3 +453,9 @@ inputs, severity gates, evidence, unsupported comparisons, required base/scope,
 trust/input errors, oversized diagnostic output and pre-cancelled calls.
 `ToolRegistrationTests` also cancels both analysis tools during policy loading
 through an explicit protocol notification.
+
+`Mcp/ExplanationToolTests` checks all six rule explanations, exact scan/instance
+parity, reference-only and semantic evidence, configured contracts, fresh stale-ID
+errors, incomplete coverage, bounds and cancellation. Core `ViolationContextTests`
+checks evaluator provenance for all six rules, directed cycle order, immutable
+snapshots and preservation of v1 identities.

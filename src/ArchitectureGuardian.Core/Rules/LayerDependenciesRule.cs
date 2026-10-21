@@ -74,7 +74,10 @@ public sealed class LayerDependenciesRule : IArchitectureRule<DependencyBuildRes
                 $"Layer '{source.LayerId}' must not depend on layer '{target.LayerId}': project '{pair.Source}' depends on '{pair.Target}'.",
                 new(module: source.ModuleId), evidence,
                 $"Remove or invert the dependency to respect the configured layer matrix. If intended, add '{target.LayerId}' to layer '{source.LayerId}' allowedDependencies.",
-                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location));
+                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location,
+                new ViolationContext([new("project", pair.Source), new("project", pair.Target)],
+                    [new("layers." + source.LayerId, "allowedDependencies",
+                        context.Repository.Policy.Layers.Single(layer => layer.Id == source.LayerId).AllowedDependencies)])));
         }
 
         var status = context.Status == AnalysisStatus.Completed && issues.Count > 0 ? AnalysisStatus.Incomplete : context.Status;

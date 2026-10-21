@@ -48,7 +48,7 @@ From the repository root, before submitting code, project or dependency changes:
 dotnet restore ArchitectureGuardian.slnx --locked-mode
 dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
 dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
-dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore
+dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore -m:1
 ```
 
 Build warnings, including missing public API documentation, fail the build.
@@ -65,7 +65,13 @@ dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj -
 Use `--filter "Category=Integration"` for the unit-test project's MSBuild/Roslyn
 workspace integration tests. CLI process and evaluated dependency checks live in
 `ArchitectureGuardian.ArchitectureTests`; run the full solution suite before submitting
-code. Integration fixtures use isolated copies and prepare their required contexts
+code. CI runs test projects sequentially (`-m:1`), while the workspace-bearing test
+assemblies cap concurrent collections at two. This bounds simultaneous MSBuild and
+Roslyn work on shared runners without omitting tests. Fixture restore and individual
+workspace CLI checks retain bounded process deadlines; trusted MCP scenarios use a
+three-minute aggregate budget for their multiple full workspace calls. The process
+helper disables build-worker reuse and applies its deadline through output draining.
+Integration fixtures use isolated copies and prepare their required contexts
 through the fixture preparation solutions. Deliberately broken inputs are excluded
 from preparation; do not fix those intentional failures.
 

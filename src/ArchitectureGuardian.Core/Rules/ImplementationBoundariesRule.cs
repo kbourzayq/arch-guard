@@ -72,7 +72,12 @@ public sealed class ImplementationBoundariesRule : IArchitectureRule<DependencyB
                 $"Module '{source.ModuleId}' must not access implementation of module '{target.ModuleId}': project '{use.Source}' uses '{use.Symbol}' from '{use.Target}'.",
                 new(module: source.ModuleId, symbol: use.Symbol), evidence,
                 $"Use a declared public contract of module '{target.ModuleId}' or move the interaction inside that module. C# public accessibility and module permissions do not expose implementation as a contract.",
-                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location));
+                evidence.FirstOrDefault(fact => fact.Location is not null)?.Location,
+                new ViolationContext([new("project", use.Source), new("project", use.Target), new("symbol", use.Symbol)],
+                    [new("modules." + target.ModuleId, "contracts",
+                        context.Repository.Policy.Modules.Single(module => module.Id == target.ModuleId).Contracts.Select(contract => contract.Id))],
+                    context.Repository.Policy.Modules.Single(module => module.Id == target.ModuleId).Contracts
+                        .Select(contract => $"contract:{target.ModuleId}/{contract.Id}"))));
         }
 
         var status = context.Status == AnalysisStatus.Completed && issues.Count > 0 ? AnalysisStatus.Incomplete : context.Status;

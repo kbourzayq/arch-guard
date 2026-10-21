@@ -31,6 +31,12 @@ internal static class Repository
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
+            Environment =
+            {
+                // Build workers must not outlive a command and retain its redirected pipe handles.
+                ["MSBUILDDISABLENODEREUSE"] = "1",
+                ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0"
+            }
         };
 
         foreach (var argument in arguments)
@@ -40,19 +46,22 @@ internal static class Repository
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Could not start dotnet.");
-        // Drain both pipes concurrently so a child process cannot block while waiting for an unread buffer.
-        var output = process.StandardOutput.ReadToEndAsync();
-        var error = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(timeoutDuration);
+        // The deadline includes draining pipes, which can remain open after the parent exits.
+        var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
+        var error = process.StandardError.ReadToEndAsync(timeout.Token);
 
         try
         {
             await process.WaitForExitAsync(timeout.Token);
+            await Task.WhenAll(output, error);
         }
         catch (OperationCanceledException)
         {
             // Stop child processes too, so a timed-out build cannot outlive its test.
-            process.Kill(entireProcessTree: true);
+            if (!process.HasExited) { process.Kill(entireProcessTree: true); }
+            // Cleanup has its own bound; the command's deadline has already expired.
+            await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
             throw new TimeoutException($"dotnet {string.Join(' ', arguments)} timed out after {timeoutDuration}.");
         }
 

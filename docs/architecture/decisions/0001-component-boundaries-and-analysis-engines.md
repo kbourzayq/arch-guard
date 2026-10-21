@@ -448,3 +448,20 @@ mapped to MCP `status: "unsupported"`, null counts and `gateOutcome: "not-evalua
 It performs no Git or workspace execution. F23 will implement full base/candidate
 graph comparison, including policy/project changes and dirty-tree semantics; a
 changed-line filter or full-scan fallback would not satisfy that contract.
+
+
+## F20: deterministic violation explanations
+
+Core's canonical evaluators retain neutral, immutable `ViolationContext` values
+alongside each finding: ordered observed endpoints, violated policy constraints
+and declared contract alternatives. Existing v1 identities and evidence remain
+unchanged; projection metadata is excluded from that identity. Rule semantics and
+provenance remain in Core; no new package, project or dependency boundary is added.
+
+MCP `explain_violation` renders rule-level guidance using policy only, or resolves an
+exact diagnostic ID through fresh `SolutionAnalysisService` evaluation. It has no
+session cache or LLM dependency. Unknown/stale references fail after complete
+analysis; incomplete coverage retains its issues and cannot establish staleness.
+Remediation names configured contracts without inventing source locations or
+replacement symbols, and warns that independent permissions still apply. Schemas,
+limits, trust and cancellation follow the existing MCP adapter contract.
