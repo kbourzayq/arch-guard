@@ -85,7 +85,8 @@ public sealed class ToolRegistrationTests
     internal static async Task WithServer(Func<McpClient, CancellationToken, Task> action, IPolicyLoader? loader = null,
         string? root = null, bool trusted = false)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        // Trusted scenarios perform several full workspace loads; this is an aggregate session budget.
+        using var timeout = new CancellationTokenSource(trusted ? TimeSpan.FromMinutes(3) : TimeSpan.FromSeconds(60));
         var incoming = new Pipe();
         var outgoing = new Pipe();
         await using var serverInput = incoming.Reader.AsStream();

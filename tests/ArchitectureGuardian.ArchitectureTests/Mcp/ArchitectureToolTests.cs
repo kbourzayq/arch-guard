@@ -60,7 +60,7 @@ public sealed class ArchitectureToolTests
     public async Task Architecture_preserves_shared_resolution_and_coverage_under_filters()
     {
         using var fixture = new InputFiles();
-        var restore = await Repository.Dotnet("restore", Path.Combine(fixture.Root, "Input.slnx"), "--source", fixture.Root,
+        var restore = await Repository.Dotnet(TimeSpan.FromSeconds(60), "restore", Path.Combine(fixture.Root, "Input.slnx"), "--source", fixture.Root,
             "--disable-parallel", "--disable-build-servers");
         Assert.True(restore.ExitCode == 0, restore.Output + restore.Error);
         await ToolRegistrationTests.WithServer(async (client, token) =>
