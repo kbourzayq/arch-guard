@@ -1,11 +1,8 @@
-using ArchitectureGuardian.Analysis.Dependencies;
 using ArchitectureGuardian.Analysis.Orchestration;
 using ArchitectureGuardian.Analysis.Repositories;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Configuration.Yaml;
 using ArchitectureGuardian.Core.Analysis;
-using ArchitectureGuardian.Core.Dependencies;
-using ArchitectureGuardian.Core.Rules;
 
 namespace ArchitectureGuardian.Cli;
 
@@ -17,8 +14,20 @@ internal static class WorkspaceCommands
     {
         var fullPolicyPath = policyPath is null ? null : Path.GetFullPath(policyPath);
         var policy = fullPolicyPath is null ? null : await new YamlPolicyLoader().LoadAsync(fullPolicyPath, cancellationToken);
-        // Selection fails before executing repository build logic when the engine lacks a requested rule.
-        var rules = command == "scan" ? policy!.SelectRules(SolutionRules.All) : null;
+        if (command == "scan")
+        {
+            var analysis = await new SolutionAnalysisService().AnalyzeAsync(request, Path.GetDirectoryName(fullPolicyPath!)!, policy!, cancellationToken);
+            renderer.Diagnostics(analysis.Diagnostics);
+            if (!analysis.IsComplete)
+            {
+                return renderer.Coverage("Analysis", analysis.Status, analysis.Issues);
+            }
+
+            var passed = policy!.Gate.Passes(analysis);
+            renderer.Gate(passed, analysis.Diagnostics.Count);
+            return passed ? 0 : 1;
+        }
+
         using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(request, cancellationToken);
         if (command == "load")
         {
@@ -43,17 +52,6 @@ internal static class WorkspaceCommands
             return renderer.Coverage("Inspection", repository.Status, repository.Issues);
         }
 
-        var context = await new DependencyGraphBuilder().BuildAsync(workspace, policyDirectory, policy!, cancellationToken);
-        var analysis = await new AnalysisService<DependencyBuildResult>(rules!).AnalyzeAsync(
-            new AnalysisRequest<DependencyBuildResult>(context, policy!.SeverityPolicy), cancellationToken);
-        renderer.Diagnostics(analysis.Diagnostics);
-        if (!analysis.IsComplete)
-        {
-            return renderer.Coverage("Analysis", analysis.Status, analysis.Issues);
-        }
-
-        var passed = policy.Gate.Passes(analysis);
-        renderer.Gate(passed, analysis.Diagnostics.Count);
-        return passed ? 0 : 1;
+        throw new ArgumentException("Unknown workspace command.", nameof(command));
     }
 }

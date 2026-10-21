@@ -21,7 +21,7 @@ public sealed class ArchitectureToolTests
         await ToolRegistrationTests.WithServer(async (client, token) =>
         {
             var tools = await client.ListToolsAsync(cancellationToken: token);
-            foreach (var name in new[] { "list_rules", "get_architecture" })
+            foreach (var name in new[] { "list_rules", "get_architecture", "analyze_solution", "analyze_changes" })
             {
                 var tool = Assert.Single(tools, tool => tool.Name == name);
                 Assert.True(tool.ProtocolTool.Annotations!.ReadOnlyHint);
@@ -183,7 +183,7 @@ public sealed class ArchitectureToolTests
     }
 
     /// <summary>Small package-free input with two ownership scopes and a whole-project contract.</summary>
-    private sealed class InputFiles : IDisposable
+    internal sealed class InputFiles : IDisposable
     {
         internal const string Policy = """
             version: 1

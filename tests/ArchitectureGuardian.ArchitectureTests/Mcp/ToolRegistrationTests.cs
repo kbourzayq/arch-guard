@@ -38,18 +38,28 @@ public sealed class ToolRegistrationTests
     }
 
     /// <summary>Client cancellation reaches the attributed tool and its dependency through the SDK's request token.</summary>
-    [Fact]
-    public async Task Sdk_cancellation_reaches_the_injected_service()
+    [Theory]
+    [InlineData("list_rules")]
+    [InlineData("analyze_solution")]
+    [InlineData("analyze_changes")]
+    public async Task Sdk_cancellation_reaches_the_injected_service(string toolName)
     {
         var loader = new BlockingPolicyLoader();
         await WithServer(async (client, token) =>
         {
             var requestId = new RequestId("cancel-policy");
+            var arguments = new JsonObject { ["policyPath"] = "architecture.guardian.yaml" };
+            if (toolName != "list_rules") { arguments["inputPath"] = "ArchitectureGuardian.slnx"; }
+            if (toolName == "analyze_changes")
+            {
+                arguments["baseReference"] = "HEAD~1";
+                arguments["scope"] = "solution";
+            }
             var call = client.SendRequestAsync(new JsonRpcRequest
             {
                 Id = requestId,
                 Method = RequestMethods.ToolsCall,
-                Params = new JsonObject { ["name"] = "list_rules", ["arguments"] = new JsonObject { ["policyPath"] = "architecture.guardian.yaml" } },
+                Params = new JsonObject { ["name"] = toolName, ["arguments"] = arguments },
             }, token);
             await loader.Started.Task.WaitAsync(token);
             await client.SendNotificationAsync(NotificationMethods.CancelledNotification,

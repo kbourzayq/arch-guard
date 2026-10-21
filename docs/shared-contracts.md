@@ -41,7 +41,7 @@ noncompleted results and applies an inclusive severity threshold to completed re
 ## Reusable service
 
 `AnalysisService<TContext>` implements `IAnalysisService<TContext>` for both CLI and
-future MCP composition. It accepts registered rules and an `AnalysisRequest<TContext>`
+MCP composition. It accepts registered rules and an `AnalysisRequest<TContext>`
 with the prepared context and severity policy. For example, a host can compose:
 
 ```csharp
@@ -86,6 +86,16 @@ and rule instances. It shows the path where each rule completes; the
 context separately. CLI `scan` composes the reusable AG001–AG006 API with policy
 loading, dependency extraction and gate evaluation; see the [CLI guide](cli.md).
 All six canonical rules are available through this composition.
+
+F19's `SolutionAnalysisService.AnalyzeAsync` shares the complete scan pipeline
+between CLI `scan` and MCP `analyze_solution`: policy selection before build
+execution, workspace loading, dependency extraction and `AnalysisService` evaluation.
+Hosts still own policy loading, gate rendering and protocol/process behavior.
+`AnalyzeChangesAsync(baseReference, scope, cancellationToken)` reserves comparison
+with an explicit base and `solution` scope. Until F23 it returns `Incomplete` with
+`change-analysis-unsupported`, performs no Git/build execution and cannot pass a gate.
+MCP maps that unsupported capability to its versioned response contract; see the
+[MCP guide](mcp.md#analyze_changes).
 
 ```mermaid
 sequenceDiagram

@@ -30,7 +30,7 @@ public sealed class StdioServerTests
             await Send(process, new { jsonrpc = "2.0", id = 2, method = "tools/list" });
             using var listed = await Read(process, timeout.Token);
             var tools = listed.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
-            Assert.Equal(new[] { "get_architecture", "list_rules" }, tools.Select(tool => tool.GetProperty("name").GetString()).Order());
+            Assert.Equal(new[] { "analyze_changes", "analyze_solution", "get_architecture", "list_rules" }, tools.Select(tool => tool.GetProperty("name").GetString()).Order());
             Assert.All(tools, tool =>
             {
                 Assert.True(tool.GetProperty("annotations").GetProperty("readOnlyHint").GetBoolean());
