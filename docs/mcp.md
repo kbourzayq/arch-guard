@@ -1,27 +1,48 @@
-# Local MCP server and architecture/analysis tools (F17–F19)
+# MCP server
 
-`ArchitectureGuardian.Mcp` uses the official
-[ModelContextProtocol C# SDK 2.2.0](https://www.nuget.org/packages/ModelContextProtocol/2.2.0)
-and follows its [stdio getting-started pattern](https://csharp.sdk.modelcontextprotocol.io/v2/concepts/getting-started.html):
-standard .NET hosting, stderr console logging, `WithStdioServerTransport()` and
-`WithToolsFromAssembly()`.
+Connect an MCP-compatible coding agent to your repository's architecture policy
+and solution analysis. The server runs locally over stdio and shares the CLI's
+policy, workspace and rule engine. It registers four read-only tools:
 
-F17 provides the host; [F18](https://github.com/kbourzayq/arch-guard/issues/18) adds
-`get_architecture` and `list_rules`. F19 adds `analyze_solution` and the explicit
-unsupported `analyze_changes` interface. The SDK advertises all four read-only tools
-with input/output JSON Schemas. No prompts or resources are registered. HTTP hosting, source/policy/baseline mutation, shell
-execution and automatic restore are outside this host's capabilities.
+| Tool | Purpose | Build trust required |
+| --- | --- | --- |
+| `list_rules` | Read rule selection, effective severities and engine availability from YAML | No |
+| `get_architecture` | Resolve modules, layers, ownership, public contracts and constraints | Yes |
+| `analyze_solution` | Scan the complete input and return coverage, gate, counts and evidence | Yes |
+| `analyze_changes` | Reserved graph-comparison interface; currently returns `unsupported` | No |
+
+No prompts or resources are registered. Source/policy/baseline mutation, automatic
+restore and arbitrary shell execution are outside the server's capabilities.
+Trusted workspace evaluation can execute repository-controlled MSBuild tasks.
 
 ## Start and connect
 
-Build outside the protocol session:
+### Publish the server
+
+Follow [installation](installation.md), or run these commands from the checkout root:
 
 ```sh
 dotnet restore ArchitectureGuardian.slnx --locked-mode
-dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
+dotnet publish src/ArchitectureGuardian.Mcp --configuration Release --no-restore --output artifacts/mcp
 ```
 
-Configure an MCP client to launch the built assembly:
+Use the published DLL in client configuration. Keep its complete output directory.
+`dotnet run` can add build output to stdout and interfere with MCP framing.
+
+### Configure your client
+
+Create a local stdio server entry using your client's configuration format. The
+`mcpServers` wrapper below is a common format; clients with a different schema or
+server-setup UI need the same command and arguments in their corresponding fields.
+Configuration-file location is client-specific.
+
+**Replace both path placeholders before using this JSON.** They represent two
+independent locations, which may be in different directories:
+
+| Placeholder | Replace with |
+| --- | --- |
+| `<FULL_PATH_TO_MCP_DLL>` | The absolute path to the published `artifacts/mcp/ArchitectureGuardian.Mcp.dll` in your Architecture Guardian installation |
+| `<FULL_PATH_TO_YOUR_REPOSITORY>` | The existing absolute root directory of the repository you want the agent to inspect |
 
 ```json
 {
@@ -29,45 +50,93 @@ Configure an MCP client to launch the built assembly:
     "architecture-guardian": {
       "command": "dotnet",
       "args": [
-        "/absolute/checkout/src/ArchitectureGuardian.Mcp/bin/Release/net10.0/ArchitectureGuardian.Mcp.dll",
+        "<FULL_PATH_TO_MCP_DLL>",
         "--Workspace:Root",
-        "/absolute/trusted/repository"
+        "<FULL_PATH_TO_YOUR_REPOSITORY>",
+        "--Workspace:Trusted",
+        "false"
       ]
     }
   }
 }
 ```
 
+These are replacement markers, not environment variables. The server does not
+expand `~`, `$HOME`, `%USERPROFILE%` or `${...}` in these paths. Do not rely on the
+client's current directory to locate the DLL or workspace. Keep machine-specific
+configuration local instead of committing personal absolute paths to a repository.
+
+To obtain the DLL path from the checkout root on macOS/Linux:
+
+```sh
+printf '%s/artifacts/mcp/ArchitectureGuardian.Mcp.dll\n' "$(pwd)"
+```
+
+In PowerShell:
+
+```powershell
+(Resolve-Path artifacts/mcp/ArchitectureGuardian.Mcp.dll).Path
+```
+
+Windows JSON paths may use forward slashes, for example
+`C:/path/to/arch-guard/artifacts/mcp/ArchitectureGuardian.Mcp.dll` and
+`C:/path/to/your-repository`. Replace these example locations with your own.
+If using backslashes in JSON, escape each as `\\`.
+
+The client process must be able to find `dotnet`. If its PATH differs from your
+terminal's, set `command` to the full path of the dotnet executable. Find it with
+`command -v dotnet` on macOS/Linux or `(Get-Command dotnet).Source` in PowerShell.
+
+### Enable workspace analysis
+
+The example starts with build trust disabled. `list_rules` works in that mode;
+`get_architecture` and `analyze_solution` return incomplete coverage with a
+`workspace-untrusted` issue.
+
+For a repository whose build logic you authorize:
+
+1. Restore the target solution outside the MCP session, in its intended build configuration.
+2. Change the final `Workspace:Trusted` argument from `false` to `true`.
+3. Restart or reconnect the server through your client.
+
+Trust authorizes repository MSBuild tasks and generators; read-only tool annotations
+and root checks do not provide a build sandbox. The [workspace trust contract](workspace-loading.md#trust-and-isolation)
+also applies to restore.
+
+### Make the first tool call
+
+Tool paths are relative to `Workspace:Root`, independent of where the server DLL
+is installed. For a repository with `MyApp.slnx` and `architecture.guardian.yaml`
+at its root:
+
+```json
+{"policyPath":"architecture.guardian.yaml"}
+```
+
+Pass that object to `list_rules`. With build trust enabled and the input restored,
+call `analyze_solution` with:
+
+```json
+{"inputPath":"MyApp.slnx","policyPath":"architecture.guardian.yaml","configuration":"Release"}
+```
+
+Check `status` and `gateOutcome` before interpreting counts. An incomplete result
+is not a passing scan. See the [response schemas](#tool-requests-and-response-schemas-version-1)
+for every argument and result field, or [troubleshooting](troubleshooting.md#mcp-connection-and-path-problems)
+for connection and path failures.
+
+### Configuration and lifecycle
+
 The standard .NET host reads command-line configuration, environment variables
-and configuration files. `Workspace:Root` must name an existing absolute directory;
-the options service validates it at startup. For environment configuration use
-`Workspace__Root`. Invalid settings fail startup with a nonzero exit code and stderr
-diagnostics. The SDK owns stdin and stdout; all console logging goes to stderr.
-Use the built assembly in client configuration because `dotnet run` can add build
-output to stdout.
+and configuration files. Environment keys are `Workspace__Root` and
+`Workspace__Trusted`. `Workspace:Root` must be an existing absolute directory.
+Invalid settings fail startup with a nonzero exit code and stderr diagnostics.
+The SDK owns stdin/stdout; console logging goes to stderr.
 
-The SDK negotiates protocol versions, including the `2025-11-25` initialization
-handshake. Closing stdin ends the session. Standard .NET host shutdown and Ctrl+C
-stop the server through its normal cancellation lifecycle.
-
-## Tool composition
-
-`AddArchitectureGuardianMcp` registers `IOptions<WorkspaceOptions>` and the existing
-`IPolicyLoader` / `YamlPolicyLoader` with dependency injection. The adapter references
-Configuration for policy loading and Analysis for trusted
-workspace loading and repository normalization. CLI and MCP share the
-`SolutionRules.All` inventory, canonical Core catalog, severity policy and strict
-project ownership resolution. `analyze_solution` and CLI `scan` call the same
-`SolutionAnalysisService`, including rule selection before builds, extraction and
-`AnalysisService` evaluation. Core `GatePolicy` evaluates completed results;
-architecture/rule metadata tools do not evaluate gates.
-
-Tools use `[McpServerToolType]` and `[McpServerTool]`, with descriptions
-and read-only annotations. Discovery is restricted to the MCP executable assembly.
-A tool receives only the application dependencies it needs through its constructor
-or method parameters, calls those services and passes through the SDK-supplied
-`CancellationToken`. The SDK supplies discovery, argument binding, JSON schemas,
-invocation and result/error serialization. See the official [tools guide](https://csharp.sdk.modelcontextprotocol.io/v2/concepts/tools/tools.html).
+The server uses ModelContextProtocol C# SDK 2.2.0 with standard .NET hosting and
+stdio transport. It negotiates protocol versions, including the `2025-11-25`
+handshake. Closing stdin ends the session; host shutdown and Ctrl+C use cooperative
+cancellation. No HTTP endpoint or web dashboard is provided.
 
 ## Workspace, cancellation, limits and errors
 
@@ -111,28 +180,6 @@ Requested cancellation is propagated to SDK cancellation even though the shared
 workspace services internally represent it as a coverage status. Invalid policies,
 unknown filters and oversized output produce tool errors, without partial payloads.
 Unexpected exceptions retain the SDK generic error message.
-
-## Verification
-
-`Mcp/StdioServerTests` exercises the executable's initialization, capability set,
-unsupported-method errors, ping, EOF shutdown and stderr-only output.
-`Mcp/WorkspaceOptionsTests` covers standard configuration binding and startup validation.
-`Mcp/ToolRegistrationTests` adds an attributed test-only tool to the host's standard
-SDK registration. It verifies constructor/method injection, generated schema,
-invocation of the shared YAML loader, application error handling and cancellation
-reaching a dependency after an explicit protocol cancellation notification. That
-test tool is never discovered by the production host.
-`Mcp/ArchitectureToolTests` covers production schemas, policy parity, rule selection
-and filtering, real workspace ownership/contracts, restriction data, partial coverage,
-invalid mappings hidden behind filters, trust, path/link checks, policy/output bounds
-and cancellation before serialization. Dependency tests enforce the Analysis and
-Configuration project references in Debug and Release. These tests run with the normal
-solution checks.
-`Mcp/AnalysisToolTests` checks shared CLI scan parity, compliant/violating and partial
-inputs, severity gates, evidence, unsupported comparisons, required base/scope,
-trust/input errors, oversized diagnostic output and pre-cancelled calls.
-`ToolRegistrationTests` also cancels both analysis tools during policy loading
-through an explicit protocol notification.
 
 ## Tool requests and response schemas (version 1)
 
@@ -228,7 +275,7 @@ Required arguments: `inputPath` and `policyPath`, with the same path/trust rules
 there are no diagnostic/module filters that could hide a coverage or gate failure.
 
 ```json
-{"inputPath":"ArchitectureGuardian.slnx","policyPath":"architecture.guardian.yaml","configuration":"Release"}
+{"inputPath":"MyApp.slnx","policyPath":"architecture.guardian.yaml","configuration":"Release"}
 ```
 
 The schema below is shared with `analyze_changes` and stays at version 1 while
@@ -271,10 +318,10 @@ than changed-line filtering. A base reference must be nonblank and at most 256
 characters. Omission of either base or scope is an error.
 
 ```json
-{"inputPath":"ArchitectureGuardian.slnx","policyPath":"architecture.guardian.yaml","baseReference":"refs/heads/main","scope":"solution"}
+{"inputPath":"MyApp.slnx","policyPath":"architecture.guardian.yaml","baseReference":"refs/heads/main","scope":"solution"}
 ```
 
-Until [F23](https://github.com/kbourzayq/arch-guard/issues/23), valid calls return
+Until [graph comparison is implemented](https://github.com/kbourzayq/arch-guard/issues/23), valid calls return
 `status: "unsupported"`, `gateOutcome: "not-evaluated"`, `counts: null`, empty
 `diagnostics`, and an issue with code `change-analysis-unsupported`. This structured
 capability response is delivered with `isError: false`; callers must inspect status
@@ -285,4 +332,45 @@ context. It does not resolve refs, run Git, load workspaces, restore, or execute
 build logic, so it needs no build trust. It never substitutes a full scan, zero-change
 claim or passing gate. Ref existence, shallow clones, policy changes, removed/renamed
 projects, staged/unstaged/untracked files and dirty-tree semantics will be defined
-and verified by F23's complete base/candidate snapshot comparison.
+and verified by complete base/candidate snapshot comparison.
+
+## Tool composition
+
+`AddArchitectureGuardianMcp` registers `IOptions<WorkspaceOptions>` and the existing
+`IPolicyLoader` / `YamlPolicyLoader` with dependency injection. The adapter references
+Configuration for policy loading and Analysis for trusted
+workspace loading and repository normalization. CLI and MCP share the
+`SolutionRules.All` inventory, canonical Core catalog, severity policy and strict
+project ownership resolution. `analyze_solution` and CLI `scan` call the same
+`SolutionAnalysisService`, including rule selection before builds, extraction and
+`AnalysisService` evaluation. Core `GatePolicy` evaluates completed results;
+architecture/rule metadata tools do not evaluate gates.
+
+Tools use `[McpServerToolType]` and `[McpServerTool]`, with descriptions
+and read-only annotations. Discovery is restricted to the MCP executable assembly.
+A tool receives only the application dependencies it needs through its constructor
+or method parameters, calls those services and passes through the SDK-supplied
+`CancellationToken`. The SDK supplies discovery, argument binding, JSON schemas,
+invocation and result/error serialization. See the official [tools guide](https://csharp.sdk.modelcontextprotocol.io/v2/concepts/tools/tools.html).
+
+## Verification
+
+`Mcp/StdioServerTests` exercises the executable's initialization, capability set,
+unsupported-method errors, ping, EOF shutdown and stderr-only output.
+`Mcp/WorkspaceOptionsTests` covers standard configuration binding and startup validation.
+`Mcp/ToolRegistrationTests` adds an attributed test-only tool to the host's standard
+SDK registration. It verifies constructor/method injection, generated schema,
+invocation of the shared YAML loader, application error handling and cancellation
+reaching a dependency after an explicit protocol cancellation notification. That
+test tool is never discovered by the production host.
+`Mcp/ArchitectureToolTests` covers production schemas, policy parity, rule selection
+and filtering, real workspace ownership/contracts, restriction data, partial coverage,
+invalid mappings hidden behind filters, trust, path/link checks, policy/output bounds
+and cancellation before serialization. Dependency tests enforce the Analysis and
+Configuration project references in Debug and Release. These tests run with the normal
+solution checks.
+`Mcp/AnalysisToolTests` checks shared CLI scan parity, compliant/violating and partial
+inputs, severity gates, evidence, unsupported comparisons, required base/scope,
+trust/input errors, oversized diagnostic output and pre-cancelled calls.
+`ToolRegistrationTests` also cancels both analysis tools during policy loading
+through an explicit protocol notification.

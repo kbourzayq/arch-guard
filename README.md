@@ -1,219 +1,125 @@
 # Architecture Guardian for .NET
 
-Architecture Guardian is an offline, deterministic architecture policy and validation
-layer for .NET teams and coding agents.
+**Keep architectural boundaries enforceable as your .NET codebase grows.**
 
-This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/1),
-[F02](https://github.com/kbourzayq/arch-guard/issues/2),
-[F03](https://github.com/kbourzayq/arch-guard/issues/3),
-[F04](https://github.com/kbourzayq/arch-guard/issues/4),
-[F05](https://github.com/kbourzayq/arch-guard/issues/5),
-[F06](https://github.com/kbourzayq/arch-guard/issues/6),
-[F07](https://github.com/kbourzayq/arch-guard/issues/7),
-[F08](https://github.com/kbourzayq/arch-guard/issues/8),
-[F09](https://github.com/kbourzayq/arch-guard/issues/9),
-[F10](https://github.com/kbourzayq/arch-guard/issues/10),
-[F11](https://github.com/kbourzayq/arch-guard/issues/11),
-[F12](https://github.com/kbourzayq/arch-guard/issues/12),
-[F13](https://github.com/kbourzayq/arch-guard/issues/13),
-[F14](https://github.com/kbourzayq/arch-guard/issues/14),
-[F15](https://github.com/kbourzayq/arch-guard/issues/15),
-[F16](https://github.com/kbourzayq/arch-guard/issues/16),
-[F17](https://github.com/kbourzayq/arch-guard/issues/17),
-[F18](https://github.com/kbourzayq/arch-guard/issues/18) and
-[F19](https://github.com/kbourzayq/arch-guard/issues/19): the .NET 10 solution, component
-boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
-policy, deterministic project matching, severity gates, trusted workspace loading,
-a normalized repository/module model, dependency extraction with an evidence graph,
-AG001 enforcement of module and public-contract permissions, and AG002 enforcement
-of the configured layer matrix, AG003 module cycle detection, and CLI scan, inspect
-and explain commands, with compliant and deliberately violating reference solutions,
-a compiler-hosted AG001/AG002/AG004/AG005/AG006 analyzer with a semantic test harness, and
-AG004 semantic enforcement of declared implementation boundaries and AG005 explicit
-assembly/namespace restrictions and AG006 layer-scoped domain technology restrictions
-with namespace exceptions in both engines, plus labeled semantic accuracy and engine
-parity fixtures and read-only MCP architecture/rule/analysis tools over stdio.
-Additional capabilities follow in the
-[roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
+Architecture Guardian checks C# solutions against architecture policy stored in
+your repository. Define modules, layers and public contracts in YAML, then find
+forbidden dependencies with source evidence and guidance for fixing them. Run
+checks from the command line, expose architecture context to coding agents through
+MCP, or add compiler diagnostics to participating projects.
 
-## Architecture and flows
+[Get started](docs/getting-started.md) · [Installation](docs/installation.md) ·
+[Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md)
 
-The [architecture overview](docs/architecture/overview.md) explains component
-responsibilities, dependency direction and the solution/compiler paths.
-Mermaid diagrams show the [service execution](docs/shared-contracts.md#service-execution-flow),
-[coverage outcomes](docs/shared-contracts.md#outcome-flow) and
-[catalog-to-documentation flow](docs/rule-catalog.md#how-catalog-metadata-reaches-a-diagnostic).
-The overview distinguishes the implemented service and policy APIs from future integrations.
-Its [source organization guide](docs/architecture/overview.md#source-organization)
-lists responsibility folders and their matching namespaces across the solution.
+## What you can check
 
-## Architecture policy
+| Rule | What it enforces |
+| --- | --- |
+| AG001 — Module dependencies | Cross-module references follow explicit module and public-contract permissions. |
+| AG002 — Layer dependencies | Dependencies follow your configured layer directions. |
+| AG003 — Module cycles | Logical modules do not form dependency cycles, including cycles through contracts. |
+| AG004 — Implementation boundaries | Another module's implementation stays private to that module, even when its C# types are public. |
+| AG005 — Forbidden references | Modules and layers avoid configured assemblies and namespace trees. |
+| AG006 — Domain infrastructure | Selected layers avoid configured technology dependencies, with explicit namespace exceptions. |
 
-The [policy guide](docs/policy.md) defines `architecture.guardian.yaml` v1, including
-project identities, globs, module/layer ownership, public contracts, direct dependency
-permissions, selected rule IDs, severities and gates. The [JSON Schema](docs/schema/architecture.guardian.v1.schema.json)
-supports editor validation; the loader additionally checks references and the
-resolver rejects unmatched or ambiguously mapped projects.
+Findings include the rule, affected module or symbol, source location when available,
+supporting evidence, remediation and documentation. The same source snapshot and
+configuration produce deterministic diagnostic identities and ordering.
 
-The [repository policy](architecture.guardian.yaml) maps all nine solution projects.
-A [modular-monolith example](docs/examples/modular-monolith/architecture.guardian.yaml)
-shows contract-only permissions. These files can be loaded through `YamlPolicyLoader`
-and resolved against a supplied inventory or used directly by CLI `scan` and `inspect`.
+## Project status
 
-## Build and check
+Architecture Guardian is in early development. The supported setup today is a
+**source installation** with the SDK selected by [global.json](global.json).
+CLI and MCP run on .NET 10; development and CI cover Linux, macOS and Windows.
+The compiler analyzer targets `netstandard2.0` with a Roslyn 4.8 API floor.
 
-Install the .NET SDK specified in [global.json](global.json). Stable patches within
-that SDK feature band are allowed; previews are excluded. Run from the repository root:
+Full-solution scans, YAML policy, six architecture rules and the MCP server are
+implemented. Change comparison, baselines, report export and packaged CLI
+installation are planned; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
+The MCP `analyze_changes` interface explicitly reports `unsupported` until graph
+comparison is implemented. See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
+before adopting a scan as a required gate.
+
+## Install and run your first scan
+
+Install the **.NET SDK 10.0.301** or a later stable patch in the `10.0.3xx` feature
+band, then run:
 
 ```sh
+git clone https://github.com/kbourzayq/arch-guard.git
+cd arch-guard
 dotnet restore ArchitectureGuardian.slnx --locked-mode
-dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
-dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
-dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore
+dotnet publish src/ArchitectureGuardian.Cli --configuration Release --no-restore --output artifacts/cli
 ```
 
-For fast feedback after a build, run the unit tests without MSBuild integration:
+Try the included Clean Architecture example from the checkout root:
 
 ```sh
-dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj --configuration Release --no-build --no-restore --filter "Category!=Integration"
+dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=Compliant
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration Compliant --trusted
 ```
 
-Use `--filter "Category=Integration"` for the MSBuild/Roslyn workspace, CLI process
-and evaluated dependency-boundary tests. The unfiltered command above runs both
-categories and remains required before publishing. Integration fixtures keep separate
-project copies per test class, restoring only each suite's required contexts through
-`Preparation.slnx`, `SemanticPreparation.slnx` or the modular-monolith solution under
-`tests/Fixtures/Workspaces`. The generator builds once as a build-only test project
-dependency; fixture setup stages its binary instead of rebuilding it for every class.
-Deliberately broken and unrestored fixtures are excluded from preparation.
-Repeated CLI policy permutations run through the real command pipeline in process;
-representative scan/inspect outcomes, reference solutions, SDK failures and smoke
-checks still exercise separate CLI processes.
+This configuration completes with zero findings, a passing gate and exit code `0`.
+The example has no external package dependencies. `--trusted` authorizes its
+repository-controlled MSBuild logic; restore and workspace evaluation can execute
+build tasks. Scans do not restore inputs automatically.
 
-The GitHub Actions [CI workflow](.github/workflows/ci.yml) runs these checks on Linux,
-Windows and macOS for pull requests and pushes to `main`, uploading TRX timings for
-each OS. A separate Linux job builds the analyzer package once, so compiler-host
-checks can start without waiting for the slowest OS test job. All validation jobs
-remain required for a successful workflow. Tests cover diagnostic
-identity and ordering, YAML validation, policy references, portable globs, inventory
-resolution, rule selection, severity gates, analysis outcomes and cancellation,
-normalized source declarations, multi-project modules, contract membership and
-checkout-independent model identities.
-Dependency tests cover project/assembly/namespace/type edges, module/layer aggregation,
-traceable forbidden references, semantic forms, generated-source evidence, deterministic
-traversal/cycles, relocation and incomplete semantic context. Workspace tests cover all three input formats,
-framework selection, conditional
-compilation, solution-conditioned references, source-generator diagnostics, missing
-SDKs/references, failed restores and CLI loading exit codes.
-They also cover evaluated MSBuild references in both Debug and Release, solution membership, Core's independence
-from external packages and adapters, and CLI process behavior. Warnings fail the build.
-Builds emit XML API documentation; missing documentation for public types or members
-also fails the build.
+Next, follow [Check your own repository](docs/getting-started.md#check-your-own-repository)
+to create a policy and scan your solution. The [reference examples](docs/m1-demo.md)
+also demonstrate forbidden dependencies, module cycles and incomplete analysis.
 
-AG006 tests cover configured layer membership, technology identities, scoped namespace
-exceptions, independent overlapping rules, evidence deduplication and partial coverage.
-The [semantic accuracy guide](docs/semantic-accuracy.md) records exactly which rules run
-in each engine, per-rule precision and limits, and reproducible parity checks across
-frameworks/configurations, generated sources and unavailable references.
-AG005 tests cover module/layer restrictions, framework/external assemblies, namespace
-descendants, aliases/global usings, lookalikes, generated sources and cross-engine meanings.
-AG004 tests cover public implementation types, contract and same-module access,
-aliases (including generic/array aliases), partial/generated sources and evidence retention.
-AG001–AG003 tests cover approved contracts, configured layers, seeded forbidden
-references and source evidence, same-module and same-layer dependencies, direct directional permissions, rule selection, reporting
-severity, gates, deterministic findings and preservation of incomplete coverage.
-Cycle fixtures cover two-module, longer and disconnected cycles, repeated edges,
-shortest representative paths, self-dependencies and allowed contract edges.
+## Choose an integration
 
-The [M1 demo](docs/m1-demo.md) provides runnable Clean Architecture and modular-monolith
-reference solutions, exact gate outcomes, and the labeled AG001–AG003 regression set.
-
-NuGet uses the public nuget.org source. Dependency lock files are committed. When
-intentionally changing dependencies, run `dotnet restore ArchitectureGuardian.slnx
---force-evaluate`, review the lock-file changes and rerun the checks above.
-
-## Run the CLI
-
-```sh
-dotnet run --project src/ArchitectureGuardian.Cli -- --help
-dotnet run --project src/ArchitectureGuardian.Cli -- --version
-dotnet run --project src/ArchitectureGuardian.Cli -- scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
-dotnet run --project src/ArchitectureGuardian.Cli -- inspect path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
-dotnet run --project src/ArchitectureGuardian.Cli -- explain AG001
-dotnet run --project src/ArchitectureGuardian.Cli -- load path/to/Application.slnx --trusted
-```
-
-No arguments also prints help. System.CommandLine supplies command-specific help,
-argument validation and cancellation. The intended tool name is `archguard`; until
-F27 packages it, use `dotnet run` as above (generated usage shows the assembly name).
-See the [CLI guide](docs/cli.md) for output, policy paths and examples.
-
-`scan` evaluates policy-selected AG001–AG006 rules and prints severity, rule ID,
-source location, affected target, evidence, remediation and documentation. Exit 0
-means completed and gate passed; 1 means completed and gate failed; 2 means invalid
-input or unreliable, incomplete, failed or cancelled work. Operational errors go to
-stderr; available findings remain on stdout. No gate result is claimed for incomplete
-analysis. Selected rules without implementations fail explicitly.
-
-`inspect` lists resolved modules, project/layer ownership, public contracts, direct
-permissions, selected rule severities and the gate without evaluating rules.
-`explain AG001` resolves case-sensitive canonical IDs AG001–AG006 locally, including all six implemented rules. `scan` and `inspect` require an explicit `--policy` path;
-project identities are relative to its directory. Both accept `--configuration` and
-`--framework` with the same scope and trust requirements as `load`.
-
-The `load` command validates `.sln`, `.slnx` and `.csproj` workspace context after
-an explicit restore. MSBuild may execute repository tasks, so trust is required.
-Loading problems and cancellation return 2. See the [workspace loading guide](docs/workspace-loading.md)
-for isolation, conditional compilation, framework selection and reusable API behavior.
-The [repository model guide](docs/repository-model.md) describes normalization, stable
-identities and module/contract/layer membership through `RepositoryModelBuilder`.
-The [dependency graph guide](docs/dependency-graph.md) describes `DependencyGraphBuilder`,
-origin evidence, deterministic traversal/cycles and extraction coverage.
-
-## Components
-
-| Project | Responsibility | Direct production references |
+| Integration | Use it for | Setup |
 | --- | --- | --- |
-| `ArchitectureGuardian.Core` | Neutral contracts, canonical rule catalog, immutable architecture policy, project mapping, dependency permissions, AG001–AG006 evaluation, gates, repository data and evidence graphs | None |
-| `ArchitectureGuardian.Analysis` | Reusable orchestration, trusted Roslyn/MSBuild workspace loading, repository normalization and dependency extraction | Core |
-| `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
-| `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002/AG004/AG005/AG006 and AdditionalFiles policy | None; source-links pure Core semantics |
-| `ArchitectureGuardian.Cli` | System.CommandLine arguments, policy/service composition, diagnostics and exit codes | Analysis, Configuration |
-| `ArchitectureGuardian.Mcp` | SDK stdio host, bounded architecture/rule context, full-solution analysis and explicit unsupported change comparison | Analysis, Configuration |
+| CLI | Local scans, CI gates, architecture inspection and rule explanations | [CLI guide](docs/cli.md) |
+| MCP server | Architecture context and solution analysis in an MCP-compatible coding agent | [MCP setup and tool reference](docs/mcp.md) |
+| Compiler analyzer | Feedback on bound symbol uses during C# compilation | [Analyzer installation and policy](docs/compiler-analyzer.md) |
 
-Rules return evidence-backed findings without severity. The analysis service applies
-severity policy and returns `Completed`, `Incomplete`, `Failed` or `Cancelled`,
-preserving partial findings. Completion describes coverage, independently of quality
-gate decisions. No registered rules produces an incomplete result. Policy selection
-rejects missing selected implementations before analysis, and severity gates reject
-incomplete, failed or cancelled results regardless of their diagnostic count.
+The CLI and MCP share the solution analysis engine. The compiler analyzer uses the
+host compilation and a separate XML ownership snapshot; it does not check module
+cycles or establish whole-solution coverage. See the [engine comparison](docs/semantic-accuracy.md).
 
-See the [shared contracts guide](docs/shared-contracts.md) for composition, source
-coordinates, deterministic identities and cancellation behavior, and the
-[canonical rule catalog](docs/rule-catalog.md) for AG001–AG006. The catalog defines
-identities. `ModuleDependenciesRule`, `LayerDependenciesRule`, `ModuleCyclesRule`,
-`ImplementationBoundariesRule`, `ForbiddenReferencesRule` and `DomainInfrastructureRule`
-implement AG001–AG006 over `DependencyBuildResult`. The
-[AG001 guide](docs/rule-catalog.md#ag001-module-dependencies),
-[AG002 guide](docs/rule-catalog.md#ag002-layer-dependencies),
-[AG003 guide](docs/rule-catalog.md#ag003-module-cycles),
-[AG004 guide](docs/rule-catalog.md#ag004-implementation-boundaries),
-[AG005 guide](docs/rule-catalog.md#ag005-forbidden-references),
-[AG006 guide](docs/rule-catalog.md#ag006-domain-infrastructure) and
-[policy composition example](docs/policy.md#host-composition) explain their scope and use.
+For MCP, publish the server and configure its executable and workspace root using
+the [portable configuration templates](docs/mcp.md#configure-your-client). All four
+tools are read-only: `get_architecture`, `list_rules`, `analyze_solution` and the
+reserved `analyze_changes` interface. Workspace execution requires operator trust.
 
-The [compiler analyzer guide](docs/compiler-analyzer.md) describes package consumption,
-policy distribution, semantic scope and host validation. The MCP stdio adapter is implemented in F17;
-architecture tools are implemented in F18; F19 adds solution analysis and an explicit unsupported change-comparison interface pending F23. Reporting will follow. [ADR 0001](docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md)
-records ports, dependency direction, the two analysis engines and compiler-host
-compatibility constraints.
+## Understand the result
 
-## Run the MCP server
+Completion and policy compliance are separate outcomes:
 
-The [MCP guide](docs/mcp.md) covers the stdio executable, client configuration,
-operator-selected workspace root, build trust, cancellation, limits and error contracts.
-F17 provides the SDK host; F18 exposes `get_architecture` and `list_rules` with
-documented schemas, filters, coverage outcomes and payload limits. F19 exposes
-`analyze_solution` through the shared CLI scan pipeline, with completion, gate,
-severity counts and evidence. `analyze_changes` requires `baseReference` and
-`scope: "solution"`; it returns `unsupported` and no gate decision until F23.
+| CLI exit code | Meaning |
+| --- | --- |
+| `0` | Analysis completed and the configured severity gate passed. |
+| `1` | Analysis completed and the gate failed. |
+| `2` | The command could not establish reliable completion: invalid input, missing coverage, failure or cancellation. |
+
+Warnings can pass a gate configured to fail only on errors. An incomplete scan
+with no findings still returns `2`. In MCP, check `status` and `gateOutcome` before
+using diagnostic counts as a compliance signal.
+
+After explicit restore, analysis itself needs no network access. It does not infer
+runtime dependencies through reflection or dependency injection.
+
+## Documentation and support
+
+- [Installation](docs/installation.md): requirements, local executables and analyzer packaging.
+- [Getting started](docs/getting-started.md): first scan, policy setup and CI use.
+- [Policy reference](docs/policy.md) and [rule catalog](docs/rule-catalog.md).
+- [Troubleshooting](docs/troubleshooting.md): SDK, restore, coverage and MCP setup issues.
+- [Architecture overview](docs/architecture/overview.md): components, APIs and engine boundaries.
+- [Report a bug or request a feature](https://github.com/kbourzayq/arch-guard/issues/new).
+
+Include the command, build context, relevant policy and diagnostic output when
+reporting a problem. Remove credentials and private source details before sharing.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for development
+setup, validation commands and pull request guidance. Repository coding conventions
+live in [AGENT.md](AGENT.md).
+
+## License
+
+Architecture Guardian is available under the [MIT license](LICENSE).

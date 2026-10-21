@@ -1,11 +1,22 @@
-# Canonical core rule catalog
+# Rule catalog
 
-[F02](https://github.com/kbourzayq/arch-guard/issues/2) defines these identities in
-`RuleCatalog`. AG001–AG003 are implemented in F07–F09; remaining implementations
-arrive in their linked features. F10 exposes CLI `scan` and local `explain <rule-id>`;
-F12 adds compiler AG001/AG002 semantic uses; F13 adds AG004, F14 adds AG005 and F15 adds AG006 in both engines. See the [CLI guide](cli.md) and
-[compiler guide](compiler-analyzer.md). The [semantic accuracy matrix](semantic-accuracy.md)
-lists each rule's execution engines, precision, known limits and reproducibility requirements.
+Architecture Guardian implements six canonical rules. CLI and MCP solution scans
+can evaluate all six; compiler analysis implements AG001, AG002, AG004, AG005 and
+AG006 against its host compilation. Only the solution engine checks module cycles.
+
+| Rule | Check |
+| --- | --- |
+| [AG001](#ag001-module-dependencies) | Module and public-contract dependency permissions |
+| [AG002](#ag002-layer-dependencies) | Layer dependency directions |
+| [AG003](#ag003-module-cycles) | Logical module cycles |
+| [AG004](#ag004-implementation-boundaries) | Cross-module implementation access |
+| [AG005](#ag005-forbidden-references) | Explicit assembly and namespace restrictions |
+| [AG006](#ag006-domain-infrastructure) | Layer-scoped technology restrictions and exceptions |
+
+Choose rules and severities in your [YAML policy](policy.md#rule-selection-severity-and-gates).
+Use CLI `explain <rule-id>` for local metadata. The
+[semantic accuracy matrix](semantic-accuracy.md) records scope, precision and limits;
+the [compiler guide](compiler-analyzer.md) describes its separate policy and severity setup.
 
 ## How catalog metadata reaches a diagnostic
 
@@ -13,8 +24,8 @@ lists each rule's execution engines, precision, known limits and reproducibility
 provides an ID, a title and a documentation URL. The catalog does not fetch a remote
 rule list, read this Markdown file, or contain the executable checking logic.
 
-AG001–AG006 use this evaluation flow, rendered by CLI `scan`; additional reporting
-adapters remain planned:
+AG001–AG006 use this evaluation flow, rendered by CLI `scan` and MCP
+`analyze_solution`; additional reporting adapters remain planned:
 
 ```mermaid
 flowchart TD
@@ -60,7 +71,6 @@ should pin them to documentation matching the released rule implementation.
 ## AG001: Module dependencies
 
 Detect dependencies forbidden between logical modules by policy.
-Implementation: [F07](https://github.com/kbourzayq/arch-guard/issues/7).
 
 `ModuleDependenciesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
 It evaluates the supplied graph and repository ownership without loading files or
@@ -100,7 +110,6 @@ is cooperative. AG001 does not enforce layers, cycles or symbol visibility.
 Detect dependencies forbidden between architectural layers by policy. AG002 denotes
 the layer rule. Earlier illustrative CQRS use of AG002 is superseded by this
 canonical layer rule; AG002 does not enforce CQRS conventions.
-Implementation: [F08](https://github.com/kbourzayq/arch-guard/issues/8).
 
 `LayerDependenciesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
 It checks each observed source/target project pair through
@@ -137,7 +146,6 @@ Severity and gates apply separately after discovery. See the
 ## AG003: Module cycles
 
 Detect cycles across logical modules using the solution-wide dependency graph.
-Implementation: [F09](https://github.com/kbourzayq/arch-guard/issues/9).
 
 `ModuleCyclesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
 It rebuilds direct module edges from each fact's original project ownership, so
@@ -177,12 +185,11 @@ findings survive evaluation. Unmapped project evidence produces an AG003
 `dependency-project-unmapped` issue and prevents completed coverage. Missing context
 cannot become a clean completed result. Graph construction and traversal observe
 cancellation. Whole-module cycles require solution-wide scope; a single compiler
-invocation cannot establish it. CLI `scan` composes this evaluation in F10.
+invocation cannot establish it. CLI `scan` and MCP `analyze_solution` compose this evaluation.
 
 ## AG004: Implementation boundaries
 
 Detect access to another module's internal implementation across declared boundaries.
-Implementation: [F13](https://github.com/kbourzayq/arch-guard/issues/13).
 
 `ImplementationBoundariesRule` evaluates semantic evidence in `DependencyBuildResult`.
 A bound type/member owned by another module must belong to a declared public-contract
@@ -219,7 +226,6 @@ Neither engine discovers runtime reflection or dynamic dispatch targets.
 ## AG005: Forbidden references
 
 Detect assembly or namespace references forbidden by policy.
-Implementation: [F14](https://github.com/kbourzayq/arch-guard/issues/14).
 
 `ForbiddenReferencesRule` checks bound semantic evidence in `DependencyBuildResult`
 against the source module's and layer's `forbiddenAssemblies` and
@@ -252,7 +258,6 @@ discovery. No runtime reflection or dynamic target is inferred.
 ## AG006: Domain infrastructure
 
 Detect domain code referencing infrastructure technology forbidden by policy.
-Implementation: [F15](https://github.com/kbourzayq/arch-guard/issues/15).
 
 `DomainInfrastructureRule` combines resolved source layer membership with bound
 assembly and namespace identities in `DependencyBuildResult`. A layer opts in through

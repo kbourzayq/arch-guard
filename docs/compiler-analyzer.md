@@ -1,40 +1,73 @@
 # Compiler analyzer
 
-F12 adds `ArchitectureGuardian.Analyzers`, a C# Roslyn analyzer targeting
-`netstandard2.0`. It uses the host's current compilation and an explicit compiler
-policy AdditionalFile. It never discovers a repository, loads YAML, opens a workspace,
-restores projects or invokes CLI. AG001 and AG002 use the same permission predicates,
-IDs, titles and help URLs as Core. Findings identify a bound type/member use and its
-source span; the solution engine instead groups evidence by project pair. Diagnostic
-counts and snapshot identities are therefore not interchangeable across engines.
-F13 adds AG004 implementation boundaries using the same portable ownership semantics.
-F14 adds AG005 with source-linked matching and validation for explicit reference restrictions.
-F15 adds AG006 layer-scoped technology restrictions and namespace exceptions.
+Add architecture feedback to C# compilation with `ArchitectureGuardian.Analyzers`.
+It targets `netstandard2.0`, uses the host's current compilation and reads an explicit
+XML ownership snapshot supplied as an AdditionalFile.
+
+The analyzer checks AG001, AG002, AG004, AG005 and AG006. It shares their permission
+semantics with the solution engine, but reports bound type/member uses at source
+locations rather than grouping evidence by project pair. Counts and diagnostic
+identities are not interchangeable across engines. It does not load YAML, restore
+projects, open a workspace or establish whole-solution cycle coverage.
+
+Keep CLI or MCP solution scans as the full architecture gate. See
+[engine scope and limits](semantic-accuracy.md) before choosing compiler-only checks.
 
 ## Install and distribute policy
 
-Build a local package (publication to nuget.org is a separate release step):
+### 1. Build a local package
+
+From the Architecture Guardian checkout, after the locked restore in
+[installation](installation.md):
 
 ```sh
-dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --output artifacts/analyzers
+dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
 ```
 
-Add that directory to your NuGet sources, then reference the package and one snapshot
-in each participating C# project, usually through a repository `Directory.Build.props`:
+The current version produces `ArchitectureGuardian.Analyzers.0.1.0.nupkg`.
+These instructions use a local package source and do not assume nuget.org publication.
+
+### 2. Reference the analyzer and policy
+
+In the consuming repository, add the following to a root `Directory.Build.props`
+(or merge the ItemGroup into your existing file). The package applies to all
+participating projects; every such assembly needs a mapping in the snapshot.
 
 ```xml
-<ItemGroup>
-  <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.1.0" PrivateAssets="all" />
-  <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />
-</ItemGroup>
+<Project>
+  <ItemGroup>
+    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.1.0" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />
+  </ItemGroup>
+</Project>
 ```
+
+Create `architecture.guardian.compiler.xml` alongside that props file using the
+[snapshot format below](#compiler-policy-snapshot). Then restore the consuming
+solution with the local source and your normal package feeds. Replace both
+`MyApp.slnx` and the absolute `<LOCAL_PACKAGE_DIRECTORY>` placeholder:
+
+```sh
+dotnet restore MyApp.slnx --source "<LOCAL_PACKAGE_DIRECTORY>" --source https://api.nuget.org/v3/index.json
+dotnet build MyApp.slnx --no-restore
+```
+
+`<LOCAL_PACKAGE_DIRECTORY>` is the directory containing the `.nupkg`, normally
+`artifacts/analyzers` in your Architecture Guardian checkout. `--source` overrides
+configured feeds for this restore; also supply any private feeds required by your
+solution, or add the local source to your existing NuGet configuration instead.
+Do not commit a developer's absolute package-directory path to shared configuration.
+Set [reporting severity](#reporting-and-scope) in the consuming repository's
+`.editorconfig`; CLI YAML severity settings do not configure compiler diagnostics.
 
 The package contains only `analyzers/dotnet/cs/ArchitectureGuardian.Analyzers.dll`;
 it has no runtime library or NuGet dependencies. Roslyn assemblies come from the host.
 `PrivateAssets="all"` prevents unintended distribution to consumers of your own package.
 
+## Compiler policy snapshot
+
 Commit the compiler snapshot alongside the authoritative `architecture.guardian.yaml`.
-For F12, maintain the snapshot explicitly from the YAML's resolved project inventory:
+Maintain it explicitly from the YAML's resolved project inventory:
 each participating project's evaluated `AssemblyName` maps to its module, layer and
 optional whole-project public contract. Do this outside compiler callbacks. There is
 no automatic YAML exporter yet. Include all in-scope assemblies, including project
@@ -196,5 +229,5 @@ python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.An
 
 CI results are distinct from local verification; interactive IDE UI behavior remains
 a release validation limitation. The [semantic accuracy and parity guide](semantic-accuracy.md)
-documents F16's shared AG001/AG002/AG004/AG005/AG006 expectations, framework/configuration
+documents shared AG001/AG002/AG004/AG005/AG006 expectations, framework/configuration
 matrix, generated sources, incomplete references and intentional engine differences.
