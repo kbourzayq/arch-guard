@@ -322,7 +322,8 @@ workspace orchestration outside that surface; see the F12 decision below.
 - Analysis owns workspace/MSBuild packages, Analyzers owns compiler-only Roslyn
   packages and Configuration owns the YAML package;
   Core remains independent of external packages. MCP transport is implemented in F17;
-  MCP architecture tools are implemented in F18; analysis tools and reporting remain planned.
+  MCP architecture tools are implemented in F18; F19 adds solution analysis and an unsupported
+  change-comparison interface. Graph comparison and reporting remain planned.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
 - Extra adapters and concrete port APIs are deferred until required, avoiding unused
@@ -432,3 +433,18 @@ defines size limits, schemas, trust, cancellation and filtering semantics.
 
 Dependency tests, the repository policy, lock files and architecture diagrams include
 MCP's Analysis reference. No project, external package or Core dependency is added.
+
+## F19: shared solution analysis and reserved graph comparison
+
+`SolutionAnalysisService` owns the scan pipeline used by CLI `scan` and MCP
+`analyze_solution`, including rule selection before workspace execution. Rules,
+severity, deterministic diagnostic identities and coverage retain their existing
+contracts. MCP adds bounded result projections with counts, evidence and an explicit
+gate outcome; noncompleted analysis has no gate decision.
+
+`analyze_changes` requires an explicit base reference and `solution` scope. Its
+shared entry point currently returns incomplete coverage with an unsupported issue,
+mapped to MCP `status: "unsupported"`, null counts and `gateOutcome: "not-evaluated"`.
+It performs no Git or workspace execution. F23 will implement full base/candidate
+graph comparison, including policy/project changes and dirty-tree semantics; a
+changed-line filter or full-scan fallback would not satisfy that contract.

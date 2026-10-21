@@ -13,15 +13,15 @@ records the decisions and constraints behind them.
 | Area | Current implementation | Planned work |
 | --- | --- | --- |
 | Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG006 module/layer/cycle/implementation/reference evaluation | Extended rules |
-| Analysis | `AnalysisService<TContext>` over prepared contexts; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Future host integrations |
+| Analysis | `AnalysisService<TContext>` over prepared contexts; shared CLI/MCP `SolutionAnalysisService`; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Base/candidate graph comparison |
 | CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
-| MCP | Official C# SDK stdio transport and attributed discovery, standard host configuration, shared policy/workspace services, bounded `get_architecture` and `list_rules` | Analysis tools |
+| MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution` and explicit unsupported `analyze_changes` | Change comparison implementation |
 | Other adapters | None | Reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
 
-F01–F18 establish the current implementation. The
+F01–F19 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -110,7 +110,7 @@ nested implementation helpers stay with their owner.
 | Configuration | `Yaml` | YAML parsing and loading |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | Analyzers | `Policies` / project root | Compiler snapshot validation / compilation-local semantic diagnostics |
-| MCP | `Hosting` / `Tools` / project root | SDK registration and workspace options / bounded architecture and rule schemas and tools / host bootstrap |
+| MCP | `Hosting` / `Tools` / project root | SDK registration and workspace options / bounded architecture, rule and analysis schemas and tools / host bootstrap |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
 Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories`, `Rules` and `Workspaces` folders and
@@ -144,12 +144,14 @@ severity gates. F04 supplies trusted workspace loading and F05 supplies neutral
 repository normalization and ownership composition. F06 supplies dependency
 extraction, evidence aggregation and deterministic traversal/cycles. F07 supplies
 AG001 module-dependency evaluation; F08 supplies AG002 layer-dependency evaluation.
-F09 supplies AG003 module-cycle evaluation. MCP architecture tools reuse this policy and normalization flow; future MCP analysis tools
-and report adapters reuse the analysis services as their operations require them.
+F09 supplies AG003 module-cycle evaluation. MCP architecture tools reuse this policy
+and normalization flow. F19's `analyze_solution` shares `SolutionAnalysisService`
+with CLI `scan`; `analyze_changes` reserves base/candidate comparison for F23.
+Future report adapters reuse the analysis services as their operations require them.
 
 ```mermaid
 flowchart TD
-    Host["CLI — F10<br/>scan command"]
+    Host["CLI scan — F10 / MCP analyze_solution — F19<br/>Shared SolutionAnalysisService"]
     Configuration["Configuration adapter — implemented<br/>Read and validate YAML policy — F03"]
     Workspace["Analysis workspace integration — implemented<br/>Load solution or projects — F04"]
     Context["Neutral repository model — implemented<br/>Normalize declarations and ownership — F05"]
@@ -157,7 +159,7 @@ flowchart TD
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
     Rules["Core rule implementations<br/>AG001–AG006 — implemented F07–F09, F13–F15"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
-    Output["CLI console output — F10<br/>MCP stdio — F17; architecture tools — F18; analysis tools/reports — planned"]
+    Output["CLI console output — F10<br/>MCP stdio — F17; architecture tools — F18; analysis tools — F19<br/>Reports — planned"]
     Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Baselines — planned"]
 
     Host --> Configuration

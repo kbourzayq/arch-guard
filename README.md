@@ -19,8 +19,9 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F14](https://github.com/kbourzayq/arch-guard/issues/14),
 [F15](https://github.com/kbourzayq/arch-guard/issues/15),
 [F16](https://github.com/kbourzayq/arch-guard/issues/16),
-[F17](https://github.com/kbourzayq/arch-guard/issues/17) and
-[F18](https://github.com/kbourzayq/arch-guard/issues/18): the .NET 10 solution, component
+[F17](https://github.com/kbourzayq/arch-guard/issues/17),
+[F18](https://github.com/kbourzayq/arch-guard/issues/18) and
+[F19](https://github.com/kbourzayq/arch-guard/issues/19): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
@@ -31,7 +32,7 @@ a compiler-hosted AG001/AG002/AG004/AG005/AG006 analyzer with a semantic test ha
 AG004 semantic enforcement of declared implementation boundaries and AG005 explicit
 assembly/namespace restrictions and AG006 layer-scoped domain technology restrictions
 with namespace exceptions in both engines, plus labeled semantic accuracy and engine
-parity fixtures and read-only MCP architecture/rule tools over stdio.
+parity fixtures and read-only MCP architecture/rule/analysis tools over stdio.
 Additional capabilities follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
@@ -178,7 +179,7 @@ origin evidence, deterministic traversal/cycles and extraction coverage.
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
 | `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002/AG004/AG005/AG006 and AdditionalFiles policy | None; source-links pure Core semantics |
 | `ArchitectureGuardian.Cli` | System.CommandLine arguments, policy/service composition, diagnostics and exit codes | Analysis, Configuration |
-| `ArchitectureGuardian.Mcp` | SDK stdio host, bounded architecture context and configured rule catalog | Analysis, Configuration |
+| `ArchitectureGuardian.Mcp` | SDK stdio host, bounded architecture/rule context, full-solution analysis and explicit unsupported change comparison | Analysis, Configuration |
 
 Rules return evidence-backed findings without severity. The analysis service applies
 severity policy and returns `Completed`, `Incomplete`, `Failed` or `Cancelled`,
@@ -203,7 +204,7 @@ implement AG001–AG006 over `DependencyBuildResult`. The
 
 The [compiler analyzer guide](docs/compiler-analyzer.md) describes package consumption,
 policy distribution, semantic scope and host validation. The MCP stdio adapter is implemented in F17;
-architecture tools are implemented in F18; MCP analysis tools and reporting will follow. [ADR 0001](docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md)
+architecture tools are implemented in F18; F19 adds solution analysis and an explicit unsupported change-comparison interface pending F23. Reporting will follow. [ADR 0001](docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md)
 records ports, dependency direction, the two analysis engines and compiler-host
 compatibility constraints.
 
@@ -212,4 +213,7 @@ compatibility constraints.
 The [MCP guide](docs/mcp.md) covers the stdio executable, client configuration,
 operator-selected workspace root, build trust, cancellation, limits and error contracts.
 F17 provides the SDK host; F18 exposes `get_architecture` and `list_rules` with
-documented schemas, filters, coverage outcomes and payload limits.
+documented schemas, filters, coverage outcomes and payload limits. F19 exposes
+`analyze_solution` through the shared CLI scan pipeline, with completion, gate,
+severity counts and evidence. `analyze_changes` requires `baseReference` and
+`scope: "solution"`; it returns `unsupported` and no gate decision until F23.
