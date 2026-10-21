@@ -1,5 +1,6 @@
 using ArchitectureGuardian.Configuration.Yaml;
 using ArchitectureGuardian.Core.Policies;
+using ArchitectureGuardian.Mcp.Tools;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArchitectureGuardian.Mcp.Hosting;
@@ -16,6 +17,7 @@ internal static class McpServiceCollectionExtensions
                 "Workspace:Root must be an existing absolute directory.")
             .ValidateOnStart();
         services.AddSingleton<IPolicyLoader, YamlPolicyLoader>();
+        services.AddSingleton<WorkspaceFiles>();
         return services.AddMcpServer(server =>
         {
             server.ServerInfo = new() { Name = "architecture-guardian", Version = "0.1.0" };

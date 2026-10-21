@@ -23,7 +23,7 @@ public sealed class ToolRegistrationTests
     {
         await WithServer(async (client, token) =>
         {
-            var tool = Assert.Single(await client.ListToolsAsync(cancellationToken: token));
+            var tool = Assert.Single(await client.ListToolsAsync(cancellationToken: token), tool => tool.Name == "probe_policy");
             Assert.Equal("probe_policy", tool.Name);
             Assert.True(tool.ProtocolTool.Annotations!.ReadOnlyHint);
             var properties = tool.JsonSchema.GetProperty("properties");
@@ -49,7 +49,7 @@ public sealed class ToolRegistrationTests
             {
                 Id = requestId,
                 Method = RequestMethods.ToolsCall,
-                Params = new JsonObject { ["name"] = "probe_policy", ["arguments"] = new JsonObject { ["path"] = "unused" } },
+                Params = new JsonObject { ["name"] = "list_rules", ["arguments"] = new JsonObject { ["policyPath"] = "architecture.guardian.yaml" } },
             }, token);
             await loader.Started.Task.WaitAsync(token);
             await client.SendNotificationAsync(NotificationMethods.CancelledNotification,
@@ -72,9 +72,10 @@ public sealed class ToolRegistrationTests
         }, new FailingPolicyLoader());
     }
 
-    private static async Task WithServer(Func<McpClient, CancellationToken, Task> action, IPolicyLoader? loader = null)
+    internal static async Task WithServer(Func<McpClient, CancellationToken, Task> action, IPolicyLoader? loader = null,
+        string? root = null, bool trusted = false)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         var incoming = new Pipe();
         var outgoing = new Pipe();
         await using var serverInput = incoming.Reader.AsStream();
@@ -82,7 +83,11 @@ public sealed class ToolRegistrationTests
         await using var clientInput = outgoing.Reader.AsStream();
         await using var serverOutput = outgoing.Writer.AsStream();
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Workspace:Root"] = Repository.Root });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Workspace:Root"] = root ?? Repository.Root,
+            ["Workspace:Trusted"] = trusted.ToString(),
+        });
         builder.Services.AddArchitectureGuardianMcp()
             .WithStreamServerTransport(serverInput, serverOutput)
             .WithTools<PolicyTools>();

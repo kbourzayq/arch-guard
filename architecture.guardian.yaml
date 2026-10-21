@@ -20,7 +20,7 @@ layers:
     allowedDependencies: [Core, Analysis, Configuration]
   - id: Mcp
     projects: ["src/ArchitectureGuardian.Mcp/*.csproj"]
-    allowedDependencies: [Core, Configuration]
+    allowedDependencies: [Core, Analysis, Configuration]
   - id: Analyzers
     projects: ["src/ArchitectureGuardian.Analyzers/*.csproj"]
   - id: Tests
