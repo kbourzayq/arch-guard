@@ -28,7 +28,7 @@ evaluation: a completed load does not mean architecture policy passed.
 ## Roslyn and MSBuild responsibilities
 
 Analysis uses Roslyn's `Microsoft.CodeAnalysis.Workspaces.MSBuild` and
-`Microsoft.CodeAnalysis.CSharp.Workspaces` packages (both 5.0.0). `MSBuildWorkspace`
+`Microsoft.CodeAnalysis.CSharp.Workspaces` packages (both 5.9.0). `MSBuildWorkspace`
 opens solutions/projects; `Project.GetCompilationAsync` supplies C# compilations,
 semantic context and compiler diagnostics. MSBuild evaluates configuration,
 frameworks, source inclusion and references. An additional check compares evaluated
@@ -38,7 +38,7 @@ completion. This evaluation carries the opened workspace's MSBuild globals, incl
 defaults. Loading an individual project does not invent a solution directory.
 
 Generator-reported errors are collected separately from compiler diagnostics.
-Roslyn 5.0 keeps its workspace generator diagnostics API internal, so the adapter
+Roslyn 5.9 keeps its workspace generator diagnostics API internal, so the adapter
 runs an additional validation pass through the public C# generator driver with the
 original syntax trees, parse options, additional files and analyzer configuration.
 Previously generated trees are excluded from this pass. Generators may execute again;

@@ -79,7 +79,7 @@ For compiler package changes, also build and verify a consumer package:
 
 ```sh
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
-python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.301
+python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.402
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
@@ -98,6 +98,9 @@ project `PackageReference` items retain dependency ownership and asset/privacy
 metadata without inline versions. Conditional central entries keep the analyzer
 test project's Roslyn 4.8 baseline separate from the solution-workspace packages.
 Core has no package references, and central transitive pinning is disabled.
+The analyzer test project explicitly references private PKCS 10.0.13 because
+Analyzer.Testing 1.1.4 resolves vulnerable PKCS 9.0.6 through NuGet.Packaging 7.0.3
+without that reference (GHSA-2fmv-rv2c-59x7 and GHSA-846f-f764-76mx).
 
 The Workspaces, ReferenceSolutions and AgentCorrection fixture roots each carry a
 `Directory.Packages.props` opt-out, copied with their inputs. They restore

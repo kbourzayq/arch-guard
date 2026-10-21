@@ -9,6 +9,8 @@
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+    <!-- Analyzer.Testing's NuGet.Packaging dependency otherwise resolves vulnerable PKCS 9.0.6. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/ArchitectureGuardian.Analyzers/ArchitectureGuardian.Analyzers.csproj" />

@@ -74,7 +74,7 @@ directories and Debug/Release configuration do not enter this identity. Differen
 generators or hints can declare otherwise identical file-local names without colliding.
 Generated output can be outside the policy directory without reducing coverage.
 
-Roslyn 5.0 exposes the source hint publicly and keeps the document's generator
+Roslyn 5.9 exposes the source hint publicly and keeps the document's generator
 identity internal. The adapter associates each generated document's logical
 assembly/type/hint suffix with a registered generator using the public underlying
 generator-type API. It discards the physical output prefix; ambiguous or unavailable

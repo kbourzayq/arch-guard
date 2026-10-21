@@ -50,7 +50,7 @@ services, handles arguments and maps results to console output and exit codes.
 It contains no rule evaluation.
 
 Configuration implements Core's `IPolicyLoader` port and references only Core.
-YamlDotNet 16.3.0 is confined to this adapter: the base library has no YAML parser,
+YamlDotNet 18.1.0 is confined to this adapter: the base library has no YAML parser,
 and a mature parser preserves source marks and detects malformed documents without
 introducing serializer types into Core. Strict schema checks run before constructing
 neutral policy. No workspace or rule-discovery dependency is introduced.
@@ -170,9 +170,9 @@ multi-targeted projects, and coverage applies to one configuration/framework per
 See the [workspace loading guide](../../workspace-loading.md) for isolation and SDK
 lifecycle constraints.
 
-Roslyn `Microsoft.CodeAnalysis.CSharp.Workspaces` and `Workspaces.MSBuild` 5.0.0
+Roslyn `Microsoft.CodeAnalysis.CSharp.Workspaces` and `Workspaces.MSBuild` 5.9.0
 provide C# semantic context and solution loading. `Microsoft.Build.Locator` 1.11.2
-selects an installed SDK with the input's `global.json`. The MSBuild 18.6.3 compile-time
+selects an installed SDK with the input's `global.json`. The MSBuild 18.9.6 compile-time
 references (`Microsoft.Build`, `Microsoft.Build.Framework`, `Microsoft.NET.StringTools`)
 exclude runtime assets and remain private so SDK-provided assemblies load only after
 registration. No new project or dependency toward Core is introduced; workspace
@@ -280,7 +280,7 @@ See the [AG003 guide](../../rule-catalog.md#ag003-module-cycles).
 CLI references Configuration directly to load explicit YAML policies, then composes
 Analysis's workspace loader, repository/dependency builders and generic analysis
 service. Core and Analysis keep their existing dependencies. System.CommandLine
-2.0.12 belongs only to CLI: it supplies command parsing, generated help and async
+2.0.13 belongs only to CLI: it supplies command parsing, generated help and async
 invocation cancellation, replacing the hand-written argument parser.
 
 `scan` selects available implementations before workspace execution, evaluates the
@@ -400,11 +400,11 @@ its own findings and evidence. No project, package or component dependency is ad
 `ArchitectureGuardian.Mcp` is the sixth production project and targets net10.0.
 It references Configuration for the injected policy loader and consumes Core
 transitively. Analysis is added only when an actual workspace/analysis tool needs
-it. ModelContextProtocol 2.2.0 owns stdio framing, protocol handling, attributed tool
+it. ModelContextProtocol 2.3.0 owns stdio framing, protocol handling, attributed tool
 discovery, dependency injection, schemas, invocation and cancellation. Standard
 .NET hosting sends console logs to stderr; standard configuration and options
 bind and validate workspace settings. Microsoft.Extensions.Hosting is pinned to
-10.0.10. No HTTP hosting dependency is introduced.
+10.0.13. No HTTP hosting dependency is introduced.
 
 F18 adds the first production tools below. `[McpServerTool]` methods
 receive the services they need through normal DI and forward the SDK cancellation
