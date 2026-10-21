@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Consumer/Consumer.csproj" />
+  <Project Path="Library.Contracts/Library.Contracts.csproj" />
+  <Project Path="Library.Implementation/Library.Implementation.csproj" />
+</Solution>

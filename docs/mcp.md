@@ -33,11 +33,10 @@ Use the published DLL in client configuration. Keep its complete output director
 ### Configure your client
 
 Create a local stdio server entry using your client's configuration format. The
-`mcpServers` wrapper below is a common format; clients with a different schema or
-server-setup UI need the same command and arguments in their corresponding fields.
-Configuration-file location is client-specific.
+JSON below uses Claude Code's `mcpServers` format. Codex uses TOML; Copilot CLI
+adds its own server type and tool selection. See the client examples below.
 
-**Replace both path placeholders before using this JSON.** They represent two
+**Replace both path placeholders in every example.** They represent two
 independent locations, which may be in different directories:
 
 | Placeholder | Replace with |
@@ -49,6 +48,7 @@ independent locations, which may be in different directories:
 {
   "mcpServers": {
     "architecture-guardian": {
+      "type": "stdio",
       "command": "dotnet",
       "args": [
         "<FULL_PATH_TO_MCP_DLL>",
@@ -88,6 +88,71 @@ The client process must be able to find `dotnet`. If its PATH differs from your
 terminal's, set `command` to the full path of the dotnet executable. Find it with
 `command -v dotnet` on macOS/Linux or `(Get-Command dotnet).Source` in PowerShell.
 
+#### Codex CLI and IDE extension
+
+Add this entry to your local `~/.codex/config.toml`, preserving existing settings:
+
+```toml
+[mcp_servers.architecture-guardian]
+command = "dotnet"
+args = ["<FULL_PATH_TO_MCP_DLL>", "--Workspace:Root", "<FULL_PATH_TO_YOUR_REPOSITORY>", "--Workspace:Trusted", "false"]
+tool_timeout_sec = 180
+```
+
+Alternatively, `codex mcp add architecture-guardian -- dotnet "<FULL_PATH_TO_MCP_DLL>" --Workspace:Root "<FULL_PATH_TO_YOUR_REPOSITORY>" --Workspace:Trusted false`
+adds the server through the CLI. The TOML example increases the tool deadline for
+solution-wide workspace loads; CLI registration uses the client's default until
+you configure it. Run `codex mcp list` to check registration, then start a new Codex
+session and use `/mcp` to inspect active servers and tools. Registration alone
+does not prove a successful connection. See the official
+[Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+
+#### Claude Code
+
+Use the JSON above in a project-root `.mcp.json`, merging into an existing
+`mcpServers` object rather than replacing other entries. Keep personal path values
+out of version control. For a local configuration managed by Claude instead, run:
+
+```sh
+claude mcp add --transport stdio --scope local architecture-guardian -- dotnet "<FULL_PATH_TO_MCP_DLL>" --Workspace:Root "<FULL_PATH_TO_YOUR_REPOSITORY>" --Workspace:Trusted false
+```
+
+Local scope is private to this project in `~/.claude.json`. Project `.mcp.json`
+entries require the client's applicable workspace/server trust approval. Check
+`claude mcp get architecture-guardian` and `/mcp` in an interactive session to
+confirm connection and tool discovery. See the official
+[Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
+
+#### GitHub Copilot CLI
+
+Merge this entry into `~/.copilot/mcp-config.json`. It is a Copilot CLI example;
+VS Code's `.vscode/mcp.json` uses a different `servers` wrapper and is not read
+by Copilot CLI.
+
+```json
+{
+  "mcpServers": {
+    "architecture-guardian": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["<FULL_PATH_TO_MCP_DLL>", "--Workspace:Root", "<FULL_PATH_TO_YOUR_REPOSITORY>", "--Workspace:Trusted", "false"],
+      "tools": ["list_rules", "get_architecture", "analyze_solution", "explain_violation", "analyze_changes"]
+    }
+  }
+}
+```
+
+Alternatively, use `/mcp add` in Copilot CLI, select STDIO and enter the same
+command, arguments and tool names. Inspect `/mcp` for server status and available
+tools. Enterprise policy can restrict permitted servers. See the official
+[Copilot CLI MCP documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers).
+
+These examples target compatible local stdio clients. The automated verification
+below exercises the MCP SDK client, not authenticated interactive runs in each
+coding agent. Client versions and organization settings can affect configuration
+and tool access. No Architecture Guardian API key is needed; client accounts and
+model access follow the respective client's requirements.
+
 ### Enable workspace analysis
 
 The example starts with build trust disabled. `list_rules` works in that mode;
@@ -96,7 +161,7 @@ The example starts with build trust disabled. `list_rules` works in that mode;
 
 For a repository whose build logic you authorize:
 
-1. Restore the target solution outside the MCP session, in its intended build configuration.
+1. Restore the target solution through your terminal or agent's ordinary command tools, in its intended build configuration, rather than through MCP.
 2. Change the final `Workspace:Trusted` argument from `false` to `true`.
 3. Restart or reconnect the server through your client.
 
@@ -138,6 +203,57 @@ The server uses ModelContextProtocol C# SDK 2.2.0 with standard .NET hosting and
 stdio transport. It negotiates protocol versions, including the `2025-11-25`
 handshake. Closing stdin ends the session; host shutdown and Ctrl+C use cooperative
 cancellation. No HTTP endpoint or web dashboard is provided.
+
+## Coding-agent correction workflow
+
+Keep module ownership, dependency permissions, contracts, layers and severity in
+`architecture.guardian.yaml`. Client instructions describe the workflow and point
+to that policy; do not copy its architecture constraints into `AGENTS.md`,
+`CLAUDE.md` or Copilot instructions. For example:
+
+```text
+Use Architecture Guardian to inspect the configured architecture before editing.
+Read architecture.guardian.yaml as the source of architecture constraints. Scan
+the complete solution in the intended build context, then explain an exact returned
+diagnostic ID before correcting its dependency. Make edits with ordinary file
+tools and rescan. Report coverage, gate outcome and remaining issues. Run the
+repository's normal build/tests and CI; agent validation does not replace them.
+```
+
+After restoring and explicitly enabling build trust, use this sequence. Substitute
+your real input and preserve configuration/framework across calls:
+
+1. Call `list_rules` with `{"policyPath":"architecture.guardian.yaml"}`.
+2. Call `get_architecture` and then `analyze_solution` with
+   `{"inputPath":"MyApp.slnx","policyPath":"architecture.guardian.yaml","configuration":"Release"}`.
+   Inspect ownership, configured public contracts and permissions. A scan is usable
+   for compliance only with `status: "completed"`; inspect `gateOutcome` separately.
+3. Copy an actual diagnostic's `id` into `explain_violation`, alongside the same
+   input, policy, configuration and optional target framework. Do not synthesize
+   an ID or submit invented evidence. Confirm its evidence, dependency path and
+   violated constraint. Configured contracts are candidates to inspect, not a
+   guarantee of API suitability or permission.
+4. Correct source and project references with ordinary client file tools. For the
+   seeded [correction fixture](../tests/Fixtures/AgentCorrection/Correction.slnx),
+   replace `new Library.Implementation.InvoiceService().Pay()` with a supplied
+   `Library.Contracts.IInvoice` parameter and remove the consumer's implementation
+   project reference. Keep policy unchanged. Restore again outside MCP after
+   changing project references.
+5. Rerun `analyze_solution` with the same arguments. The corrected fixture must
+   report `completed`, `passed`, zero diagnostics and no operational issues. An
+   old diagnostic ID then produces an unknown/stale error; use IDs from the fresh
+   scan for any remaining findings.
+
+The server has no source, policy or baseline write tools, shell tool or automatic
+restore. The agent's file/command tools perform edits and restores under their own
+permissions. Trusted MSBuild evaluation can execute build logic and create `bin/`
+and `obj/` artifacts; read-only annotations are not a build sandbox. Resolve any
+incomplete, failed or cancelled analysis before claiming the correction passed.
+
+For working-tree comparisons, `analyze_changes` currently returns `unsupported`,
+`gateOutcome: "not-evaluated"` and null counts even after a clean full scan.
+Do not use that as release approval. See the [release validation checklist](../CONTRIBUTING.md#release-validation)
+and the pending [F23 implementation](https://github.com/kbourzayq/arch-guard/issues/23).
 
 ## Workspace, cancellation, limits and errors
 
@@ -433,6 +549,23 @@ or method parameters, calls those services and passes through the SDK-supplied
 invocation and result/error serialization. See the official [tools guide](https://csharp.sdk.modelcontextprotocol.io/v2/concepts/tools/tools.html).
 
 ## Verification
+
+`Mcp/CorrectionWorkflowTests` launches the production DLL with the SDK's
+`StdioClientTransport`. It discovers the five read-only tools, reads architecture,
+finds the fixture's seeded AG001, requests an instance explanation, corrects source
+and references through test-side file access, restores externally and verifies a
+completed passing rescan. Each tool call compares all fixture input bytes before
+and after, excluding `bin/` and `obj/`, including the calls returning stale-ID and
+unsupported-comparison results. The client captures stderr and has bounded startup,
+session and SDK shutdown timeouts. It uses an isolated copy; checked-in fixture
+inputs remain unchanged. This deterministic protocol test requires no LLM or
+coding-agent subscription and runs in the normal cross-platform CI matrix.
+
+After the standard Release build, reproduce it with:
+
+```sh
+dotnet test tests/ArchitectureGuardian.ArchitectureTests --configuration Release --no-build --no-restore --filter FullyQualifiedName~CorrectionWorkflowTests
+```
 
 `Mcp/StdioServerTests` exercises the executable's initialization, capability set,
 unsupported-method errors, ping, EOF shutdown and stderr-only output.

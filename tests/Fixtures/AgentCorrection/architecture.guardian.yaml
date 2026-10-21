@@ -1,0 +1,17 @@
+version: 1
+modules:
+  - id: Consumer
+    projects: ["Consumer/*.csproj"]
+    allowedDependencies: ["contract:Library/api"]
+  - id: Library
+    projects: ["Library.*/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["Library.Contracts/*.csproj"]
+layers:
+  - id: Application
+    projects: ["*/*.csproj"]
+rules:
+  AG001: error
+gate:
+  failOn: error
