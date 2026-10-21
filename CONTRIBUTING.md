@@ -121,6 +121,32 @@ Respond to correctness, regression and documentation findings before requesting
 another review. Keep unrelated cleanup in a separate change. Publishing, merging
 and deployment follow the repository maintainer's review process.
 
+## Release validation
+
+Before publishing a release or accepting a coding-agent correction:
+
+- Run the required locked restore, Release build, formatting and complete solution
+  tests above. Require the normal GitHub Actions checks; an agent's passing MCP
+  result does not replace CI or review.
+- Restore the target solution in the intended configuration/framework outside MCP,
+  then run a full CLI `scan` or MCP `analyze_solution`. Require completed coverage
+  and a passed severity gate. Resolve operational issues; missing coverage is not
+  compliance. Follow the [correction workflow](docs/mcp.md#coding-agent-correction-workflow)
+  for findings and rerun after edits.
+- Run the stdio correction integration test with the full suite. It verifies
+  discovery, evidence-backed guidance, client-side correction and unchanged inputs
+  across the read-only server calls.
+- Until [F23](https://github.com/kbourzayq/arch-guard/issues/23) is delivered,
+  `analyze_changes` is explicitly `unsupported`, with no evaluated gate or counts.
+  It cannot satisfy release validation. Keep the full scan mandatory.
+- **F23 follow-up:** when comparison is implemented, update the correction test's
+  unsupported assertion and this checklist together. Require CLI `scan --base` or
+  MCP `analyze_changes` against an explicit release base, covering staged,
+  unstaged and untracked working-tree changes with full base/candidate architecture
+  contexts. Require completed coverage and a passed gate; missing refs, failed
+  snapshot loads and unsupported results must block comparison approval. Retain
+  full-scan validation and normal CI.
+
 ## Report a bug
 
 Open an [issue](https://github.com/kbourzayq/arch-guard/issues/new) with:

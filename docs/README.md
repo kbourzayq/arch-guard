@@ -11,7 +11,7 @@ features are identified explicitly.
 | [Installation](installation.md) | SDK requirements, source installation, CLI/MCP executables and local analyzer packages |
 | [Getting started](getting-started.md) | A runnable example, a first policy for your repository and CI exit codes |
 | [CLI](cli.md) | Commands, options, output and gate behavior |
-| [MCP](mcp.md) | Client setup, workspace trust, tool arguments and versioned responses |
+| [MCP](mcp.md) | Codex, Claude Code and Copilot CLI setup, correction workflow, workspace trust and tool responses |
 | [Compiler analyzer](compiler-analyzer.md) | Local NuGet installation, XML policy, severity and host compatibility |
 | [Policy reference](policy.md) | YAML v1, project selectors, contracts, permissions and gates |
 | [Rule catalog](rule-catalog.md) | AG001–AG006 semantics and evidence |

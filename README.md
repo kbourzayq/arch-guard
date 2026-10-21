@@ -84,6 +84,9 @@ For MCP, publish the server and configure its executable and workspace root usin
 the [portable configuration templates](docs/mcp.md#configure-your-client). All five
 tools are read-only: `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and the
 reserved `analyze_changes` interface. Workspace execution requires operator trust.
+Follow the [coding-agent correction workflow](docs/mcp.md#coding-agent-correction-workflow)
+to inspect policy, explain a finding, edit through the client and verify a fresh scan.
+Agent validation complements the repository's normal CI gate.
 
 ## Understand the result
 
