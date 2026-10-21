@@ -1,7 +1,7 @@
 # Semantic accuracy and engine parity
 
-[F16](https://github.com/kbourzayq/arch-guard/issues/16) validates architecture
-decisions against labeled C# fixtures. The solution engine loads an explicitly
+Architecture Guardian validates architecture decisions against labeled C# fixtures.
+The solution engine loads an explicitly
 restored MSBuild context, extracts a graph and runs policy-selected Core rules.
 The compiler engine runs in the host's current compilation using an explicit XML
 ownership snapshot. It implements AG001, AG002, AG004, AG005 and AG006; AG003 needs

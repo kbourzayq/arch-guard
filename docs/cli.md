@@ -1,11 +1,33 @@
 # CLI commands
 
-[F10](https://github.com/kbourzayq/arch-guard/issues/10) exposes shared analysis through
-System.CommandLine. The intended tool name is `archguard`; packaging is F27. In this
-checkout, invoke `dotnet run --project src/ArchitectureGuardian.Cli -- <arguments>`
-or run the built `ArchitectureGuardian.Cli.dll` with `dotnet`. Generated help uses
-the executable's current name. No arguments, `--help`, and `<command> --help` show
-usage. `--version` prints the build's informational version.
+Use the CLI to scan architecture, inspect resolved ownership, explain rules and
+validate workspace coverage. Follow [installation](installation.md) first.
+Examples below run from the Architecture Guardian checkout root and use the
+published CLI in `artifacts/cli`. When scanning another repository, replace
+`path/to/...` with your input and policy paths; quote paths containing spaces.
+
+```sh
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll --help
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan --help
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll --version
+```
+
+No arguments also prints help. The intended tool name is `archguard`; packaged
+tool installation is planned, so generated help currently uses the assembly name.
+For development, `dotnet run --project src/ArchitectureGuardian.Cli -- <arguments>`
+uses the same commands.
+
+## Command reference
+
+| Command | Required arguments | Purpose |
+| --- | --- | --- |
+| `scan` | `<input> --policy <path>` | Evaluate selected rules and the severity gate |
+| `inspect` | `<input> --policy <path>` | List resolved ownership and policy constraints |
+| `load` | `<input>` | Validate workspace coverage without rule evaluation |
+| `explain` | `<rule-id>` | Print local rule metadata without loading a workspace |
+
+`scan`, `inspect` and `load` also accept `--trusted`, `--configuration` (default
+`Debug`) and `--framework`. There is no automatic restore or policy discovery.
 
 ## Scan a solution or project
 
@@ -15,8 +37,8 @@ untrusted repositories before authorizing them, as described in
 [workspace loading](workspace-loading.md).
 
 ```sh
-dotnet restore path/to/Application.slnx
-dotnet run --project src/ArchitectureGuardian.Cli -- scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release
+dotnet restore path/to/Application.slnx -p:Configuration=Release
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release
 ```
 
 Inputs may be `.sln`, `.slnx` or `.csproj`. Project input includes the referenced
@@ -55,7 +77,7 @@ returns 2 and never claims a completed gate result.
 ## Inspect resolved boundaries
 
 ```sh
-dotnet run --project src/ArchitectureGuardian.Cli -- inspect path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll inspect path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
 ```
 
 `inspect` accepts the same input, trust, configuration and framework options. It
@@ -73,7 +95,7 @@ future rules: inspection reports declarations rather than implementation availab
 ## Explain a canonical rule
 
 ```sh
-dotnet run --project src/ArchitectureGuardian.Cli -- explain AG001
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll explain AG001
 ```
 
 `explain` resolves AG001–AG006 case-sensitively from the local catalog, prints the
@@ -90,8 +112,7 @@ loading. See [workspace loading](workspace-loading.md) for the adapter contract.
 
 ## Current repository scan limitation
 
-The repository's own solution currently reports incomplete dependency extraction
-for some existing C# generic `notnull` constraints and discarded values. These
-pre-existing extraction gaps return 2 with `dependency-type-unresolved` issues;
-the CLI retains available findings and does not claim a completed gate. This does
-not affect the restored reference fixtures used to verify the command contracts.
+The repository's self-scan can return incomplete coverage for known extraction
+and workspace issues. The CLI preserves available findings without claiming a
+gate outcome. See [known analysis limitations](troubleshooting.md#known-analysis-limitations)
+for details; use the [reference examples](m1-demo.md) for reproducible command outcomes.

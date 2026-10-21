@@ -1,16 +1,15 @@
 # Workspace loading
 
-F04 adds reusable `MSBuildWorkspaceLoader` integration in Analysis and a `load`
-command for validating workspace context. It supports C# SDK projects supplied as
-`.csproj`, `.sln` or `.slnx`. Referenced projects load from source, including projects
+CLI and MCP use `MSBuildWorkspaceLoader` to load C# SDK projects from `.csproj`,
+`.sln` or `.slnx` inputs. Referenced projects load from source, including projects
 outside the solution when referenced by its members. Unsupported projects and empty
-solutions cannot establish complete coverage. F05 adds the separate
-[repository normalization API](repository-model.md), and F06 adds the
-[dependency evidence graph](dependency-graph.md). F07 adds
-[AG001 evaluation](rule-catalog.md#ag001-module-dependencies), F08 adds
-[AG002 evaluation](rule-catalog.md#ag002-layer-dependencies), and F09 adds
-[AG003 cycle evaluation](rule-catalog.md#ag003-module-cycles). F10 adds
-[CLI `scan` and `inspect`](cli.md) using the same trusted loading service.
+solutions cannot establish complete coverage.
+
+This reference covers build context, trust and the reusable loading API. Start with
+[installation](installation.md) and the [CLI guide](cli.md) for command-line use.
+The same loading service feeds [repository normalization](repository-model.md),
+[dependency extraction](dependency-graph.md) and solution rule evaluation.
+The command examples below run from the source checkout root.
 
 ```sh
 dotnet restore path/to/Application.slnx

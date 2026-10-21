@@ -1,8 +1,8 @@
 # Normalized repository model
 
-[F05](https://github.com/kbourzayq/arch-guard/issues/5) adds immutable repository data
-in `ArchitectureGuardian.Core.Repositories` and `RepositoryModelBuilder` in
-`ArchitectureGuardian.Analysis.Repositories`. The builder converts an already loaded
+The repository model provides immutable architecture data in
+`ArchitectureGuardian.Core.Repositories`. `RepositoryModelBuilder` in
+`ArchitectureGuardian.Analysis.Repositories` converts an already loaded
 workspace into neutral data and applies the [v1 configuration policy](policy.md).
 The model contains no Roslyn/MSBuild objects and remains usable after workspace disposal.
 
@@ -36,10 +36,10 @@ Contracts select entire projects in v1. `IsPublic` means the type and every cont
 type are public; it does not grant dependency permission or enforce symbol access.
 `AllowsModuleDependency` and `AllowsLayerDependency` retain the policy's separate,
 direct and directional permission checks. The model does not extract edges or report
-violations; [F06 dependency extraction](dependency-graph.md) consumes this normalization,
+violations; [dependency extraction](dependency-graph.md) consumes this normalization,
 and [AG001](rule-catalog.md#ag001-module-dependencies) evaluates its evidence against
 the resolved module permissions. [AG002](rule-catalog.md#ag002-layer-dependencies)
-evaluates layer permissions independently. Cycle evaluation remains F09.
+evaluates layer permissions independently. Module-cycle evaluation uses the dependency graph.
 
 ## Identities and reproducibility
 
@@ -92,7 +92,7 @@ All collections are copied, read-only and ordered by ordinal identity. Reversing
 inventory or relocating an unchanged checkout preserves identities and ordering.
 Absolute paths, workspace GUIDs, assembly versions, output directories, culture and
 enumeration order do not enter identities. Changing logical paths or names can change
-identities; these are snapshot identities, not F22 baseline matching guarantees.
+identities; these are snapshot identities, not baseline matching guarantees.
 
 ## Reusable API and coverage
 
@@ -139,8 +139,8 @@ into any later evaluation rather than accept findings from incomplete input as c
 
 The builder performs no restore, workspace opening or policy-file loading. It forwards
 cancellation while obtaining compilations and checks it during symbol traversal.
-CLI `load` validates workspace context only. F10 composes normalization in
-[`inspect` and `scan`](cli.md).
+CLI `load` validates workspace context only. Both
+[`inspect` and `scan`](cli.md) compose normalization; MCP uses the same services.
 
 ## Reference fixture
 

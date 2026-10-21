@@ -1,17 +1,15 @@
 # Shared rule, diagnostic and analysis contracts
 
-[F02](https://github.com/kbourzayq/arch-guard/issues/2) supplies contracts in
-`ArchitectureGuardian.Core` and orchestration in `ArchitectureGuardian.Analysis`.
-Core uses only the .NET base library. These APIs do not load solutions, parse YAML,
-implement the six rules or render reports. F03 adds the separate architecture policy,
-resolver and `GatePolicy` described in the [policy guide](policy.md); YAML stays in
-the Configuration adapter. F04 adds Roslyn/MSBuild workspace loading in Analysis,
-described in the [workspace loading guide](workspace-loading.md); the shared Core
-contracts remain independent of those dependencies. F05 adds the neutral
-[repository model](repository-model.md) and a separate Analysis normalization API.
+Architecture Guardian separates neutral contracts in `ArchitectureGuardian.Core`
+from orchestration and workspace integration in `ArchitectureGuardian.Analysis`.
+The contracts describe requests, findings, diagnostics, completion and cancellation;
+Core uses only the .NET base library.
 
-Start with the [architecture overview](architecture/overview.md) for component
-responsibilities, implemented workspace loading and the planned compiler integration.
+The [policy guide](policy.md) describes ownership, severity and `GatePolicy`.
+YAML parsing stays in Configuration; [workspace loading](workspace-loading.md) and
+[repository normalization](repository-model.md) stay in Analysis. See the
+[architecture overview](architecture/overview.md) for component responsibilities
+and the separate solution and compiler execution paths.
 
 ## Evaluation, severity and gates
 
@@ -30,11 +28,11 @@ required. The rule descriptor provides an absolute HTTP/HTTPS documentation URL.
 `SeverityPolicy` supplies per-rule overrides and a default severity (`Error` unless
 configured otherwise). The supported severities are `Info`, `Warning` and `Error`.
 Rule IDs use ordinal, case-sensitive matching. Changing severity does not rerun or
-change a rule finding's identity. F03 policy files explicitly select rule IDs and
+change a rule finding's identity. Policy files explicitly select rule IDs and
 their severities. Suppression/baseline behavior belongs to later features.
 
 A completed run may contain error diagnostics. A consumer must check coverage
-status before applying quality-gate policy. `GatePolicy.Passes` from F03 fails
+status before applying quality-gate policy. `GatePolicy.Passes` fails
 noncompleted results and applies an inclusive severity threshold to completed results.
 `AnalysisResult` itself has no combined success flag or CLI exit code.
 
@@ -87,13 +85,14 @@ context separately. CLI `scan` composes the reusable AG001–AG006 API with poli
 loading, dependency extraction and gate evaluation; see the [CLI guide](cli.md).
 All six canonical rules are available through this composition.
 
-F19's `SolutionAnalysisService.AnalyzeAsync` shares the complete scan pipeline
+`SolutionAnalysisService.AnalyzeAsync` shares the complete scan pipeline
 between CLI `scan` and MCP `analyze_solution`: policy selection before build
 execution, workspace loading, dependency extraction and `AnalysisService` evaluation.
 Hosts still own policy loading, gate rendering and protocol/process behavior.
 `AnalyzeChangesAsync(baseReference, scope, cancellationToken)` reserves comparison
-with an explicit base and `solution` scope. Until F23 it returns `Incomplete` with
-`change-analysis-unsupported`, performs no Git/build execution and cannot pass a gate.
+with an explicit base and `solution` scope. Until graph comparison is implemented,
+it returns `Incomplete` with `change-analysis-unsupported`, performs no Git/build
+execution and cannot pass a gate.
 MCP maps that unsupported capability to its versioned response contract; see the
 [MCP guide](mcp.md#analyze_changes).
 
@@ -153,10 +152,10 @@ is a failure. Cancellation before starting invokes no rules. Rules must observe 
 token for prompt cancellation while running; the service does not abandon their tasks.
 
 `AnalysisIssue` carries an operational code, message and optional rule/source location,
-separately from policy violations. F04's `WorkspaceLoadResult` uses the same coverage
+separately from policy violations. `WorkspaceLoadResult` uses the same coverage
 statuses and issue contracts for loading. Hosts must propagate missing workspace
 context rather than pass a silently reduced snapshot to rule evaluation as complete.
-F05's `RepositoryBuildResult` retains loading issues alongside normalization coverage;
+`RepositoryBuildResult` retains loading issues alongside normalization coverage;
 hosts must inspect it before using its neutral model as a rule context.
 
 ### Outcome flow
@@ -208,5 +207,5 @@ process hash seeds do not enter the identity.
 
 The same snapshot, finding content and configuration reproduce the same diagnostics
 and identities. Changes to source locations, wording, guidance or evidence may change
-an ID. These are snapshot identities, not the baseline matching contract: F22 will
-define schema-versioned fingerprints and movement/rename handling.
+an ID. These are snapshot identities. Baseline matching, including schema-versioned
+fingerprints and movement/rename handling, is planned separately.

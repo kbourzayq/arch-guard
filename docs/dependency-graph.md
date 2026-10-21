@@ -1,8 +1,8 @@
 # Dependency extraction and evidence graph
 
-[F06](https://github.com/kbourzayq/arch-guard/issues/6) adds
-`ArchitectureGuardian.Core.Dependencies` and
-`ArchitectureGuardian.Analysis.Dependencies.DependencyGraphBuilder`. Core owns the
+The solution engine extracts dependencies through
+`ArchitectureGuardian.Analysis.Dependencies.DependencyGraphBuilder` and represents
+them using `ArchitectureGuardian.Core.Dependencies`. Core owns the
 immutable graph, aggregation and traversal. Analysis owns compiler binding and
 converts its observations into neutral evidence. No additional packages or component
 dependencies are required.
@@ -42,7 +42,7 @@ resolved ownership used for this graph. `Graph`, `Status` and `Issues` describe
 extraction and its coverage. The builder normalizes the same workspace through
 `RepositoryModelBuilder`, performs no restore or workspace opening, and retains
 loading and normalization issues. Both snapshots survive workspace disposal.
-CLI `load` checks workspace context only. F10 composes extraction and evaluation
+CLI `load` checks workspace context only. CLI `scan` composes extraction and evaluation
 through [`scan`](cli.md#scan-a-solution-or-project).
 
 ## Levels and evidence

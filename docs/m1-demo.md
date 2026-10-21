@@ -1,7 +1,10 @@
-# M1 reference solutions and demo
+# Reference examples
 
-[F11](https://github.com/kbourzayq/arch-guard/issues/11) provides two checked-in,
-package-free reference solutions under `tests/Fixtures/ReferenceSolutions`.
+Explore architecture checks with two checked-in, package-free solutions under
+`tests/Fixtures/ReferenceSolutions`. For a shorter introduction, follow
+[getting started](getting-started.md). This guide also covers intentionally failing
+and incomplete configurations, with exact expected outcomes.
+
 `CleanArchitecture` contains Domain ports, an Application use case, Infrastructure
 implementations and Host composition, all in the Shop module. `ModularMonolith`
 contains Billing and Orders modules with separate contracts and application projects.

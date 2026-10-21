@@ -1,21 +1,20 @@
-# Architecture as Code: policy v1
+# Architecture policy reference
 
-[F03](https://github.com/kbourzayq/arch-guard/issues/3) defines
-`architecture.guardian.yaml`, the [v1 JSON Schema](schema/architecture.guardian.v1.schema.json),
-the YAML loader and pure policy resolution. The [repository policy](../architecture.guardian.yaml)
-maps this solution's eight projects. The [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
-illustrates public contracts. Both are loaded and resolved by tests.
+`architecture.guardian.yaml` is the versioned source of architecture rules for
+CLI and MCP analysis. It defines project ownership, modules, layers, public
+contracts, dependency permissions, rule selection, severities and the quality gate.
 
-The loader and policy APIs, [trusted workspace loading](workspace-loading.md),
-[dependency extraction](dependency-graph.md), [AG001 evaluation](rule-catalog.md#ag001-module-dependencies),
-[AG002 evaluation](rule-catalog.md#ag002-layer-dependencies) and
-[AG003 evaluation](rule-catalog.md#ag003-module-cycles),
-[AG004 evaluation](rule-catalog.md#ag004-implementation-boundaries) and
-[AG005 evaluation](rule-catalog.md#ag005-forbidden-references) and
-[AG006 evaluation](rule-catalog.md#ag006-domain-infrastructure) are usable today.
-F10 exposes these services through [CLI `scan`, `inspect` and `explain`](cli.md).
-Additional capabilities follow in the roadmap. Loading a valid policy alone does
-not establish scan coverage or compliance.
+New users can start with the [policy walkthrough](getting-started.md#2-write-a-policy).
+This reference covers YAML version `1`; the
+[JSON Schema](schema/architecture.guardian.v1.schema.json) supports editor validation.
+The [repository policy](../architecture.guardian.yaml) maps this solution's nine
+projects, and the [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
+demonstrates public contracts. Both are loaded and resolved by tests.
+
+CLI `scan` and MCP `analyze_solution` use the same loader, ownership resolution and
+rule engine. Loading a valid policy alone establishes neither resolved project
+coverage nor compliance. Compiler integration uses a separate
+[XML ownership snapshot](compiler-analyzer.md), maintained alongside this YAML.
 
 ## Document shape
 
@@ -239,11 +238,11 @@ reporting levels after discovery without changing their identity or evidence.
 is inclusive: `warning` fails on warnings and errors; `info` fails on any diagnostic;
 `error` fails on errors. Incomplete, failed and cancelled analysis always fails the
 gate, regardless of threshold or diagnostic count. An empty completed result passes.
-F22 will add baseline-aware gate semantics; v1 has no baseline setting.
+Baseline-aware gate semantics are planned; v1 has no baseline setting.
 
 ## Host composition
 
-F06's `DependencyGraphBuilder` composes workspace normalization, policy resolution
+`DependencyGraphBuilder` composes workspace normalization, policy resolution
 and extraction into a neutral `DependencyBuildResult`, as shown in the
 [dependency graph guide](dependency-graph.md#build-a-graph). The AG001–AG006 rules
 consume that result directly, preserving upstream coverage and issues alongside findings.
@@ -274,7 +273,7 @@ var passesGate = policy.Gate.Passes(result);
 `RepositoryModel` carries the immutable policy and resolved mappings where rules
 need them. A caller can also resolve a supplied complete project inventory directly
 with `ResolvedPolicy`, without a workspace. Hosts reference Configuration and Analysis
-at composition time; Analysis and Core do not reference the YAML adapter. F10
+at composition time; Analysis and Core do not reference the YAML adapter. The CLI
 provides this composition through `scan --policy <path>` and reports resolved
 ownership through `inspect --policy <path>`; see the [CLI guide](cli.md).
 
@@ -303,5 +302,5 @@ analysis results.
 The netstandard2.0 [compiler analyzer](compiler-analyzer.md) consumes an explicit,
 versioned assembly ownership snapshot through AdditionalFiles. It cannot load this
 YAML or discover the inventory in compiler callbacks. Maintain that snapshot from the
-resolved YAML policy outside the compiler; F12 does not include an automatic exporter.
+resolved YAML policy outside the compiler; an automatic exporter is not yet available.
 Roslyn editorconfig controls compiler severity independently of this file's CLI gate.
