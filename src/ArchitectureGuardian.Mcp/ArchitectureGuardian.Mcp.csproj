@@ -7,7 +7,6 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../ArchitectureGuardian.Analysis/ArchitectureGuardian.Analysis.csproj" />
     <ProjectReference Include="../ArchitectureGuardian.Configuration/ArchitectureGuardian.Configuration.csproj" />
     <InternalsVisibleTo Include="ArchitectureGuardian.ArchitectureTests" />
   </ItemGroup>

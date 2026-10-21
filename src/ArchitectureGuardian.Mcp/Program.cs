@@ -1,22 +1,19 @@
 using ArchitectureGuardian.Mcp.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace ArchitectureGuardian.Mcp;
 
-/// <summary>Starts the local, read-only MCP adapter over standard input and output.</summary>
+/// <summary>Starts the standard MCP stdio host with all console logging directed to stderr.</summary>
 internal static class Program
 {
-    public static async Task<int> Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        try
-        {
-            var options = ServerOptions.Parse(args);
-            await McpHost.RunAsync(options);
-            return 0;
-        }
-        catch (Exception exception) when (exception is ArgumentException or IOException or UnauthorizedAccessException)
-        {
-            await Console.Error.WriteLineAsync($"MCP startup/transport failed: {exception.Message}");
-            return 2;
-        }
+        var builder = Host.CreateApplicationBuilder(args);
+        builder.Logging.AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace);
+        builder.Services.AddArchitectureGuardianMcp().WithStdioServerTransport();
+        using var host = builder.Build();
+        await host.RunAsync();
     }
 }

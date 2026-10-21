@@ -577,7 +577,6 @@
       "architectureguardian.mcp": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Analysis": "[0.1.0, )",
           "ArchitectureGuardian.Configuration": "[0.1.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.10, )",
           "ModelContextProtocol": "[2.2.0, )"

@@ -17,7 +17,7 @@ public sealed class DependencyBoundaryTests
         ["ArchitectureGuardian.Analysis"] = ["ArchitectureGuardian.Core"],
         ["ArchitectureGuardian.Cli"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration"],
         ["ArchitectureGuardian.Analyzers"] = [],
-        ["ArchitectureGuardian.Mcp"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration"],
+        ["ArchitectureGuardian.Mcp"] = ["ArchitectureGuardian.Configuration"],
     };
 
     /// <summary>Requires every production project to have an explicit dependency decision and belong to the solution.</summary>

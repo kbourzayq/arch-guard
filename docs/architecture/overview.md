@@ -17,7 +17,7 @@ records the decisions and constraints behind them.
 | CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
-| MCP | Official C# SDK stdio host, operator-owned root/trust, bounded requests, shared application services; empty tool catalog | Architecture and analysis tools |
+| MCP | Official C# SDK stdio transport and attributed discovery, standard host configuration, shared policy loader; no tools yet | Architecture and analysis tools |
 | Other adapters | None | Reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
 
@@ -38,7 +38,6 @@ flowchart LR
     Configuration["ArchitectureGuardian.Configuration<br/>YAML parsing and validation"]
 
     Mcp["ArchitectureGuardian.Mcp<br/>Stdio protocol and read-only application composition"]
-    Mcp --> Analysis
     Mcp --> Configuration
     Cli --> Analysis
     Cli --> Configuration
@@ -53,9 +52,10 @@ technology-specific inputs into neutral facts before invoking rules. CLI can con
 Core contracts through its transitive reference to Core.
 Configuration depends only on Core and keeps YamlDotNet outside the domain. CLI
 references Configuration and Analysis to compose policy-driven commands; its
-System.CommandLine package stays outside the shared services. MCP references the same
-Analysis and Configuration adapters and owns its SDK/hosting packages. Its current
-empty tool catalog and transport contracts are documented in the [MCP guide](../mcp.md).
+System.CommandLine package stays outside the shared services. MCP references
+Configuration for its injectable policy loader and owns its SDK and hosting
+packages. Its standard tool discovery and transport contracts
+are documented in the [MCP guide](../mcp.md).
 
 The service interface and its implementation live on opposite sides of this boundary:
 
@@ -108,7 +108,7 @@ nested implementation helpers stay with their owner.
 | Configuration | `Yaml` | YAML parsing and loading |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | Analyzers | `Policies` / project root | Compiler snapshot validation / compilation-local semantic diagnostics |
-| MCP | `Hosting`, `Requests` | Stdio host, operator configuration, physical root boundary, request limits and shared-service adaptation |
+| MCP | `Hosting` / project root | SDK host, tool registration and validated workspace options / standard host bootstrap |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
 Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories`, `Rules` and `Workspaces` folders and
@@ -142,8 +142,8 @@ severity gates. F04 supplies trusted workspace loading and F05 supplies neutral
 repository normalization and ownership composition. F06 supplies dependency
 extraction, evidence aggregation and deterministic traversal/cycles. F07 supplies
 AG001 module-dependency evaluation; F08 supplies AG002 layer-dependency evaluation.
-F09 supplies AG003 module-cycle evaluation. The MCP foundation registers these
-same services; future MCP tools and report adapters reuse them.
+F09 supplies AG003 module-cycle evaluation. The MCP foundation registers the shared policy loader; future MCP analysis tools
+and report adapters reuse the analysis services as their operations require them.
 
 ```mermaid
 flowchart TD

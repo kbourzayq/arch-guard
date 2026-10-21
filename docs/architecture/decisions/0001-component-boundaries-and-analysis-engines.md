@@ -389,17 +389,23 @@ its own findings and evidence. No project, package or component dependency is ad
 ## F17: local read-only MCP adapter
 
 `ArchitectureGuardian.Mcp` is the sixth production project and targets net10.0.
-It references Analysis and Configuration, consumes Core transitively, and owns
-ModelContextProtocol 2.2.0 and Microsoft.Extensions.Hosting 10.0.10. The SDK handles
-stdio JSON-RPC, negotiation and cancellation. Logs go only to stderr. No HTTP
-hosting dependency is introduced. Solution membership, evaluated boundary tests,
-repository layer policy and package lock files include this adapter.
+It references Configuration for the injected policy loader and consumes Core
+transitively. Analysis is added only when an actual workspace/analysis tool needs
+it. ModelContextProtocol 2.2.0 owns stdio framing, protocol handling, attributed tool
+discovery, dependency injection, schemas, invocation and cancellation. Standard
+.NET hosting sends console logs to stderr; standard configuration and options
+bind and validate workspace settings. Microsoft.Extensions.Hosting is pinned to
+10.0.10. No HTTP hosting dependency is introduced.
 
-F17 registers the shared policy loader and analysis service without adding rule
-semantics. Its tool catalog is intentionally empty until F18. Operator-owned root
-and trust settings, physical input confinement, bounded frames and policy inputs,
-a single application request slot and linked cooperative deadlines establish the
-contracts for subsequent read-only tools. Build trust cannot be granted by tool
-arguments or client roots. The adapter cannot write source, policy or baselines;
-trusted MSBuild execution remains subject to the existing workspace contract.
-See the [MCP guide](../../mcp.md) for startup, limits and error behavior.
+The production assembly has no tools until F18. Future `[McpServerTool]` methods
+receive the services they need through normal DI and forward the SDK cancellation
+token. The host does not add a custom stream, executor, application session or
+eager analysis composition. Operator root/trust settings use host configuration;
+actual input confinement and operation-specific bounds belong with future tools.
+Transport byte limits, application concurrency limits and extra request deadlines
+are not imposed by this host. The SDK's initialization timeout is 10 seconds.
+
+Solution membership, evaluated boundary tests, repository layer policy and lock
+files track this adapter. SDK integration tests use an attributed test-only tool to
+verify DI, shared policy loading, errors and cancellation; production discovery
+only scans the executable assembly. See the [MCP guide](../../mcp.md).

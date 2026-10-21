@@ -177,6 +177,7 @@ origin evidence, deterministic traversal/cycles and extraction coverage.
 | `ArchitectureGuardian.Configuration` | Strict v1 YAML loading and actionable validation errors; YamlDotNet stays in this adapter | Core |
 | `ArchitectureGuardian.Analyzers` | netstandard2.0 C# compiler adapter; compilation-local AG001/AG002/AG004/AG005/AG006 and AdditionalFiles policy | None; source-links pure Core semantics |
 | `ArchitectureGuardian.Cli` | System.CommandLine arguments, policy/service composition, diagnostics and exit codes | Analysis, Configuration |
+| `ArchitectureGuardian.Mcp` | Standard SDK stdio transport, attributed-tool discovery, host configuration and injectable policy loader | Configuration |
 
 Rules return evidence-backed findings without severity. The analysis service applies
 severity policy and returns `Completed`, `Incomplete`, `Failed` or `Cancelled`,
@@ -209,4 +210,4 @@ compatibility constraints.
 
 The [MCP guide](docs/mcp.md) covers the stdio executable, client configuration,
 operator-selected workspace root, build trust, cancellation, limits and error contracts.
-F17 provides protocol initialization and an empty tool catalog; F18 adds architecture tools.
+F17 provides the standard SDK host and attributed-tool discovery; F18 adds architecture tools.
