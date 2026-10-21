@@ -1,0 +1,6 @@
+<Project>
+  <!-- Keep standalone restores and copied fixtures independent of repository package versions. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

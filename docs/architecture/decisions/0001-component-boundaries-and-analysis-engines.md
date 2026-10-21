@@ -65,6 +65,14 @@ and Release. They enforce the production-project graph and Core's lack of extern
 dependencies. New production projects require an explicit entry in those checks and
 an update to this decision. This establishes a checkable boundary before rules exist.
 
+Package versions are authored centrally in the root `Directory.Packages.props`,
+with dependency ownership and asset/privacy metadata retained in project files.
+Conditional entries preserve the analyzer tests' Roslyn 4.8 baseline independently
+of solution-workspace versions. Central declarations do not add dependencies to
+Core; there are no global package references or central transitive pins. Fixture
+roots opt out through their own `Directory.Packages.props` so standalone and copied
+restores, including the independently locked generator, remain isolated.
+
 ## Decision: ports describe domain data, adapters handle technology
 
 F01 established the following ownership decisions. F02 implements the shared rule,

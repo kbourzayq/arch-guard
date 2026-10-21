@@ -93,6 +93,16 @@ Keep machine-specific paths out of committed examples and label any replacement 
 ## Change dependencies deliberately
 
 NuGet uses the sources in [NuGet.Config](NuGet.Config). Lock files are committed.
+Author participating package versions in the root `Directory.Packages.props`;
+project `PackageReference` items retain dependency ownership and asset/privacy
+metadata without inline versions. Conditional central entries keep the analyzer
+test project's Roslyn 4.8 baseline separate from the solution-workspace packages.
+Core has no package references, and central transitive pinning is disabled.
+
+The Workspaces, ReferenceSolutions and AgentCorrection fixture roots each carry a
+`Directory.Packages.props` opt-out, copied with their inputs. They restore
+independently; the build-only generator retains its own explicit package version
+and committed lock file. Keep intentional failed-restore inputs unchanged.
 When intentionally updating packages:
 
 ```sh
