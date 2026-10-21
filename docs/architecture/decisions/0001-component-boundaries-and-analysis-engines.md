@@ -43,7 +43,7 @@ CLI, MCP, serializers, reporting adapters or their transport/host types. It does
 load files, discover SDKs, invoke processes or write reports.
 
 Analysis is the solution-wide engine and application-service implementation reusable
-by CLI and the future MCP adapter. It references Core and owns workspace loading
+by CLI and the MCP adapter. It references Core and owns workspace loading
 and conversion of Roslyn/MSBuild data into neutral Core inputs. F04 adds Roslyn C#
 workspaces, MSBuild integration and SDK discovery in Analysis. CLI composes the
 services, handles arguments and maps results to console output and exit codes.
@@ -322,7 +322,7 @@ workspace orchestration outside that surface; see the F12 decision below.
 - Analysis owns workspace/MSBuild packages, Analyzers owns compiler-only Roslyn
   packages and Configuration owns the YAML package;
   Core remains independent of external packages. MCP transport is implemented in F17;
-  MCP tools and reporting remain planned.
+  MCP architecture tools are implemented in F18; analysis tools and reporting remain planned.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
 - Extra adapters and concrete port APIs are deferred until required, avoiding unused
@@ -397,11 +397,11 @@ discovery, dependency injection, schemas, invocation and cancellation. Standard
 bind and validate workspace settings. Microsoft.Extensions.Hosting is pinned to
 10.0.10. No HTTP hosting dependency is introduced.
 
-The production assembly has no tools until F18. Future `[McpServerTool]` methods
+F18 adds the first production tools below. `[McpServerTool]` methods
 receive the services they need through normal DI and forward the SDK cancellation
 token. The host does not add a custom stream, executor, application session or
 eager analysis composition. Operator root/trust settings use host configuration;
-actual input confinement and operation-specific bounds belong with future tools.
+operation-specific input validation and bounds belong with the tools.
 Transport byte limits, application concurrency limits and extra request deadlines
 are not imposed by this host. The SDK's initialization timeout is 10 seconds.
 
@@ -409,3 +409,26 @@ Solution membership, evaluated boundary tests, repository layer policy and lock
 files track this adapter. SDK integration tests use an attributed test-only tool to
 verify DI, shared policy loading, errors and cancellation; production discovery
 only scans the executable assembly. See the [MCP guide](../../mcp.md).
+
+
+## F18: bounded architecture and rule context
+
+MCP now references Analysis alongside Configuration. `get_architecture` composes the
+same `MSBuildWorkspaceLoader` and `RepositoryModelBuilder` used by CLI inspection,
+so strict ownership and incomplete coverage retain their existing meanings.
+`list_rules` reads policy without executing builds, explicitly labeling its project
+inventory as not loaded. `SolutionRules.All` is the single solution-engine inventory
+used for CLI rule selection and MCP availability metadata; canonical descriptions
+and documentation links remain in Core's catalog.
+
+Tool-specific records and serialization stay inside MCP. The SDK generates input
+and output schemas; results carry matching structured/text JSON with an explicit
+schema version. Filters apply after complete inventory validation, retain all coverage
+issues and preserve outgoing constraints. Payloads exceeding the documented bound
+fail explicitly rather than returning silently truncated context. Explicit tool input
+paths are checked under the configured root and reject descendant links; trusted
+MSBuild remains outside any filesystem sandbox guarantee. The [MCP guide](../../mcp.md)
+defines size limits, schemas, trust, cancellation and filtering semantics.
+
+Dependency tests, the repository policy, lock files and architecture diagrams include
+MCP's Analysis reference. No project, external package or Core dependency is added.

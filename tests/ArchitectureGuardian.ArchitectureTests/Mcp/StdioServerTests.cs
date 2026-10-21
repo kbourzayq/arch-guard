@@ -9,7 +9,7 @@ namespace ArchitectureGuardian.ArchitectureTests.Mcp;
 [Trait("Category", "Integration")]
 public sealed class StdioServerTests
 {
-    /// <summary>Initializes locally, advertises no production tools, rejects unsupported operations and exits on EOF.</summary>
+    /// <summary>Initializes locally, discovers the bounded read-only tools, rejects unsupported operations and exits on EOF.</summary>
     [Fact]
     public async Task Stdio_initializes_without_logging_on_stdout_and_exits_on_eof()
     {
@@ -23,16 +23,23 @@ public sealed class StdioServerTests
             var result = initialized.RootElement.GetProperty("result");
             Assert.Equal("2025-11-25", result.GetProperty("protocolVersion").GetString());
             Assert.Equal("architecture-guardian", result.GetProperty("serverInfo").GetProperty("name").GetString());
-            Assert.False(result.GetProperty("capabilities").TryGetProperty("tools", out _));
+            Assert.True(result.GetProperty("capabilities").TryGetProperty("tools", out _));
             Assert.False(result.GetProperty("capabilities").TryGetProperty("resources", out _));
             Assert.False(result.GetProperty("capabilities").TryGetProperty("prompts", out _));
             await Send(process, new { jsonrpc = "2.0", method = "notifications/initialized" });
             await Send(process, new { jsonrpc = "2.0", id = 2, method = "tools/list" });
             using var listed = await Read(process, timeout.Token);
-            Assert.Equal(-32601, listed.RootElement.GetProperty("error").GetProperty("code").GetInt32());
+            var tools = listed.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
+            Assert.Equal(new[] { "get_architecture", "list_rules" }, tools.Select(tool => tool.GetProperty("name").GetString()).Order());
+            Assert.All(tools, tool =>
+            {
+                Assert.True(tool.GetProperty("annotations").GetProperty("readOnlyHint").GetBoolean());
+                Assert.True(tool.GetProperty("outputSchema").TryGetProperty("properties", out _));
+            });
             await Send(process, new { jsonrpc = "2.0", id = 3, method = "tools/call", @params = new { name = "write_baseline", arguments = new { } } });
             using var rejected = await Read(process, timeout.Token);
-            Assert.Equal(-32601, rejected.RootElement.GetProperty("error").GetProperty("code").GetInt32());
+            Assert.True(rejected.RootElement.TryGetProperty("error", out _) ||
+                rejected.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
             await Send(process, new { jsonrpc = "2.0", id = 4, method = "source/write", @params = new { } });
             using var unknown = await Read(process, timeout.Token);
             Assert.Equal(-32601, unknown.RootElement.GetProperty("error").GetProperty("code").GetInt32());
