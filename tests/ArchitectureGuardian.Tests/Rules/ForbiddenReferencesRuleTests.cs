@@ -27,7 +27,7 @@ public sealed class ForbiddenReferencesRuleTests
     [InlineData("Allowed", "", 0)]
     public async Task Restrictions_use_bound_names_and_segment_boundaries(string assembly, string ns, int count)
     {
-        var result = await new ForbiddenReferencesRule().EvaluateAsync(Context([Use(assembly, ns)]));
+        var result = await new ForbiddenReferencesRule().EvaluateAsync(Context([Use(assembly, ns)]), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Equal(count, result.Violations.Count);
         Assert.All(result.Violations, item =>
@@ -50,12 +50,12 @@ public sealed class ForbiddenReferencesRuleTests
         var context = Context([first, second, first, new(Project, null, new("Unused forbidden reference."))]);
         var policy = context.Repository!.Policy;
         var rules = policy.SelectRules<DependencyBuildResult>([new ForbiddenReferencesRule(), new ModuleDependenciesRule()]);
-        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, policy.SeverityPolicy));
+        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(2, diagnostic.Evidence.Count);
         Assert.False(policy.Gate.Passes(result));
-        var reversed = await new ForbiddenReferencesRule().EvaluateAsync(Context([second, first]));
+        var reversed = await new ForbiddenReferencesRule().EvaluateAsync(Context([second, first]), TestContext.Current.CancellationToken);
         Assert.Equal(diagnostic.Id, Assert.Single(reversed.Violations).Id);
     }
 
@@ -67,7 +67,7 @@ public sealed class ForbiddenReferencesRuleTests
             new("Missing.csproj", null, new("Unknown source."), targetSymbol: "Target.Api"),
             new(Project, null, new("Legacy semantic evidence."), targetSymbol: "Target.Api")]);
         var rule = new ForbiddenReferencesRule();
-        var result = await rule.EvaluateAsync(context);
+        var result = await rule.EvaluateAsync(context, TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Single(result.Violations);
         Assert.Contains(result.Issues, issue => issue.Code == "dependency-project-unmapped");
@@ -75,16 +75,16 @@ public sealed class ForbiddenReferencesRuleTests
         var upstream = new AnalysisIssue("partial-input", "Input is partial.");
         foreach (var status in new[] { AnalysisStatus.Incomplete, AnalysisStatus.Failed, AnalysisStatus.Cancelled })
         {
-            var partial = await rule.EvaluateAsync(new(context.Repository, context.Graph, status, [upstream]));
+            var partial = await rule.EvaluateAsync(new(context.Repository, context.Graph, status, [upstream]), TestContext.Current.CancellationToken);
             Assert.Equal(status, partial.Status);
             Assert.Single(partial.Violations);
             Assert.Contains(upstream, partial.Issues);
-            var missing = await rule.EvaluateAsync(new(null, null, status, [upstream]));
+            var missing = await rule.EvaluateAsync(new(null, null, status, [upstream]), TestContext.Current.CancellationToken);
             Assert.Equal(status, missing.Status);
             Assert.Empty(missing.Violations);
         }
 
-        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!, TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() => rule.EvaluateAsync(context, cancellation.Token));

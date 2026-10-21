@@ -14,7 +14,7 @@ public sealed class StdioServerTests
     public async Task Stdio_initializes_without_logging_on_stdout_and_exits_on_eof()
     {
         using var process = Start("--Workspace:Root", Repository.Root);
-        var error = process.StandardError.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         try
         {
@@ -64,8 +64,8 @@ public sealed class StdioServerTests
     public async Task Invalid_startup_keeps_stdout_empty()
     {
         using var process = Start("--Workspace:Root", Path.Combine(Repository.Root, "missing-" + Guid.NewGuid()));
-        var output = process.StandardOutput.ReadToEndAsync();
-        var error = process.StandardError.ReadToEndAsync();
+        var output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+        var error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         try
         {

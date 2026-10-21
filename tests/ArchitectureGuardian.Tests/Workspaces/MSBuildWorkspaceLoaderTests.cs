@@ -25,7 +25,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
         Assert.Equal(2, result.Solution!.ProjectIds.Count);
         var app = Assert.Single(result.Solution.Projects, project => project.Name == "App");
         Assert.Single(app.ProjectReferences);
-        var compilation = await app.GetCompilationAsync();
+        var compilation = await app.GetCompilationAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(compilation!.GetTypeByMetadataName("Library.IContract"));
     }
 
@@ -41,7 +41,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
 
         AssertComplete(result);
         var app = Assert.Single(result.Solution!.Projects, project => project.Name == "App");
-        var compilation = await app.GetCompilationAsync();
+        var compilation = await app.GetCompilationAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(compilation!.GetTypeByMetadataName("App." + expectedType));
         Assert.Equal(configuration == "Release", app.Documents.Any(document => document.Name == "ReleaseOnly.cs"));
         Assert.Equal(configuration == "Release", ((CSharpParseOptions)app.ParseOptions!).PreprocessorSymbolNames.Contains("RELEASE_ONLY"));
@@ -68,7 +68,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
         using var result = await LoadAsync("Multi/Multi.csproj", framework: framework);
 
         AssertComplete(result);
-        var compilation = await Assert.Single(result.Solution!.Projects).GetCompilationAsync();
+        var compilation = await Assert.Single(result.Solution!.Projects).GetCompilationAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(compilation!.GetTypeByMetadataName("Multi." + expectedType));
     }
 
@@ -117,7 +117,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
     {
         var directory = Path.Combine(fixture.Root, "Unrestored");
         Directory.CreateDirectory(directory);
-        await File.WriteAllTextAsync(Path.Combine(directory, "Unrestored.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+        await File.WriteAllTextAsync(Path.Combine(directory, "Unrestored.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />", TestContext.Current.CancellationToken);
         using var result = await LoadAsync("Unrestored/Unrestored.csproj");
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
@@ -131,8 +131,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
     {
         var directory = Path.Combine(fixture.Root, "MissingMetadata");
         Directory.CreateDirectory(directory);
-        await File.WriteAllTextAsync(Path.Combine(directory, "MissingMetadata.csproj"),
-            "<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><Reference Include=\"Unavailable.Assembly\"><HintPath>unavailable.dll</HintPath></Reference></ItemGroup></Project>");
+        await File.WriteAllTextAsync(Path.Combine(directory, "MissingMetadata.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><Reference Include=\"Unavailable.Assembly\"><HintPath>unavailable.dll</HintPath></Reference></ItemGroup></Project>", TestContext.Current.CancellationToken);
         await fixture.RestoreAsync("MissingMetadata/MissingMetadata.csproj");
         using var result = await LoadAsync("MissingMetadata/MissingMetadata.csproj");
 
@@ -178,9 +177,9 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
     public async Task Generator_diagnostics_contribute_to_coverage(string mode, bool isComplete)
     {
         var path = Path.Combine(fixture.Root, "GeneratorConsumer", "GeneratorConsumer.csproj");
-        var source = await File.ReadAllTextAsync(path);
+        var source = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
         await File.WriteAllTextAsync(path, source.Replace("<FixtureGeneratorMode>valid</FixtureGeneratorMode>",
-            $"<FixtureGeneratorMode>{mode}</FixtureGeneratorMode>", StringComparison.Ordinal));
+            $"<FixtureGeneratorMode>{mode}</FixtureGeneratorMode>", StringComparison.Ordinal), TestContext.Current.CancellationToken);
         try
         {
             var build = await fixture.DotnetAsync("build", path, "--no-restore", "--no-incremental");
@@ -192,7 +191,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
             if (isComplete)
             {
                 AssertComplete(result);
-                var compilation = await Assert.Single(result.Solution!.Projects).GetCompilationAsync();
+                var compilation = await Assert.Single(result.Solution!.Projects).GetCompilationAsync(TestContext.Current.CancellationToken);
                 Assert.NotNull(compilation!.GetTypeByMetadataName("Generated.Contract"));
             }
             else
@@ -208,7 +207,8 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
         }
         finally
         {
-            await File.WriteAllTextAsync(path, source);
+            // Cleanup must complete even when the test is cancelled.
+            await File.WriteAllTextAsync(path, source, CancellationToken.None);
         }
     }
 
@@ -220,7 +220,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
     public async Task Empty_or_malformed_solution_is_incomplete(string contents)
     {
         var input = "Invalid-" + Guid.NewGuid().ToString("N") + ".slnx";
-        await File.WriteAllTextAsync(Path.Combine(fixture.Root, input), contents);
+        await File.WriteAllTextAsync(Path.Combine(fixture.Root, input), contents, TestContext.Current.CancellationToken);
         using var result = await LoadAsync(input);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
@@ -231,7 +231,7 @@ public sealed class MSBuildWorkspaceLoaderTests(WorkspaceFixture fixture) : ICla
     [Fact]
     public async Task Trust_is_required_before_any_loading()
     {
-        using var result = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "MissingSdk/MissingSdk.csproj")));
+        using var result = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "MissingSdk/MissingSdk.csproj")), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Equal("workspace-untrusted", Assert.Single(result.Issues).Code);

@@ -19,7 +19,7 @@ public sealed class PolicyTests
     public void Domain_infrastructure_configuration_snapshots_explicit_names()
     {
         var yaml = ValidYaml.Replace("id: Application", "id: Application\n    domainInfrastructure:\n      forbiddenAssemblies: [Legacy.Data]\n      forbiddenNamespaces: [System.Data]\n      allowedNamespaces: [System.Data.Contracts]", StringComparison.Ordinal);
-        var policy = new YamlPolicyLoader().Parse(yaml);
+        var policy = new YamlPolicyLoader().Parse(yaml, cancellationToken: TestContext.Current.CancellationToken);
         var restrictions = policy.Layers.Single(layer => layer.Id == "Application").DomainInfrastructure!;
         Assert.Equal(new[] { "Legacy.Data" }, restrictions.ForbiddenAssemblies);
         Assert.Equal(new[] { "System.Data" }, restrictions.ForbiddenNamespaces);
@@ -43,7 +43,7 @@ public sealed class PolicyTests
     public void Invalid_domain_infrastructure_configuration_is_rejected(string fields)
     {
         var yaml = ValidYaml.Replace("id: Application", "id: Application\n    domainInfrastructure:\n      " + fields, StringComparison.Ordinal);
-        var exception = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml));
+        var exception = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("domainInfrastructure", exception.Message);
     }
 
@@ -84,7 +84,7 @@ public sealed class PolicyTests
     [Fact]
     public void Contract_and_layer_permissions_are_independent_directional_and_deterministic()
     {
-        var policy = new YamlPolicyLoader().Parse(ValidYaml);
+        var policy = new YamlPolicyLoader().Parse(ValidYaml, cancellationToken: TestContext.Current.CancellationToken);
         var resolved = new ResolvedPolicy(policy, ProjectPaths.Reverse());
         var windowsPaths = new ResolvedPolicy(policy, ProjectPaths.Select(path => path.Replace('/', '\\')));
 
@@ -106,7 +106,7 @@ public sealed class PolicyTests
     [Fact]
     public void Whole_module_permissions_require_an_explicit_module_reference()
     {
-        var policy = new YamlPolicyLoader().Parse(ValidYaml.Replace("contract:Billing/api", "module:Billing", StringComparison.Ordinal));
+        var policy = new YamlPolicyLoader().Parse(ValidYaml.Replace("contract:Billing/api", "module:Billing", StringComparison.Ordinal), cancellationToken: TestContext.Current.CancellationToken);
         var resolved = new ResolvedPolicy(policy, ProjectPaths);
 
         Assert.True(resolved.AllowsModuleDependency(ProjectPaths[0], ProjectPaths[2]));
@@ -178,7 +178,7 @@ public sealed class PolicyTests
     public void Invalid_configuration_has_actionable_errors(string oldValue, string newValue, string message)
     {
         var exception = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader()
-            .Parse(ValidYaml.Replace(oldValue, newValue, StringComparison.Ordinal), "policy.yaml"));
+            .Parse(ValidYaml.Replace(oldValue, newValue, StringComparison.Ordinal), "policy.yaml", TestContext.Current.CancellationToken));
 
         Assert.Contains(message, exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("policy.yaml", exception.Location.Path);
@@ -200,13 +200,13 @@ public sealed class PolicyTests
     [InlineData("%YAML 1.1\n---\nversion: 1")]
     [InlineData("<<: {}")]
     public void Ambiguous_or_malformed_yaml_is_rejected(string yaml) =>
-        Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml));
+        Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml, cancellationToken: TestContext.Current.CancellationToken));
 
     /// <summary>Confirms positions are one-based and identify the unsupported field.</summary>
     [Fact]
     public void Errors_retain_exact_field_positions()
     {
-        var exception = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse("version: 1\nunknown: true"));
+        var exception = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse("version: 1\nunknown: true", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(2, exception.Location.StartLine);
         Assert.Equal(1, exception.Location.StartColumn);
@@ -218,15 +218,15 @@ public sealed class PolicyTests
     public void Inventory_resolution_rejects_unmatched_overlapping_empty_and_duplicate_projects()
     {
         var loader = new YamlPolicyLoader();
-        var policy = loader.Parse(ValidYaml);
+        var policy = loader.Parse(ValidYaml, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Throws<ArgumentException>(() => new ResolvedPolicy(policy, []));
         Assert.Throws<ArgumentException>(() => new ResolvedPolicy(policy, ProjectPaths.Append(ProjectPaths[0])));
         Assert.Throws<ArgumentException>(() => new ResolvedPolicy(policy, ProjectPaths.Append("extra.csproj")));
         Assert.Throws<ArgumentException>(() => new ResolvedPolicy(policy, ProjectPaths.Skip(1)));
-        var overlap = loader.Parse(ValidYaml.Replace("src/Orders/*.csproj", "src/**/*.csproj", StringComparison.Ordinal));
+        var overlap = loader.Parse(ValidYaml.Replace("src/Orders/*.csproj", "src/**/*.csproj", StringComparison.Ordinal), cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains("exactly one", Assert.Throws<ArgumentException>(() => new ResolvedPolicy(overlap, ProjectPaths)).Message);
         var foreignContract = loader.Parse(ValidYaml.Replace("projects: [\"src/Billing/Billing.Contracts.csproj\"]",
-            "projects: [\"src/Orders/Orders.Application.csproj\"]", StringComparison.Ordinal));
+            "projects: [\"src/Orders/Orders.Application.csproj\"]", StringComparison.Ordinal), cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains("outside its module", Assert.Throws<ArgumentException>(() => new ResolvedPolicy(foreignContract, ProjectPaths)).Message);
     }
 
@@ -253,13 +253,13 @@ public sealed class PolicyTests
     {
         var root = RepositoryRoot();
         var loader = new YamlPolicyLoader();
-        var repositoryPolicy = await loader.LoadAsync(Path.Combine(root, "architecture.guardian.yaml"));
+        var repositoryPolicy = await loader.LoadAsync(Path.Combine(root, "architecture.guardian.yaml"), TestContext.Current.CancellationToken);
         var projects = XDocument.Load(Path.Combine(root, "ArchitectureGuardian.slnx")).Descendants("Project")
             .Select(project => project.Attribute("Path")!.Value);
         var resolved = new ResolvedPolicy(repositoryPolicy, projects);
         Assert.Equal(9, resolved.Projects.Count);
         Assert.Equal("Mcp", resolved.Projects["src/ArchitectureGuardian.Mcp/ArchitectureGuardian.Mcp.csproj"].LayerId);
-        var example = await loader.LoadAsync(Path.Combine(root, "docs", "examples", "modular-monolith", "architecture.guardian.yaml"));
+        var example = await loader.LoadAsync(Path.Combine(root, "docs", "examples", "modular-monolith", "architecture.guardian.yaml"), TestContext.Current.CancellationToken);
         Assert.Equal(3, new ResolvedPolicy(example, ProjectPaths).Projects.Count);
     }
 
@@ -268,7 +268,7 @@ public sealed class PolicyTests
     public async Task Loading_preserves_io_failures_and_cancellation()
     {
         var loader = new YamlPolicyLoader();
-        await Assert.ThrowsAsync<FileNotFoundException>(() => loader.LoadAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".yaml")));
+        await Assert.ThrowsAsync<FileNotFoundException>(() => loader.LoadAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".yaml"), TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         Assert.Throws<OperationCanceledException>(() => loader.Parse(ValidYaml, cancellationToken: cancellation.Token));
@@ -280,12 +280,12 @@ public sealed class PolicyTests
     [Fact]
     public async Task Rule_selection_and_severity_are_separate_from_discovery()
     {
-        var policy = new YamlPolicyLoader().Parse(ValidYaml.Replace("  AG002: error\n", "", StringComparison.Ordinal));
+        var policy = new YamlPolicyLoader().Parse(ValidYaml.Replace("  AG002: error\n", "", StringComparison.Ordinal), cancellationToken: TestContext.Current.CancellationToken);
         var first = new FindingRule(RuleCatalog.ModuleDependencies);
         var excluded = new FindingRule(RuleCatalog.ModuleCycles);
         var selected = policy.SelectRules<string>([excluded, first]);
         var service = new AnalysisService<string>(selected);
-        var result = await service.AnalyzeAsync(new("context", policy.SeverityPolicy));
+        var result = await service.AnalyzeAsync(new("context", policy.SeverityPolicy), TestContext.Current.CancellationToken);
 
         Assert.Equal("AG001", Assert.Single(selected).Descriptor.Id);
         Assert.Equal(DiagnosticSeverity.Warning, Assert.Single(result.Diagnostics).Severity);
@@ -338,7 +338,7 @@ public sealed class PolicyTests
         var yaml = ValidYaml.Replace("allowedDependencies: [\"contract:Billing/api\"]",
             "allowedDependencies: [\"contract:Billing/api\"]\n    forbiddenAssemblies: [Forbidden.Library]\n    forbiddenNamespaces: [System.Net]", StringComparison.Ordinal)
             .Replace("allowedDependencies: [Contracts]", "allowedDependencies: [Contracts]\n    forbiddenNamespaces: [System.Data]", StringComparison.Ordinal);
-        var policy = new YamlPolicyLoader().Parse(yaml);
+        var policy = new YamlPolicyLoader().Parse(yaml, cancellationToken: TestContext.Current.CancellationToken);
         var orders = policy.Modules.Single(module => module.Id == "Orders");
         Assert.Equal("Forbidden.Library", Assert.Single(orders.ForbiddenAssemblies));
         Assert.Equal("System.Net", Assert.Single(orders.ForbiddenNamespaces));
@@ -349,7 +349,7 @@ public sealed class PolicyTests
         names.Clear();
         Assert.Single(module.ForbiddenNamespaces);
         Assert.Throws<NotSupportedException>(() => ((IList<string>)module.ForbiddenNamespaces).Clear());
-        Assert.All(new YamlPolicyLoader().Parse(ValidYaml).Modules, item => Assert.Empty(item.ForbiddenNamespaces));
+        Assert.All(new YamlPolicyLoader().Parse(ValidYaml, cancellationToken: TestContext.Current.CancellationToken).Modules, item => Assert.Empty(item.ForbiddenNamespaces));
     }
 
     /// <summary>Rejects ambiguous patterns, malformed identities, duplicates and non-array restriction fields.</summary>
@@ -366,7 +366,7 @@ public sealed class PolicyTests
     public void Invalid_reference_restrictions_are_actionable(string field)
     {
         var yaml = ValidYaml.Replace("allowedDependencies: [\"contract:Billing/api\"]", field, StringComparison.Ordinal);
-        var error = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml));
+        var error = Assert.Throws<PolicyConfigurationException>(() => new YamlPolicyLoader().Parse(yaml, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("modules", error.Message);
     }
 

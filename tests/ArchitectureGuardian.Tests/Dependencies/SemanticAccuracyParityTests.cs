@@ -39,13 +39,13 @@ public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture
     {
         var root = Path.Combine(fixture.Root, "SemanticParity");
         using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(
-            Path.Combine(root, "SemanticParity.slnx"), isTrusted: true, configuration: configuration, targetFramework: framework));
+            Path.Combine(root, "SemanticParity.slnx"), isTrusted: true, configuration: configuration, targetFramework: framework), TestContext.Current.CancellationToken);
         Complete(workspace.Status, workspace.Issues);
-        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"));
-        var context = await new DependencyGraphBuilder().BuildAsync(workspace, root, policy);
+        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"), TestContext.Current.CancellationToken);
+        var context = await new DependencyGraphBuilder().BuildAsync(workspace, root, policy, TestContext.Current.CancellationToken);
         Complete(context.Status, context.Issues);
         var results = await EvaluateAsync(context);
-        var compiler = await AnalyzeAsync(workspace.Solution!, await File.ReadAllTextAsync(Path.Combine(root, "architecture.guardian.compiler.xml")));
+        var compiler = await AnalyzeAsync(workspace.Solution!, await File.ReadAllTextAsync(Path.Combine(root, "architecture.guardian.compiler.xml"), TestContext.Current.CancellationToken));
         var labels = Labels(root);
 
         var solutionCases = results.SelectMany(result => result.Violations.SelectMany(violation => violation.Evidence
@@ -93,12 +93,12 @@ public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture
     public async Task Unselected_framework_preserves_incomplete_coverage()
     {
         var root = Path.Combine(fixture.Root, "SemanticParity");
-        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(root, "Orders/Orders.csproj"), isTrusted: true));
+        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(root, "Orders/Orders.csproj"), isTrusted: true), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, workspace.Status);
         Assert.Contains(workspace.Issues, issue => issue.Code == "framework-required");
-        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"));
-        var context = await new DependencyGraphBuilder().BuildAsync(workspace, root, policy);
-        var result = await new AnalysisService<DependencyBuildResult>(Rules()).AnalyzeAsync(new(context));
+        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"), TestContext.Current.CancellationToken);
+        var context = await new DependencyGraphBuilder().BuildAsync(workspace, root, policy, TestContext.Current.CancellationToken);
+        var result = await new AnalysisService<DependencyBuildResult>(Rules()).AnalyzeAsync(new(context), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.False(policy.Gate.Passes(result));
     }
@@ -108,18 +108,18 @@ public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture
     public async Task Missing_references_preserve_partial_findings_and_reject_a_clean_gate()
     {
         using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root,
-            "PartialReference/PartialReference.csproj"), isTrusted: true));
+            "PartialReference/PartialReference.csproj"), isTrusted: true), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, workspace.Status);
         var policy = FrameworkPolicy();
-        var context = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, policy);
-        var result = await new AnalysisService<DependencyBuildResult>(Rules()).AnalyzeAsync(new(context));
+        var context = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, policy, TestContext.Current.CancellationToken);
+        var result = await new AnalysisService<DependencyBuildResult>(Rules()).AnalyzeAsync(new(context), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.NotEmpty(result.Issues);
         Assert.False(policy.Gate.Passes(result));
         EqualSets(["AG005", "AG006"], result.Diagnostics.Select(item => item.RuleId));
         Assert.DoesNotContain(result.Diagnostics, item => item.Target.Symbol?.Contains("Unavailable", StringComparison.Ordinal) == true);
-        var compilation = (await Assert.Single(workspace.Solution!.Projects).GetCompilationAsync())!;
-        Assert.Contains(compilation.GetDiagnostics(), diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+        var compilation = (await Assert.Single(workspace.Solution!.Projects).GetCompilationAsync(TestContext.Current.CancellationToken))!;
+        Assert.Contains(compilation.GetDiagnostics(TestContext.Current.CancellationToken), diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
         var compiler = await AnalyzeAsync(workspace.Solution!, FrameworkSnapshot("PartialReference"));
         EqualSets(["AG005", "AG006"], compiler.Select(item => item.Id));
         Assert.DoesNotContain(compiler, item => item.GetMessage().Contains("Unavailable", StringComparison.Ordinal));
@@ -130,9 +130,9 @@ public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture
     public async Task Source_generator_output_is_checked_in_both_engines()
     {
         using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root,
-            "GeneratorConsumer/GeneratorConsumer.csproj"), isTrusted: true));
+            "GeneratorConsumer/GeneratorConsumer.csproj"), isTrusted: true), TestContext.Current.CancellationToken);
         Complete(workspace.Status, workspace.Issues);
-        var context = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, FrameworkPolicy());
+        var context = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, FrameworkPolicy(), TestContext.Current.CancellationToken);
         Complete(context.Status, context.Issues);
         var results = await EvaluateAsync(context);
         var compiler = await AnalyzeAsync(workspace.Solution!, FrameworkSnapshot("GeneratorConsumer"));

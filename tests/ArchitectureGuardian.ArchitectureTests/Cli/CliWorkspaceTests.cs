@@ -25,14 +25,13 @@ public sealed class CliWorkspaceTests
                   <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
                   <ItemGroup><ProjectReference Include="../Library/Library.csproj" /></ItemGroup>
                 </Project>
-                """);
-            await File.WriteAllTextAsync(Path.Combine(directory, "Library", "Library.csproj"),
-                "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
-            await File.WriteAllTextAsync(Path.Combine(directory, "Library", "Contract.cs"), "namespace Library; public class Contract { }");
+                """, TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "Library", "Library.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(directory, "Library", "Contract.cs"), "namespace Library; public class Contract { }", TestContext.Current.CancellationToken);
             var source = Path.Combine(directory, "App", "Consumer.cs");
-            await File.WriteAllTextAsync(source, "public class Consumer : Library.Contract { }");
+            await File.WriteAllTextAsync(source, "public class Consumer : Library.Contract { }", TestContext.Current.CancellationToken);
             var solution = Path.Combine(directory, "Input.slnx");
-            await File.WriteAllTextAsync(solution, "<Solution><Project Path=\"App/App.csproj\" /><Project Path=\"Library/Library.csproj\" /></Solution>");
+            await File.WriteAllTextAsync(solution, "<Solution><Project Path=\"App/App.csproj\" /><Project Path=\"Library/Library.csproj\" /></Solution>", TestContext.Current.CancellationToken);
             // Restore through the root project so aliased temporary paths cannot schedule its reference twice.
             var restore = await Repository.Dotnet("restore", Path.Combine(directory, "App", "App.csproj"),
                 "--source", directory, "--disable-parallel", "--disable-build-servers");
@@ -48,7 +47,7 @@ public sealed class CliWorkspaceTests
                 ("error", "error", true, 0),
             })
             {
-                await File.WriteAllTextAsync(policyPath, Policy(severity, threshold, allowed));
+                await File.WriteAllTextAsync(policyPath, Policy(severity, threshold, allowed), TestContext.Current.CancellationToken);
                 var result = await RunCli("scan", solution, "--policy", policyPath, "--trusted", "--configuration", "Release", "--framework", "net10.0");
                 Assert.True(result.ExitCode == expected, result.Output + result.Error);
                 Assert.Empty(result.Error);
@@ -93,12 +92,12 @@ public sealed class CliWorkspaceTests
 
             // AG004 treats public types outside declared contracts as implementation, even with module permission.
             var contractPolicy = Policy("error", "error", true).Replace("AG003: error", "AG004: error", StringComparison.Ordinal);
-            await File.WriteAllTextAsync(policyPath, contractPolicy);
+            await File.WriteAllTextAsync(policyPath, contractPolicy, TestContext.Current.CancellationToken);
             var contractScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             Assert.True(contractScan.ExitCode == 0, contractScan.Output + contractScan.Error);
             var implementationPolicy = contractPolicy.Replace("contract:Library/api", "module:Library", StringComparison.Ordinal)
                 .Replace("    contracts:\n      - id: api\n        projects: [\"Library/*.csproj\"]\n", "", StringComparison.Ordinal);
-            await File.WriteAllTextAsync(policyPath, implementationPolicy);
+            await File.WriteAllTextAsync(policyPath, implementationPolicy, TestContext.Current.CancellationToken);
             var implementationScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             Assert.True(implementationScan.ExitCode == 1, implementationScan.Output + implementationScan.Error);
             Assert.Empty(implementationScan.Error);
@@ -113,7 +112,7 @@ public sealed class CliWorkspaceTests
             {
                 var restrictedPolicy = Policy("error", "error", true).Replace("AG003: error", "AG005: error", StringComparison.Ordinal)
                     .Replace("  - id: App\n", $"  - id: App\n    {field}: [Library]\n", StringComparison.Ordinal);
-                await File.WriteAllTextAsync(policyPath, restrictedPolicy);
+                await File.WriteAllTextAsync(policyPath, restrictedPolicy, TestContext.Current.CancellationToken);
                 var restricted = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
                 Assert.True(restricted.ExitCode == 1, restricted.Output + restricted.Error);
                 Assert.Empty(restricted.Error);
@@ -131,7 +130,7 @@ public sealed class CliWorkspaceTests
             // AG006 applies to the configured source layer, even when its name is Application.
             var domainPolicy = Policy("error", "error", true).Replace("AG003: error", "AG006: error", StringComparison.Ordinal)
                 .Replace("  - id: Application\n", "  - id: Application\n    domainInfrastructure:\n      forbiddenNamespaces: [Library]\n", StringComparison.Ordinal);
-            await File.WriteAllTextAsync(policyPath, domainPolicy);
+            await File.WriteAllTextAsync(policyPath, domainPolicy, TestContext.Current.CancellationToken);
             var domainScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             Assert.True(domainScan.ExitCode == 1, domainScan.Output + domainScan.Error);
             Assert.Empty(domainScan.Error);
@@ -141,18 +140,18 @@ public sealed class CliWorkspaceTests
             var domainInspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
             Assert.Equal(0, domainInspect.ExitCode);
             Assert.Contains("AG006 infrastructure namespaces (including descendants): Library", domainInspect.Output);
-            await File.WriteAllTextAsync(policyPath, domainPolicy.Replace("forbiddenNamespaces: [Library]", "forbiddenNamespaces: [Library]\n      allowedNamespaces: [Library]", StringComparison.Ordinal));
+            await File.WriteAllTextAsync(policyPath, domainPolicy.Replace("forbiddenNamespaces: [Library]", "forbiddenNamespaces: [Library]\n      allowedNamespaces: [Library]", StringComparison.Ordinal), TestContext.Current.CancellationToken);
             var exempted = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             Assert.True(exempted.ExitCode == 0, exempted.Output + exempted.Error);
             Assert.Contains("0 diagnostic(s)", exempted.Output);
 
-            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
+            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false), TestContext.Current.CancellationToken);
             var first = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             var second = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             Assert.Equal(1, first.ExitCode);
             Assert.Equal(first.Output, second.Output);
 
-            await File.AppendAllTextAsync(source, " public class Broken : MissingType { }");
+            await File.AppendAllTextAsync(source, " public class Broken : MissingType { }", TestContext.Current.CancellationToken);
             var incomplete = await RunCliProcess("scan", solution, "--policy", policyPath, "--trusted");
             Assert.Equal(2, incomplete.ExitCode);
             Assert.Contains("AG001:", incomplete.Output);
@@ -184,14 +183,14 @@ public sealed class CliWorkspaceTests
             Assert.Contains("policy.yaml", missing.Error);
             Assert.Empty(missing.Output);
 
-            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false).Replace("version: 1", "version: 99", StringComparison.Ordinal));
+            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false).Replace("version: 1", "version: 99", StringComparison.Ordinal), TestContext.Current.CancellationToken);
             var invalid = await RunCli("inspect", "missing.csproj", "--policy", policyPath);
             Assert.Equal(2, invalid.ExitCode);
             Assert.Contains("policy.yaml", invalid.Error);
             Assert.Contains("version", invalid.Error);
             Assert.Empty(invalid.Output);
 
-            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false));
+            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false), TestContext.Current.CancellationToken);
             var untrusted = await RunCli("scan", "missing.csproj", "--policy", policyPath);
             Assert.Equal(2, untrusted.ExitCode);
             Assert.Contains("trust", untrusted.Error, StringComparison.OrdinalIgnoreCase);

@@ -19,7 +19,7 @@ public sealed class CliCommandTests
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
-        var code = await CliApplication.RunAsync(["explain", id], output, error);
+        var code = await CliApplication.RunAsync(["explain", id], output, error, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, code);
         Assert.StartsWith(id + ":", output.ToString());
@@ -45,7 +45,7 @@ public sealed class CliCommandTests
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
-        Assert.Equal(2, await CliApplication.RunAsync(arguments, output, error));
+        Assert.Equal(2, await CliApplication.RunAsync(arguments, output, error, TestContext.Current.CancellationToken));
         Assert.NotEmpty(error.ToString());
         Assert.Empty(output.ToString());
     }
@@ -61,7 +61,7 @@ public sealed class CliCommandTests
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
-        Assert.Equal(0, await CliApplication.RunAsync([command, "--help"], output, error));
+        Assert.Equal(0, await CliApplication.RunAsync([command, "--help"], output, error, TestContext.Current.CancellationToken));
         Assert.Contains("Usage:", output.ToString());
         Assert.Empty(error.ToString());
     }

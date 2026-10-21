@@ -10,7 +10,7 @@ public sealed class ReferenceSolutionFixture : IAsyncLifetime
     public string Root { get; } = Path.Combine(Path.GetTempPath(), "archguard-reference-" + Guid.NewGuid().ToString("N"));
 
     /// <summary>Copies sources and restores every buildable configuration without external packages.</summary>
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var source = Path.Combine(Repository.Root, "tests", "Fixtures", "ReferenceSolutions");
         foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
@@ -37,13 +37,13 @@ public sealed class ReferenceSolutionFixture : IAsyncLifetime
     }
 
     /// <summary>Deletes the copies and intermediate outputs after the class finishes.</summary>
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (Directory.Exists(Root))
         {
             Directory.Delete(Root, recursive: true);
         }
 
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }

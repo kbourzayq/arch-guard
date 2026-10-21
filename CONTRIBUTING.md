@@ -56,6 +56,19 @@ CI runs these checks on Linux, Windows and macOS. Passing locally does not repla
 the required CI jobs. Dependency-boundary tests evaluate Debug and Release and
 enforce solution membership and package/project reference direction.
 
+All three test assemblies use xUnit v3 and build as .NET 10 executables. The
+centrally versioned `xunit.v3.mtp-off` package disables Microsoft Testing Platform
+integration. `dotnet test` uses VSTest through `xunit.runner.visualstudio` 4.0.1
+and `Microsoft.NET.Test.Sdk` 18.11.0, including the category filters and TRX logger
+shown here and in CI. Async fixtures implement xUnit v3's `ValueTask` lifetime
+methods; keep resource cleanup in `DisposeAsync`, which xUnit calls in preference
+to `IDisposable.Dispose` when both are implemented.
+Use `TestContext.Current.CancellationToken` for cancellable test operations unless
+the scenario deliberately supplies its own token. Cleanup that must restore shared
+fixtures after cancellation uses an explicit `CancellationToken.None`. Workspace
+test assemblies use `[assembly: Parallelization(MaxThreads = 2)]` to bound
+concurrent collections.
+
 For fast feedback after a build:
 
 ```sh

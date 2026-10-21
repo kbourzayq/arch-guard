@@ -50,7 +50,7 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
         var source = Assert.Single(workspace.Solution!.Projects, project => project.Name == "Orders.Application");
         var reference = Assert.Single(source.ProjectReferences);
         Assert.Equal("Billing.Contracts", workspace.Solution.GetProject(reference.ProjectId)!.Name);
-        var compilation = await source.GetCompilationAsync();
+        var compilation = await source.GetCompilationAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(compilation!.GetTypeByMetadataName("Billing.Contracts.IInvoice"));
     }
 
@@ -130,7 +130,7 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
     {
         var root = Path.Combine(fixture.Root, "ModularMonolith");
         var loader = new YamlPolicyLoader();
-        var yaml = await File.ReadAllTextAsync(Path.Combine(root, "architecture.guardian.yaml"));
+        var yaml = await File.ReadAllTextAsync(Path.Combine(root, "architecture.guardian.yaml"), TestContext.Current.CancellationToken);
         using var workspace = await LoadAsync(root);
         foreach (var invalid in new[]
         {
@@ -139,13 +139,13 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
             yaml.Replace("src/Orders/**/*.csproj", "missing.csproj", StringComparison.Ordinal),
         })
         {
-            var result = await new RepositoryModelBuilder().BuildAsync(workspace, root, loader.Parse(invalid));
+            var result = await new RepositoryModelBuilder().BuildAsync(workspace, root, loader.Parse(invalid, cancellationToken: TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
             Assert.Equal(AnalysisStatus.Incomplete, result.Status);
             Assert.Null(result.Model);
             Assert.Contains(result.Issues, issue => issue.Code == "repository-mapping-invalid" && issue.Message.Contains("project", StringComparison.Ordinal));
         }
 
-        var outside = await new RepositoryModelBuilder().BuildAsync(workspace, Path.Combine(root, "src"), loader.Parse(yaml));
+        var outside = await new RepositoryModelBuilder().BuildAsync(workspace, Path.Combine(root, "src"), loader.Parse(yaml, cancellationToken: TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, outside.Status);
         Assert.Contains(outside.Issues, issue => issue.Code == "repository-mapping-invalid" && issue.Message.Contains("policy directory", StringComparison.Ordinal));
     }
@@ -156,14 +156,14 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
     {
         var policy = new ArchitecturePolicy([new("All", ["**/*.csproj"])], [new("All", ["**/*.csproj"])],
             new Dictionary<string, DiagnosticSeverity> { ["AG001"] = DiagnosticSeverity.Error });
-        using var broken = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "SolutionReference.slnx"), true));
-        var partial = await new RepositoryModelBuilder().BuildAsync(broken, fixture.Root, policy);
+        using var broken = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "SolutionReference.slnx"), true), TestContext.Current.CancellationToken);
+        var partial = await new RepositoryModelBuilder().BuildAsync(broken, fixture.Root, policy, TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, partial.Status);
         Assert.True(partial.Model is not null, string.Join(Environment.NewLine, partial.Issues.Select(issue => issue.Message)));
         Assert.All(broken.Issues, issue => Assert.Contains(issue, partial.Issues));
 
-        using var unavailable = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "Fixture.slnx")));
-        var missing = await new RepositoryModelBuilder().BuildAsync(unavailable, fixture.Root, policy);
+        using var unavailable = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "Fixture.slnx")), TestContext.Current.CancellationToken);
+        var missing = await new RepositoryModelBuilder().BuildAsync(unavailable, fixture.Root, policy, TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, missing.Status);
         Assert.Null(missing.Model);
         Assert.Contains(missing.Issues, issue => issue.Code == "workspace-untrusted");
@@ -174,17 +174,17 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
         Assert.Equal(AnalysisStatus.Cancelled, cancelled.Status);
         Assert.Null(cancelled.Model);
         using var cancelledLoad = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "Fixture.slnx")), cancellation.Token);
-        Assert.Equal(AnalysisStatus.Cancelled, (await new RepositoryModelBuilder().BuildAsync(cancelledLoad, fixture.Root, policy)).Status);
+        Assert.Equal(AnalysisStatus.Cancelled, (await new RepositoryModelBuilder().BuildAsync(cancelledLoad, fixture.Root, policy, TestContext.Current.CancellationToken)).Status);
     }
 
     /// <summary>Retains the project input identity and includes referenced projects in the neutral inventory.</summary>
     [Fact]
     public async Task Project_inputs_normalize_their_referenced_source_projects()
     {
-        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "App", "App.csproj"), true));
+        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "App", "App.csproj"), true), TestContext.Current.CancellationToken);
         var policy = new ArchitecturePolicy([new("All", ["**/*.csproj"])], [new("All", ["**/*.csproj"])],
             new Dictionary<string, DiagnosticSeverity> { ["AG001"] = DiagnosticSeverity.Error });
-        var result = await new RepositoryModelBuilder().BuildAsync(workspace, fixture.Root, policy);
+        var result = await new RepositoryModelBuilder().BuildAsync(workspace, fixture.Root, policy, TestContext.Current.CancellationToken);
         AssertComplete(result);
         Assert.Equal("App/App.csproj", result.Model!.Id);
         Assert.Equal(2, result.Model.Projects.Count);
@@ -194,10 +194,10 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
     [Fact]
     public async Task Generated_source_declarations_are_included()
     {
-        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "GeneratorConsumer", "GeneratorConsumer.csproj"), true));
+        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(fixture.Root, "GeneratorConsumer", "GeneratorConsumer.csproj"), true), TestContext.Current.CancellationToken);
         var policy = new ArchitecturePolicy([new("All", ["**/*.csproj"])], [new("All", ["**/*.csproj"])],
             new Dictionary<string, DiagnosticSeverity> { ["AG001"] = DiagnosticSeverity.Error });
-        var result = await new RepositoryModelBuilder().BuildAsync(workspace, fixture.Root, policy);
+        var result = await new RepositoryModelBuilder().BuildAsync(workspace, fixture.Root, policy, TestContext.Current.CancellationToken);
         AssertComplete(result);
         Assert.Contains(result.Model!.Projects.SelectMany(project => project.Assembly.Namespaces).SelectMany(ns => ns.Types),
             type => type.MetadataName == "Generated.Contract");
@@ -209,13 +209,13 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
     {
         var root = Path.Combine(fixture.Root, "ModularMonolith");
         using var workspace = await LoadAsync(root);
-        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"));
-        var result = await new RepositoryModelBuilder().BuildAsync(workspace, root, policy);
+        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"), TestContext.Current.CancellationToken);
+        var result = await new RepositoryModelBuilder().BuildAsync(workspace, root, policy, TestContext.Current.CancellationToken);
         AssertComplete(result);
         var project = Assert.Single(result.Model!.Projects, project => project.Name == "Billing.Domain");
         var ns = Assert.Single(project.Assembly.Namespaces, ns => ns.Name == "class.namespace");
         Assert.Equal(new[] { "class.namespace.event`1", "class.namespace.event`1+int" }, ns.Types.Select(type => type.MetadataName).Order(StringComparer.Ordinal));
-        var compilation = await workspace.Solution!.Projects.Single(project => project.Name == "Billing.Domain").GetCompilationAsync();
+        var compilation = await workspace.Solution!.Projects.Single(project => project.Name == "Billing.Domain").GetCompilationAsync(TestContext.Current.CancellationToken);
         Assert.All(ns.Types, type => Assert.NotNull(compilation!.GetTypeByMetadataName(type.MetadataName)));
     }
 
@@ -224,7 +224,7 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
     public async Task Generated_file_local_identities_survive_configuration_and_output_path_changes()
     {
         var projectPath = Path.Combine(fixture.Root, "GeneratorConsumer", "GeneratorConsumer.csproj");
-        var original = await File.ReadAllTextAsync(projectPath);
+        var original = await File.ReadAllTextAsync(projectPath, TestContext.Current.CancellationToken);
         var output = Path.Combine(Path.GetTempPath(), "arch-guard-generated-" + Guid.NewGuid().ToString("N"));
         var policy = new ArchitecturePolicy([new("All", ["**/*.csproj"])], [new("All", ["**/*.csproj"])],
             new Dictionary<string, DiagnosticSeverity> { ["AG001"] = DiagnosticSeverity.Error });
@@ -237,13 +237,13 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
                 {
                     var project = XDocument.Parse(original);
                     project.Root!.Elements("PropertyGroup").First().Add(new XElement("IntermediateOutputPath", output + Path.DirectorySeparatorChar));
-                    await File.WriteAllTextAsync(projectPath, project.ToString());
+                    await File.WriteAllTextAsync(projectPath, project.ToString(), TestContext.Current.CancellationToken);
                     await fixture.RestoreAsync(projectPath);
                 }
 
-                using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(projectPath, true, configuration));
+                using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(projectPath, true, configuration), TestContext.Current.CancellationToken);
                 Assert.True(workspace.Status == AnalysisStatus.Completed, string.Join(Environment.NewLine, workspace.Issues.Select(issue => issue.Message)));
-                var result = await new RepositoryModelBuilder().BuildAsync(workspace, fixture.Root, policy);
+                var result = await new RepositoryModelBuilder().BuildAsync(workspace, fixture.Root, policy, TestContext.Current.CancellationToken);
                 AssertComplete(result);
                 var types = result.Model!.Projects.SelectMany(project => project.Assembly.Namespaces).SelectMany(ns => ns.Types)
                     .Where(type => type.MetadataName.StartsWith("Generated.LocalHelper", StringComparison.Ordinal)).ToArray();
@@ -260,7 +260,7 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
                 Assert.Contains(types, type => type.GeneratedFile!.HintName == "Helpers/Other.g.cs");
                 if (externalOutput)
                 {
-                    var documents = await workspace.Solution!.Projects.Single().GetSourceGeneratedDocumentsAsync();
+                    var documents = await workspace.Solution!.Projects.Single().GetSourceGeneratedDocumentsAsync(TestContext.Current.CancellationToken);
                     Assert.NotEmpty(documents);
                     Assert.All(documents, document => Assert.StartsWith(".." + Path.DirectorySeparatorChar,
                         Path.GetRelativePath(fixture.Root, document.FilePath!)));
@@ -279,7 +279,8 @@ public sealed class RepositoryModelBuilderTests(WorkspaceFixture fixture) : ICla
         }
         finally
         {
-            await File.WriteAllTextAsync(projectPath, original);
+            // Cleanup must complete even when the test is cancelled.
+            await File.WriteAllTextAsync(projectPath, original, CancellationToken.None);
             if (Directory.Exists(output))
             {
                 Directory.Delete(output, recursive: true);

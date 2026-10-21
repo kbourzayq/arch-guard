@@ -1,4 +1,4 @@
-using Xunit;
+using Xunit.v3;
 
 // Each workspace scenario can start multiple MSBuild/Roslyn processes on shared runners.
-[assembly: CollectionBehavior(MaxParallelThreads = 2)]
+[assembly: Parallelization(MaxThreads = 2)]

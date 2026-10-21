@@ -133,7 +133,7 @@ public sealed class LayerDependenciesRuleTests
         var context = Context([Evidence(Domain, Infrastructure)], severity: severity);
         var result = await AnalyzeAsync(context);
         var diagnostic = Assert.Single(result.Diagnostics);
-        var raw = Assert.Single((await new LayerDependenciesRule().EvaluateAsync(context)).Violations);
+        var raw = Assert.Single((await new LayerDependenciesRule().EvaluateAsync(context, TestContext.Current.CancellationToken)).Violations);
 
         Assert.Equal(severity, diagnostic.Severity);
         Assert.Equal(raw.Id, diagnostic.Id);
@@ -147,7 +147,7 @@ public sealed class LayerDependenciesRuleTests
         var context = Context([Evidence(Domain, Infrastructure)], selectedRule: "AG001");
         var policy = context.Repository!.Policy;
         var selected = policy.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule(), new LayerDependenciesRule()]);
-        var result = await new AnalysisService<DependencyBuildResult>(selected).AnalyzeAsync(new(context, policy.SeverityPolicy));
+        var result = await new AnalysisService<DependencyBuildResult>(selected).AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
 
         Assert.Equal("AG001", Assert.Single(selected).Descriptor.Id);
         Assert.Equal(AnalysisStatus.Completed, result.Status);
@@ -163,7 +163,7 @@ public sealed class LayerDependenciesRuleTests
         var selection = new ArchitecturePolicy(policy.Modules, policy.Layers,
             new Dictionary<string, DiagnosticSeverity> { ["AG001"] = DiagnosticSeverity.Warning, ["AG002"] = DiagnosticSeverity.Error });
         var rules = selection.SelectRules<DependencyBuildResult>([new LayerDependenciesRule(), new ModuleDependenciesRule()]);
-        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, selection.SeverityPolicy));
+        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, selection.SeverityPolicy), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Equal(2, result.Diagnostics.Count);
@@ -220,7 +220,7 @@ public sealed class LayerDependenciesRuleTests
         var complete = Context([]);
         var issue = new AnalysisIssue("missing-context", "Dependency context is unavailable.");
         var result = await new LayerDependenciesRule().EvaluateAsync(new(missingRepository ? null : complete.Repository,
-            missingRepository ? complete.Graph : null, AnalysisStatus.Incomplete, [issue]));
+            missingRepository ? complete.Graph : null, AnalysisStatus.Incomplete, [issue]), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Empty(result.Violations);
@@ -232,7 +232,7 @@ public sealed class LayerDependenciesRuleTests
     public async Task Null_context_and_requested_cancellation_are_observed()
     {
         var rule = new LayerDependenciesRule();
-        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!, TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() => rule.EvaluateAsync(Context([]), cancellation.Token));

@@ -87,11 +87,11 @@ public sealed class AnalysisToolTests
         var policyPath = Path.Combine(root, "policy.yaml");
         var inputPath = Path.Combine(root, "Input.slnx");
         var appProject = Path.Combine(root, "App", "App.csproj");
-        await File.WriteAllTextAsync(appProject, (await File.ReadAllTextAsync(appProject)).Replace("</Project>",
-            "<ItemGroup><ProjectReference Include=\"../Library/Library.csproj\" /></ItemGroup></Project>", StringComparison.Ordinal));
-        await File.WriteAllTextAsync(Path.Combine(root, "Library", "Target.cs"), "namespace Library; public class Target { }");
+        await File.WriteAllTextAsync(appProject, (await File.ReadAllTextAsync(appProject, TestContext.Current.CancellationToken)).Replace("</Project>",
+            "<ItemGroup><ProjectReference Include=\"../Library/Library.csproj\" /></ItemGroup></Project>", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(root, "Library", "Target.cs"), "namespace Library; public class Target { }", TestContext.Current.CancellationToken);
         var source = Path.Combine(root, "App", "Use.cs");
-        await File.WriteAllTextAsync(source, "public class Use : Library.Target { }");
+        await File.WriteAllTextAsync(source, "public class Use : Library.Target { }", TestContext.Current.CancellationToken);
         var restore = await Repository.Dotnet(TimeSpan.FromSeconds(60), "restore", inputPath, "--source", root, "--disable-parallel", "--disable-build-servers");
         Assert.True(restore.ExitCode == 0, restore.Output + restore.Error);
         await ToolRegistrationTests.WithServer(async (client, token) =>

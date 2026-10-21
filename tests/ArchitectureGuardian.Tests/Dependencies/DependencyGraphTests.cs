@@ -42,15 +42,15 @@ public sealed class DependencyGraphTests
             Edge(nodes[2], nodes[3]), Edge(nodes[3], nodes[4]), Edge(nodes[4], nodes[3]), Edge(nodes[5], nodes[5]) };
         var graph = new DependencyGraph(nodes, edges);
         var reversed = new DependencyGraph(nodes.Reverse(), edges.Reverse());
-        Assert.Equal(graph.Traverse(nodes[0].Id), reversed.Traverse(nodes[0].Id));
-        Assert.Equal(5, graph.Traverse(nodes[0].Id).Count);
-        Assert.Equal(2, graph.Traverse(nodes[3].Id).Count);
-        var cycles = graph.FindCycles(DependencyKind.Type);
+        Assert.Equal(graph.Traverse(nodes[0].Id, TestContext.Current.CancellationToken), reversed.Traverse(nodes[0].Id, TestContext.Current.CancellationToken));
+        Assert.Equal(5, graph.Traverse(nodes[0].Id, TestContext.Current.CancellationToken).Count);
+        Assert.Equal(2, graph.Traverse(nodes[3].Id, TestContext.Current.CancellationToken).Count);
+        var cycles = graph.FindCycles(DependencyKind.Type, TestContext.Current.CancellationToken);
         Assert.Equal(3, cycles.Count);
         Assert.Equal(new[] { 1, 2, 3 }, cycles.Select(cycle => cycle.Count).Order());
         Assert.Equal(cycles.Select(cycle => string.Join(",", cycle.Select(node => node.Id))),
-            reversed.FindCycles(DependencyKind.Type).Select(cycle => string.Join(",", cycle.Select(node => node.Id))));
-        Assert.Empty(graph.FindCycles(DependencyKind.Module));
+            reversed.FindCycles(DependencyKind.Type, TestContext.Current.CancellationToken).Select(cycle => string.Join(",", cycle.Select(node => node.Id))));
+        Assert.Empty(graph.FindCycles(DependencyKind.Module, TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         Assert.Throws<OperationCanceledException>(() => graph.Traverse(nodes[0].Id, cancellation.Token));
@@ -63,8 +63,8 @@ public sealed class DependencyGraphTests
     {
         var nodes = Enumerable.Range(0, 10000).Select(index => Node(index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray();
         var graph = new DependencyGraph(nodes, nodes.Zip(nodes.Skip(1), Edge));
-        Assert.Empty(graph.FindCycles(DependencyKind.Type));
-        Assert.Equal(nodes.Length, graph.Traverse(nodes[0].Id).Count);
+        Assert.Empty(graph.FindCycles(DependencyKind.Type, TestContext.Current.CancellationToken));
+        Assert.Equal(nodes.Length, graph.Traverse(nodes[0].Id, TestContext.Current.CancellationToken).Count);
     }
 
     /// <summary>Aggregates cross-boundary dependencies while keeping contract-sensitive project origins intact.</summary>

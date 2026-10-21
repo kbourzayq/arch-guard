@@ -1,4 +1,4 @@
-using Xunit;
+using Xunit.v3;
 
 // Bound concurrent workspace fixture preparation and semantic analysis on shared runners.
-[assembly: CollectionBehavior(MaxParallelThreads = 2)]
+[assembly: Parallelization(MaxThreads = 2)]
