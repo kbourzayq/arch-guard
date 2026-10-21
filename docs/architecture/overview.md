@@ -17,10 +17,11 @@ records the decisions and constraints behind them.
 | CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
-| Other adapters | None | MCP and reports |
+| MCP | Official C# SDK stdio transport and attributed discovery, standard host configuration, shared policy loader; no tools yet | Architecture and analysis tools |
+| Other adapters | None | Reports |
 | Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
 
-F01–F12 establish the current implementation. The
+F01–F17 establish the current implementation. The
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
 adapters that can already be used.
@@ -36,6 +37,8 @@ flowchart LR
     Core["ArchitectureGuardian.Core<br/>Neutral contracts and metadata<br/>Pure policy"]
     Configuration["ArchitectureGuardian.Configuration<br/>YAML parsing and validation"]
 
+    Mcp["ArchitectureGuardian.Mcp<br/>Stdio protocol and read-only application composition"]
+    Mcp --> Configuration
     Cli --> Analysis
     Cli --> Configuration
     Analysis --> Core
@@ -49,7 +52,10 @@ technology-specific inputs into neutral facts before invoking rules. CLI can con
 Core contracts through its transitive reference to Core.
 Configuration depends only on Core and keeps YamlDotNet outside the domain. CLI
 references Configuration and Analysis to compose policy-driven commands; its
-System.CommandLine package stays outside the shared services.
+System.CommandLine package stays outside the shared services. MCP references
+Configuration for its injectable policy loader and owns its SDK and hosting
+packages. Its standard tool discovery and transport contracts
+are documented in the [MCP guide](../mcp.md).
 
 The service interface and its implementation live on opposite sides of this boundary:
 
@@ -102,6 +108,7 @@ nested implementation helpers stay with their owner.
 | Configuration | `Yaml` | YAML parsing and loading |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | Analyzers | `Policies` / project root | Compiler snapshot validation / compilation-local semantic diagnostics |
+| MCP | `Hosting` / project root | SDK host, tool registration and validated workspace options / standard host bootstrap |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
 Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories`, `Rules` and `Workspaces` folders and
@@ -135,12 +142,12 @@ severity gates. F04 supplies trusted workspace loading and F05 supplies neutral
 repository normalization and ownership composition. F06 supplies dependency
 extraction, evidence aggregation and deterministic traversal/cycles. F07 supplies
 AG001 module-dependency evaluation; F08 supplies AG002 layer-dependency evaluation.
-F09 supplies AG003 module-cycle evaluation. Future MCP and report adapters reuse
-these services.
+F09 supplies AG003 module-cycle evaluation. The MCP foundation registers the shared policy loader; future MCP analysis tools
+and report adapters reuse the analysis services as their operations require them.
 
 ```mermaid
 flowchart TD
-    Host["CLI — F10<br/>scan command; future MCP host"]
+    Host["CLI — F10<br/>scan command"]
     Configuration["Configuration adapter — implemented<br/>Read and validate YAML policy — F03"]
     Workspace["Analysis workspace integration — implemented<br/>Load solution or projects — F04"]
     Context["Neutral repository model — implemented<br/>Normalize declarations and ownership — F05"]
@@ -148,7 +155,7 @@ flowchart TD
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
     Rules["Core rule implementations<br/>AG001–AG006 — implemented F07–F09, F13–F15"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
-    Output["CLI console output — F10<br/>MCP and reports — planned"]
+    Output["CLI console output — F10<br/>MCP stdio — F17; tools and reports — planned"]
     Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Baselines — planned"]
 
     Host --> Configuration

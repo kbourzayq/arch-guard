@@ -17,6 +17,7 @@ public sealed class DependencyBoundaryTests
         ["ArchitectureGuardian.Analysis"] = ["ArchitectureGuardian.Core"],
         ["ArchitectureGuardian.Cli"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration"],
         ["ArchitectureGuardian.Analyzers"] = [],
+        ["ArchitectureGuardian.Mcp"] = ["ArchitectureGuardian.Configuration"],
     };
 
     /// <summary>Requires every production project to have an explicit dependency decision and belong to the solution.</summary>
@@ -45,6 +46,8 @@ public sealed class DependencyBoundaryTests
     [InlineData("ArchitectureGuardian.Analysis", "Release")]
     [InlineData("ArchitectureGuardian.Cli", "Debug")]
     [InlineData("ArchitectureGuardian.Cli", "Release")]
+    [InlineData("ArchitectureGuardian.Mcp", "Debug")]
+    [InlineData("ArchitectureGuardian.Mcp", "Release")]
     [InlineData("ArchitectureGuardian.Analyzers", "Debug")]
     [InlineData("ArchitectureGuardian.Analyzers", "Release")]
     public async Task Evaluated_references_respect_dependency_direction(string project, string configuration)
