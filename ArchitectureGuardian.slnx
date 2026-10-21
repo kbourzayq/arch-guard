@@ -4,6 +4,7 @@
     <Project Path="src/ArchitectureGuardian.Configuration/ArchitectureGuardian.Configuration.csproj" />
     <Project Path="src/ArchitectureGuardian.Analysis/ArchitectureGuardian.Analysis.csproj" />
     <Project Path="src/ArchitectureGuardian.Cli/ArchitectureGuardian.Cli.csproj" />
+    <Project Path="src/ArchitectureGuardian.Mcp/ArchitectureGuardian.Mcp.csproj" />
     <Project Path="src/ArchitectureGuardian.Analyzers/ArchitectureGuardian.Analyzers.csproj" />
   </Folder>
   <Folder Name="/tests/">

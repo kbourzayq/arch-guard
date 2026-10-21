@@ -321,7 +321,8 @@ workspace orchestration outside that surface; see the F12 decision below.
 
 - Analysis owns workspace/MSBuild packages, Analyzers owns compiler-only Roslyn
   packages and Configuration owns the YAML package;
-  Core remains independent of external packages. MCP and reporting remain planned.
+  Core remains independent of external packages. MCP transport is implemented in F17;
+  MCP tools and reporting remain planned.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
 - Extra adapters and concrete port APIs are deferred until required, avoiding unused
@@ -384,3 +385,21 @@ The compiler snapshot carries equivalent layer attributes and source-links only
 explicit-name semantic surface and host severity settings. AG006 namespace exceptions
 cannot override AG002's layer matrix or AG005's general restrictions; each rule keeps
 its own findings and evidence. No project, package or component dependency is added.
+
+## F17: local read-only MCP adapter
+
+`ArchitectureGuardian.Mcp` is the sixth production project and targets net10.0.
+It references Analysis and Configuration, consumes Core transitively, and owns
+ModelContextProtocol 2.2.0 and Microsoft.Extensions.Hosting 10.0.10. The SDK handles
+stdio JSON-RPC, negotiation and cancellation. Logs go only to stderr. No HTTP
+hosting dependency is introduced. Solution membership, evaluated boundary tests,
+repository layer policy and package lock files include this adapter.
+
+F17 registers the shared policy loader and analysis service without adding rule
+semantics. Its tool catalog is intentionally empty until F18. Operator-owned root
+and trust settings, physical input confinement, bounded frames and policy inputs,
+a single application request slot and linked cooperative deadlines establish the
+contracts for subsequent read-only tools. Build trust cannot be granted by tool
+arguments or client roots. The adapter cannot write source, policy or baselines;
+trusted MSBuild execution remains subject to the existing workspace contract.
+See the [MCP guide](../../mcp.md) for startup, limits and error behavior.

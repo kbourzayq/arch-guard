@@ -17,8 +17,9 @@ This repository implements [F01](https://github.com/kbourzayq/arch-guard/issues/
 [F12](https://github.com/kbourzayq/arch-guard/issues/12),
 [F13](https://github.com/kbourzayq/arch-guard/issues/13),
 [F14](https://github.com/kbourzayq/arch-guard/issues/14),
-[F15](https://github.com/kbourzayq/arch-guard/issues/15) and
-[F16](https://github.com/kbourzayq/arch-guard/issues/16): the .NET 10 solution, component
+[F15](https://github.com/kbourzayq/arch-guard/issues/15),
+[F16](https://github.com/kbourzayq/arch-guard/issues/16) and
+[F17](https://github.com/kbourzayq/arch-guard/issues/17): the .NET 10 solution, component
 boundaries, CI, shared contracts, reusable analysis orchestration, versioned YAML
 policy, deterministic project matching, severity gates, trusted workspace loading,
 a normalized repository/module model, dependency extraction with an evidence graph,
@@ -28,7 +29,8 @@ and explain commands, with compliant and deliberately violating reference soluti
 a compiler-hosted AG001/AG002/AG004/AG005/AG006 analyzer with a semantic test harness, and
 AG004 semantic enforcement of declared implementation boundaries and AG005 explicit
 assembly/namespace restrictions and AG006 layer-scoped domain technology restrictions
-with namespace exceptions in both engines, plus labeled semantic accuracy and engine parity fixtures.
+with namespace exceptions in both engines, plus labeled semantic accuracy and engine
+parity fixtures and a local read-only MCP stdio host.
 Additional capabilities follow in the
 [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
@@ -51,7 +53,7 @@ permissions, selected rule IDs, severities and gates. The [JSON Schema](docs/sch
 supports editor validation; the loader additionally checks references and the
 resolver rejects unmatched or ambiguously mapped projects.
 
-The [repository policy](architecture.guardian.yaml) maps all eight solution projects.
+The [repository policy](architecture.guardian.yaml) maps all nine solution projects.
 A [modular-monolith example](docs/examples/modular-monolith/architecture.guardian.yaml)
 shows contract-only permissions. These files can be loaded through `YamlPolicyLoader`
 and resolved against a supplied inventory or used directly by CLI `scan` and `inspect`.
@@ -198,7 +200,13 @@ implement AG001–AG006 over `DependencyBuildResult`. The
 [policy composition example](docs/policy.md#host-composition) explain their scope and use.
 
 The [compiler analyzer guide](docs/compiler-analyzer.md) describes package consumption,
-policy distribution, semantic scope and host validation. MCP and reporting adapters
-will be added when their features need them. [ADR 0001](docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md)
+policy distribution, semantic scope and host validation. The MCP stdio adapter is implemented in F17;
+MCP tools and reporting will follow in their respective features. [ADR 0001](docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md)
 records ports, dependency direction, the two analysis engines and compiler-host
 compatibility constraints.
+
+## Run the MCP server
+
+The [MCP guide](docs/mcp.md) covers the stdio executable, client configuration,
+operator-selected workspace root, build trust, cancellation, limits and error contracts.
+F17 provides protocol initialization and an empty tool catalog; F18 adds architecture tools.
