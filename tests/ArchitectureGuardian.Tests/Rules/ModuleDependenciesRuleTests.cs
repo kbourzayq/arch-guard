@@ -116,7 +116,7 @@ public sealed class ModuleDependenciesRuleTests
         var context = Context([Evidence(Orders, Internal)], severity: severity);
         var result = await AnalyzeAsync(context);
         var diagnostic = Assert.Single(result.Diagnostics);
-        var raw = Assert.Single((await new ModuleDependenciesRule().EvaluateAsync(context)).Violations);
+        var raw = Assert.Single((await new ModuleDependenciesRule().EvaluateAsync(context, TestContext.Current.CancellationToken)).Violations);
 
         Assert.Equal(severity, diagnostic.Severity);
         Assert.Equal(raw.Id, diagnostic.Id);
@@ -131,7 +131,7 @@ public sealed class ModuleDependenciesRuleTests
         IArchitectureRule<DependencyBuildResult>[] available = [new ModuleDependenciesRule(), new CleanLayerRule()];
         var policy = context.Repository!.Policy;
         var selected = policy.SelectRules(available);
-        var result = await new AnalysisService<DependencyBuildResult>(selected).AnalyzeAsync(new(context, policy.SeverityPolicy));
+        var result = await new AnalysisService<DependencyBuildResult>(selected).AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
 
         Assert.Equal("AG002", Assert.Single(selected).Descriptor.Id);
         Assert.Equal(AnalysisStatus.Completed, result.Status);
@@ -188,7 +188,7 @@ public sealed class ModuleDependenciesRuleTests
         var issue = new AnalysisIssue("missing-context", "Dependency extraction could not establish context.");
         var context = new DependencyBuildResult(missingRepository ? null : complete.Repository,
             missingRepository ? complete.Graph : null, AnalysisStatus.Incomplete, [issue]);
-        var result = await new ModuleDependenciesRule().EvaluateAsync(context);
+        var result = await new ModuleDependenciesRule().EvaluateAsync(context, TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Empty(result.Violations);
@@ -200,7 +200,7 @@ public sealed class ModuleDependenciesRuleTests
     public async Task Cancellation_is_observed_and_null_input_is_rejected()
     {
         var rule = new ModuleDependenciesRule();
-        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!, TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() => rule.EvaluateAsync(Context([]), cancellation.Token));

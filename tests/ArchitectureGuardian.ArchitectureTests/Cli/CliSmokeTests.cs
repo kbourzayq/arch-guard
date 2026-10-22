@@ -88,8 +88,7 @@ public sealed class CliSmokeTests
             var path = Path.Combine(directory, "Input.csproj");
             if (scenario == "missing-sdk-version")
             {
-                await File.WriteAllTextAsync(Path.Combine(directory, "global.json"),
-                    "{\"sdk\":{\"version\":\"99.0.100\",\"rollForward\":\"disable\"}}");
+                await File.WriteAllTextAsync(Path.Combine(directory, "global.json"), "{\"sdk\":{\"version\":\"99.0.100\",\"rollForward\":\"disable\"}}", TestContext.Current.CancellationToken);
             }
             var sdk = scenario == "missing-sdk" ? "ArchitectureGuardian.Nonexistent.Sdk" : "Microsoft.NET.Sdk";
             var items = scenario switch
@@ -98,10 +97,10 @@ public sealed class CliSmokeTests
                 "missing-reference" => "<Reference Include=\"Unavailable.Assembly\"><HintPath>unavailable.dll</HintPath></Reference>",
                 _ => "",
             };
-            await File.WriteAllTextAsync(path, $"<Project Sdk=\"{sdk}\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup>{items}</ItemGroup></Project>");
+            await File.WriteAllTextAsync(path, $"<Project Sdk=\"{sdk}\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup>{items}</ItemGroup></Project>", TestContext.Current.CancellationToken);
             if (scenario == "missing-reference")
             {
-                await File.WriteAllTextAsync(Path.Combine(directory, "Consumer.cs"), "public class Consumer : Unavailable.Contract { }");
+                await File.WriteAllTextAsync(Path.Combine(directory, "Consumer.cs"), "public class Consumer : Unavailable.Contract { }", TestContext.Current.CancellationToken);
             }
 
             if (scenario is not ("missing-sdk" or "missing-sdk-version"))

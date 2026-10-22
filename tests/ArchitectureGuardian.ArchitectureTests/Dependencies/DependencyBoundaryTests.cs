@@ -54,10 +54,11 @@ public sealed class DependencyBoundaryTests
     {
         var path = Path.Combine("src", project, $"{project}.csproj");
         var result = await Repository.Dotnet("msbuild", path, "-nologo", $"-property:Configuration={configuration}",
-            "-getProperty:TargetFramework", "-getItem:ProjectReference,PackageReference,Reference,FrameworkReference,Compile");
+            "-getProperty:TargetFramework,ManagePackageVersionsCentrally", "-getItem:ProjectReference,PackageReference,PackageVersion,Reference,FrameworkReference,Compile");
 
         Assert.True(result.ExitCode == 0, result.Output + result.Error);
         using var document = JsonDocument.Parse(result.Output);
+        Assert.Equal("true", document.RootElement.GetProperty("Properties").GetProperty("ManagePackageVersionsCentrally").GetString());
         Assert.Equal(project == "ArchitectureGuardian.Analyzers" ? "netstandard2.0" : "net10.0",
             document.RootElement.GetProperty("Properties").GetProperty("TargetFramework").GetString());
 
@@ -82,8 +83,11 @@ public sealed class DependencyBoundaryTests
             Assert.Equal(["Microsoft.CodeAnalysis.Analyzers", "Microsoft.CodeAnalysis.CSharp"],
                 packages.Select(item => item.GetProperty("Identity").GetString()).Order());
             Assert.All(packages, item => Assert.Equal("all", item.GetProperty("PrivateAssets").GetString()));
-            Assert.Equal("4.8.0", packages.Single(item => item.GetProperty("Identity").GetString() == "Microsoft.CodeAnalysis.CSharp")
+            Assert.Equal("4.8.0", items.GetProperty("PackageVersion").EnumerateArray()
+                .Single(item => item.GetProperty("Identity").GetString() == "Microsoft.CodeAnalysis.CSharp")
                 .GetProperty("Version").GetString());
+            using var assets = JsonDocument.Parse(File.ReadAllText(Path.Combine(Repository.Root, "src", project, "obj", "project.assets.json")));
+            Assert.True(assets.RootElement.GetProperty("libraries").TryGetProperty("Microsoft.CodeAnalysis.CSharp/4.8.0", out _));
         }
 
         if (project == "ArchitectureGuardian.Core")

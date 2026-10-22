@@ -14,7 +14,7 @@ internal static class WorkspaceProjectValidator
     {
         // MSBuildWorkspace adds solution globals during opening; retain them along with caller properties.
         var properties = new Dictionary<string, string>(workspaceProperties, StringComparer.OrdinalIgnoreCase);
-        // Match the design-time defaults of the pinned Roslyn 5.0 build host on .NET.
+        // Match the design-time defaults of the pinned Roslyn build host on .NET.
         foreach (var (name, value) in new Dictionary<string, string>
         {
             ["DesignTimeBuild"] = bool.TrueString,

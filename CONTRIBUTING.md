@@ -56,6 +56,19 @@ CI runs these checks on Linux, Windows and macOS. Passing locally does not repla
 the required CI jobs. Dependency-boundary tests evaluate Debug and Release and
 enforce solution membership and package/project reference direction.
 
+All three test assemblies use xUnit v3 and build as .NET 10 executables. The
+centrally versioned `xunit.v3.mtp-off` package disables Microsoft Testing Platform
+integration. `dotnet test` uses VSTest through `xunit.runner.visualstudio` 4.0.1
+and `Microsoft.NET.Test.Sdk` 18.11.0, including the category filters and TRX logger
+shown here and in CI. Async fixtures implement xUnit v3's `ValueTask` lifetime
+methods; keep resource cleanup in `DisposeAsync`, which xUnit calls in preference
+to `IDisposable.Dispose` when both are implemented.
+Use `TestContext.Current.CancellationToken` for cancellable test operations unless
+the scenario deliberately supplies its own token. Cleanup that must restore shared
+fixtures after cancellation uses an explicit `CancellationToken.None`. Workspace
+test assemblies use `[assembly: Parallelization(MaxThreads = 2)]` to bound
+concurrent collections.
+
 For fast feedback after a build:
 
 ```sh
@@ -79,7 +92,7 @@ For compiler package changes, also build and verify a consumer package:
 
 ```sh
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
-python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.301
+python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.402
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
@@ -93,6 +106,19 @@ Keep machine-specific paths out of committed examples and label any replacement 
 ## Change dependencies deliberately
 
 NuGet uses the sources in [NuGet.Config](NuGet.Config). Lock files are committed.
+Author participating package versions in the root `Directory.Packages.props`;
+project `PackageReference` items retain dependency ownership and asset/privacy
+metadata without inline versions. Conditional central entries keep the analyzer
+test project's Roslyn 4.8 baseline separate from the solution-workspace packages.
+Core has no package references, and central transitive pinning is disabled.
+The analyzer test project explicitly references private PKCS 10.0.13 because
+Analyzer.Testing 1.1.4 resolves vulnerable PKCS 9.0.6 through NuGet.Packaging 7.0.3
+without that reference (GHSA-2fmv-rv2c-59x7 and GHSA-846f-f764-76mx).
+
+The Workspaces, ReferenceSolutions and AgentCorrection fixture roots each carry a
+`Directory.Packages.props` opt-out, copied with their inputs. They restore
+independently; the build-only generator retains its own explicit package version
+and committed lock file. Keep intentional failed-restore inputs unchanged.
 When intentionally updating packages:
 
 ```sh

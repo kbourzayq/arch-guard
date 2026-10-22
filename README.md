@@ -42,7 +42,7 @@ before adopting a scan as a required gate.
 
 ## Install and run your first scan
 
-Install the **.NET SDK 10.0.301** or a later stable patch in the `10.0.3xx` feature
+Install the **.NET SDK 10.0.402** or a later stable patch in the `10.0.4xx` feature
 band, then run:
 
 ```sh

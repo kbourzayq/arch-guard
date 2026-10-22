@@ -31,7 +31,7 @@ public class WorkspaceFixture : IAsyncLifetime
 
     /// <summary>Copies checked-in inputs and restores the supported fixture contexts.</summary>
     /// <returns>A task completing when restore prerequisites are available.</returns>
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         var repository = new DirectoryInfo(AppContext.BaseDirectory);
         while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "ArchitectureGuardian.slnx")))
@@ -137,9 +137,9 @@ public class WorkspaceFixture : IAsyncLifetime
 
     /// <summary>Removes the temporary fixture and all of its intermediate outputs.</summary>
     /// <returns>A completed cleanup task.</returns>
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         Directory.Delete(Root, recursive: true);
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }

@@ -9,7 +9,7 @@ or assume that a package has been published to nuget.org.
 | Requirement | Details |
 | --- | --- |
 | Operating system | Linux, macOS or Windows; all three run the repository's CI checks. |
-| SDK for this checkout | .NET SDK `10.0.301`, or a later stable patch in the same `10.0.3xx` feature band, as defined by `global.json`. Preview SDKs are excluded. |
+| SDK for this checkout | .NET SDK `10.0.402`, or a later stable patch in the same `10.0.4xx` feature band, as defined by `global.json`. Preview SDKs are excluded. |
 | Runtime | CLI and MCP target .NET 10. The SDK above includes the runtime needed to run the published DLLs. |
 | Git | Install [Git](https://git-scm.com/downloads/) to clone the repository. |
 | Package access | Access to the configured NuGet feeds for initial restore, or an already populated package cache. |
@@ -17,8 +17,8 @@ or assume that a package has been published to nuget.org.
 
 Download the SDK for your operating system and CPU from the official
 [.NET 10 download page](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
-Select a release providing an allowed `10.0.3xx` SDK. Installing a newer feature
-band such as `10.0.4xx` alone does not satisfy this checkout's `latestPatch` policy.
+Select a release providing an allowed `10.0.4xx` SDK. Installing only an SDK from a
+different feature band does not satisfy this checkout's `latestPatch` policy.
 
 Check your installation with `dotnet --list-sdks`. From this checkout, `dotnet --version`
 should select the version allowed by `global.json`. A .NET 10 runtime alone is

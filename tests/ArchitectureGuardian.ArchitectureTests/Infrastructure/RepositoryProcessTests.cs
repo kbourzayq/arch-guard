@@ -27,9 +27,9 @@ public sealed class RepositoryProcessTests
                   </UsingTask>
                   <Target Name="Wait"><WaitForRelease ReleasePath="$(MSBuildProjectDirectory)/release" /></Target>
                 </Project>
-                """);
+                """, TestContext.Current.CancellationToken);
             // Verify that the fixture itself is valid before asking it to block.
-            await File.WriteAllTextAsync(release, "release");
+            await File.WriteAllTextAsync(release, "release", TestContext.Current.CancellationToken);
             var ready = await Repository.Dotnet(TimeSpan.FromSeconds(60), "msbuild", project, "-nologo", "-target:Wait");
             Assert.True(ready.ExitCode == 0, ready.Output + ready.Error);
             File.Delete(release);
@@ -43,7 +43,8 @@ public sealed class RepositoryProcessTests
         }
         finally
         {
-            await File.WriteAllTextAsync(release, "release");
+            // Cleanup must complete even when the test is cancelled.
+            await File.WriteAllTextAsync(release, "release", CancellationToken.None);
             Directory.Delete(directory, recursive: true);
         }
     }

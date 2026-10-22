@@ -7,6 +7,6 @@
     <RestoreLockedMode>true</RestoreLockedMode>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="5.9.0" />
   </ItemGroup>
 </Project>

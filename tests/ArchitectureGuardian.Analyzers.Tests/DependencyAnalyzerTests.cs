@@ -45,7 +45,7 @@ public sealed class DependencyAnalyzerTests
     {
         var test = await CreateAsync(source);
         ExpectPair(test, 0);
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Reports each partial declaration's actual dependency location without relying on declaration order.</summary>
@@ -56,7 +56,7 @@ public sealed class DependencyAnalyzerTests
         test.TestState.Sources.Add(("Second.cs", "public partial class Order { public Billing.{|#1:Box<int>|} Other() => null; }"));
         ExpectPair(test, 0);
         ExpectPair(test, 1);
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Includes generator-style files and generated-code attributes in the explicit compiler scope.</summary>
@@ -70,7 +70,7 @@ public sealed class DependencyAnalyzerTests
         var test = await CreateAsync("");
         test.TestState.Sources.Add((path, prefix + "public class Order : Billing.{|#0:Service|} { }"));
         ExpectPair(test, 0);
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Uses assembly ownership even when the dependency is another source project rather than a DLL.</summary>
@@ -84,7 +84,7 @@ public sealed class DependencyAnalyzerTests
         billing.AdditionalFiles.Add(("architecture.guardian.compiler.xml", Policy));
         test.TestState.AdditionalProjectReferences.Add("Billing.Application");
         ExpectPair(test, 0);
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Checks exact contract permissions, same ownership and independent directional layer decisions.</summary>
@@ -109,7 +109,7 @@ public sealed class DependencyAnalyzerTests
         if (moduleViolation) { test.ExpectedDiagnostics.Add(Result("AG001", 0)); }
         if (layerViolation) { test.ExpectedDiagnostics.Add(Result("AG002", 0)); }
         if (module != "Orders" && contract.Length == 0) { test.ExpectedDiagnostics.Add(Result("AG004", 0)); }
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Lets the compiler host apply severities and suppression through standard editorconfig settings.</summary>
@@ -123,7 +123,7 @@ public sealed class DependencyAnalyzerTests
             solution.GetProject(id)!.CompilationOptions!.WithSpecificDiagnosticOptions(
                 ImmutableDictionary<string, ReportDiagnostic>.Empty.Add("AG001", ReportDiagnostic.Error))));
         test.ExpectedDiagnostics.Add(new DiagnosticResult("AG001", DiagnosticSeverity.Error).WithLocation(0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Invalid, ambiguous or absent policy must report unavailable analysis, never a clean result or analyzer exception.</summary>
@@ -142,7 +142,7 @@ public sealed class DependencyAnalyzerTests
         var test = await CreateAsync("public class Order { }", policy ?? Policy);
         if (policy is null) { test.TestState.AdditionalFiles.Clear(); }
         test.ExpectedDiagnostics.Add(new DiagnosticResult("AG000", DiagnosticSeverity.Error));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Rejects duplicate snapshots and assembly-name drift as explicit configuration errors.</summary>
@@ -152,10 +152,10 @@ public sealed class DependencyAnalyzerTests
         var duplicate = await CreateAsync("public class Order { }");
         duplicate.TestState.AdditionalFiles.Add(("other/architecture.guardian.compiler.xml", Policy));
         duplicate.ExpectedDiagnostics.Add(new DiagnosticResult("AG000", DiagnosticSeverity.Error));
-        await duplicate.RunAsync();
+        await duplicate.RunAsync(TestContext.Current.CancellationToken);
         var unmapped = await CreateAsync("public class Order { }", Policy.Replace("Orders.Application", "Renamed", StringComparison.Ordinal));
         unmapped.ExpectedDiagnostics.Add(new DiagnosticResult("AG000", DiagnosticSeverity.Error));
-        await unmapped.RunAsync();
+        await unmapped.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>A permission for a contract never grants implementation access in another assembly of that module.</summary>
@@ -166,7 +166,7 @@ public sealed class DependencyAnalyzerTests
             .Replace("</ArchitectureGuardian>", "<Assembly name=\"Billing.Contracts\" module=\"Billing\" layer=\"Application\" contract=\"api\" /></ArchitectureGuardian>", StringComparison.Ordinal);
         var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
         ExpectPair(test, 0);
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Whole-module permission cannot expose a public implementation type as a declared contract.</summary>
@@ -186,7 +186,7 @@ public sealed class DependencyAnalyzerTests
             .Replace("<Layer id=\"Application\" />", "<Layer id=\"Application\" allows=\"Infrastructure\" />", StringComparison.Ordinal);
         var test = await CreateAsync(source, policy);
         test.ExpectedDiagnostics.Add(Result("AG004", 0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Unused imports and local lookalike names do not establish access to implementation symbols.</summary>
@@ -194,7 +194,7 @@ public sealed class DependencyAnalyzerTests
     public async Task Imports_and_local_lookalikes_do_not_report_implementation_access()
     {
         var test = await CreateAsync("using Store = Billing.CatalogDbContext; public class CatalogDbContext { } public class Order : CatalogDbContext { }");
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Reuses one analyzer concurrently with different snapshots without leaking policy state between compilations.</summary>
@@ -244,7 +244,7 @@ public sealed class DependencyAnalyzerTests
         var test = await CreateAsync(source, policy);
         ExpectPair(test, 0);
         test.ExpectedDiagnostics.Add(Result("AG005", 0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Framework and unmapped package assemblies remain in AG005 scope, without inferring ownership.</summary>
@@ -258,7 +258,7 @@ public sealed class DependencyAnalyzerTests
             .Replace("<Assembly name=\"Billing.Application\" module=\"Billing\" layer=\"Infrastructure\" />", "", StringComparison.Ordinal);
         var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
         test.ExpectedDiagnostics.Add(Result("AG005", 0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Exact assembly names and namespace segment boundaries avoid prefix false positives.</summary>
@@ -273,7 +273,7 @@ public sealed class DependencyAnalyzerTests
         var policy = Policy.Replace("<Module id=\"Orders\" />", $"<Module id=\"Orders\" {restriction} />", StringComparison.Ordinal);
         var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
         ExpectPair(test, 0);
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Explicit framework namespace restrictions include descendants and generated host trees.</summary>
@@ -287,7 +287,7 @@ public sealed class DependencyAnalyzerTests
         var test = await CreateAsync("", policy);
         test.TestState.Sources.Add(("Order.g.cs", "// <auto-generated/>\nglobal using System.Text; public class Order { public {|#0:StringBuilder|} Text; }"));
         test.ExpectedDiagnostics.Add(Result("AG005", 0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Namespace and assembly lookalikes, strings and unused imports never establish forbidden uses.</summary>
@@ -296,7 +296,7 @@ public sealed class DependencyAnalyzerTests
     {
         var policy = Policy.Replace("<Module id=\"Orders\" />", "<Module id=\"Orders\" forbiddenNamespaces=\"Billing\" forbiddenAssemblies=\"Billing\" />", StringComparison.Ordinal);
         var test = await CreateAsync("using Alias = Billing.Service; namespace BillingLike { public class Service { } } public class Order : BillingLike.Service { public string Name => \"Billing.Service\"; }", policy);
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Explicit framework keywords and qualified spellings obey the same namespace and assembly restrictions.</summary>
@@ -316,7 +316,7 @@ public sealed class DependencyAnalyzerTests
             var policy = Policy.Replace("<Module id=\"Orders\" />", $"<Module id=\"Orders\" {restriction} />", StringComparison.Ordinal);
             var test = await CreateAsync(source, policy);
             test.ExpectedDiagnostics.Add(Result("AG005", 0));
-            await test.RunAsync();
+            await test.RunAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -327,7 +327,7 @@ public sealed class DependencyAnalyzerTests
         var policy = Policy.Replace("<Module id=\"Orders\" />", "<Module id=\"Orders\" forbiddenNamespaces=\"event\" />", StringComparison.Ordinal);
         var test = await CreateAsync("namespace @event { public class Api { } } public class Order : @event.{|#0:Api|} { }", policy);
         test.ExpectedDiagnostics.Add(Result("AG005", 0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Malformed and duplicate restrictions are rejected through the normal configuration diagnostic.</summary>
@@ -341,7 +341,7 @@ public sealed class DependencyAnalyzerTests
     {
         var test = await CreateAsync("public class Order { }", Policy.Replace("<Module id=\"Orders\" />", $"<Module id=\"Orders\" {restriction} />", StringComparison.Ordinal));
         test.ExpectedDiagnostics.Add(new DiagnosticResult("AG000", DiagnosticSeverity.Error));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>AG006 uses configured source layers and keeps independent diagnostics for overlapping rules.</summary>
@@ -357,7 +357,7 @@ public sealed class DependencyAnalyzerTests
         ExpectPair(test, 0);
         test.ExpectedDiagnostics.Add(Result("AG005", 0));
         test.ExpectedDiagnostics.Add(Result("AG006", 0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>AG006 exceptions have namespace segment boundaries and do not waive the independent layer rule.</summary>
@@ -374,7 +374,7 @@ public sealed class DependencyAnalyzerTests
         var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
         ExpectPair(test, 0);
         if (!excepted) { test.ExpectedDiagnostics.Add(Result("AG006", 0)); }
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>AG006 external dependencies require no target ownership entry and unconfigured source layers pass.</summary>
@@ -386,9 +386,9 @@ public sealed class DependencyAnalyzerTests
             .Replace("<Assembly name=\"Billing.Application\" module=\"Billing\" layer=\"Infrastructure\" />", "", StringComparison.Ordinal);
         var test = await CreateAsync("public class Order : Billing.{|#0:Service|} { }", policy);
         test.ExpectedDiagnostics.Add(Result("AG006", 0));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
         var clean = await CreateAsync("public class Order : Billing.Service { }", policy.Replace("infrastructureNamespaces=\"Billing\"", "", StringComparison.Ordinal));
-        await clean.RunAsync();
+        await clean.RunAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>Malformed infrastructure bans and exceptions fail policy loading rather than silently passing.</summary>
@@ -403,7 +403,7 @@ public sealed class DependencyAnalyzerTests
         var policy = Policy.Replace("<Layer id=\"Application\" />", $"<Layer id=\"Application\" {restriction} />", StringComparison.Ordinal);
         var test = await CreateAsync("public class Order { }", policy);
         test.ExpectedDiagnostics.Add(new DiagnosticResult("AG000", DiagnosticSeverity.Error));
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     private static async Task<CSharpAnalyzerTest<DependencyAnalyzer, DefaultVerifier>> CreateAsync(string source, string policy = Policy)

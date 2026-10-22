@@ -24,7 +24,7 @@ public sealed class ImplementationBoundariesRuleTests
             Use(Orders, Contracts), Use(Contracts, Implementation), Use(Implementation, Implementation),
             Use(Orders, null), new(Orders, Implementation, new("Unused project reference."), projectReference: Implementation),
             new(Orders, Implementation, new("Unused assembly reference.")),
-        ]));
+        ]), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Empty(result.Violations);
         Assert.Empty(result.Issues);
@@ -41,8 +41,8 @@ public sealed class ImplementationBoundariesRuleTests
         Assert.True(context.Repository!.ResolvedPolicy.AllowsModuleDependency(Orders, Implementation));
         var duplicated = new DependencyGraph(context.Graph!.Nodes, context.Graph.Edges.Concat(context.Graph.Edges))
             .Aggregate(context.Repository);
-        var first = await new ImplementationBoundariesRule().EvaluateAsync(new(context.Repository, duplicated, AnalysisStatus.Completed));
-        var second = await new ImplementationBoundariesRule().EvaluateAsync(Context([otherSymbol, secondUse, firstUse]));
+        var first = await new ImplementationBoundariesRule().EvaluateAsync(new(context.Repository, duplicated, AnalysisStatus.Completed), TestContext.Current.CancellationToken);
+        var second = await new ImplementationBoundariesRule().EvaluateAsync(Context([otherSymbol, secondUse, firstUse]), TestContext.Current.CancellationToken);
 
         Assert.Equal(2, first.Violations.Count);
         Assert.Equal(first.Violations.Select(item => item.Id), second.Violations.Select(item => item.Id));
@@ -65,7 +65,7 @@ public sealed class ImplementationBoundariesRuleTests
         var policy = context.Repository!.Policy;
         var rules = policy.SelectRules<DependencyBuildResult>([new ModuleDependenciesRule(), new ImplementationBoundariesRule()]);
         Assert.IsType<ImplementationBoundariesRule>(Assert.Single(rules));
-        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, policy.SeverityPolicy));
+        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
         Assert.Equal(DiagnosticSeverity.Error, Assert.Single(result.Diagnostics).Severity);
         Assert.False(policy.Gate.Passes(result));
     }
@@ -78,7 +78,7 @@ public sealed class ImplementationBoundariesRuleTests
     [InlineData(Orders, "Missing.csproj")]
     public async Task Unknown_ownership_preserves_findings_and_reports_incomplete(string source, string target)
     {
-        var result = await new ImplementationBoundariesRule().EvaluateAsync(Context([Use(source, target), Use(Orders, Implementation)]));
+        var result = await new ImplementationBoundariesRule().EvaluateAsync(Context([Use(source, target), Use(Orders, Implementation)]), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Single(result.Violations);
         var issue = Assert.Single(result.Issues);
@@ -96,11 +96,11 @@ public sealed class ImplementationBoundariesRuleTests
     {
         var context = Context([Use(Orders, Implementation)]);
         var issue = new AnalysisIssue("partial-input", "Extraction did not complete.");
-        var result = await new ImplementationBoundariesRule().EvaluateAsync(new(context.Repository, context.Graph, status, [issue]));
+        var result = await new ImplementationBoundariesRule().EvaluateAsync(new(context.Repository, context.Graph, status, [issue]), TestContext.Current.CancellationToken);
         Assert.Equal(status, result.Status);
         Assert.Equal(issue, Assert.Single(result.Issues));
         Assert.Single(result.Violations);
-        var missing = await new ImplementationBoundariesRule().EvaluateAsync(new(null, null, status, [issue]));
+        var missing = await new ImplementationBoundariesRule().EvaluateAsync(new(null, null, status, [issue]), TestContext.Current.CancellationToken);
         Assert.Equal(status, missing.Status);
         Assert.Empty(missing.Violations);
     }
@@ -110,7 +110,7 @@ public sealed class ImplementationBoundariesRuleTests
     public async Task Cancellation_and_null_input_are_preserved()
     {
         var rule = new ImplementationBoundariesRule();
-        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!, TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() => rule.EvaluateAsync(Context([]), cancellation.Token));

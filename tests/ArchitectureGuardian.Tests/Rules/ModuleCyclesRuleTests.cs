@@ -25,7 +25,7 @@ public sealed class ModuleCyclesRuleTests
     public async Task Graph_fixtures_report_real_cycle_paths(string edges, string paths)
     {
         var context = Context(Facts(edges));
-        var result = await new ModuleCyclesRule().EvaluateAsync(context);
+        var result = await new ModuleCyclesRule().EvaluateAsync(context, TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Empty(result.Issues);
@@ -46,8 +46,8 @@ public sealed class ModuleCyclesRuleTests
     public async Task Complex_component_reports_one_concise_deterministic_path_with_only_its_evidence()
     {
         var facts = Facts("A>D;D>E;E>A;A>C;C>A;A>B;B>A;C>B");
-        var first = await new ModuleCyclesRule().EvaluateAsync(Context(facts));
-        var second = await new ModuleCyclesRule().EvaluateAsync(Context(facts.Reverse()));
+        var first = await new ModuleCyclesRule().EvaluateAsync(Context(facts), TestContext.Current.CancellationToken);
+        var second = await new ModuleCyclesRule().EvaluateAsync(Context(facts.Reverse()), TestContext.Current.CancellationToken);
         var finding = Assert.Single(first.Violations);
 
         Assert.Equal("Module dependency cycle: A → B → A.", finding.Message);
@@ -74,8 +74,8 @@ public sealed class ModuleCyclesRuleTests
         var context = Context(facts.Concat(facts), kind);
         var graph = new DependencyGraph(context.Graph!.Nodes, context.Graph.Edges.Concat(Context(facts).Graph!.Edges))
             .Aggregate(context.Repository!);
-        var finding = Assert.Single((await new ModuleCyclesRule().EvaluateAsync(new(context.Repository, graph, AnalysisStatus.Completed))).Violations);
-        var direct = Assert.Single((await new ModuleCyclesRule().EvaluateAsync(Context(facts))).Violations);
+        var finding = Assert.Single((await new ModuleCyclesRule().EvaluateAsync(new(context.Repository, graph, AnalysisStatus.Completed), TestContext.Current.CancellationToken)).Violations);
+        var direct = Assert.Single((await new ModuleCyclesRule().EvaluateAsync(Context(facts), TestContext.Current.CancellationToken)).Violations);
 
         Assert.Equal(direct.Id, finding.Id);
         Assert.Equal(3, finding.Evidence.Count);
@@ -93,8 +93,8 @@ public sealed class ModuleCyclesRuleTests
         var context = Context(Facts("A>B;B>A"), contractsOnly: contractsOnly);
         Assert.All(context.Graph!.Edges.SelectMany(edge => edge.Evidence),
             fact => Assert.True(context.Repository!.ResolvedPolicy.AllowsModuleDependency(fact.SourceProject, fact.TargetProject!)));
-        Assert.Empty((await new ModuleDependenciesRule().EvaluateAsync(context)).Violations);
-        Assert.Single((await new ModuleCyclesRule().EvaluateAsync(context)).Violations);
+        Assert.Empty((await new ModuleDependenciesRule().EvaluateAsync(context, TestContext.Current.CancellationToken)).Violations);
+        Assert.Single((await new ModuleCyclesRule().EvaluateAsync(context, TestContext.Current.CancellationToken)).Violations);
     }
 
     /// <summary>Same-module project loops, explicit aggregate self edges and external metadata do not form module cycles.</summary>
@@ -107,7 +107,7 @@ public sealed class ModuleCyclesRuleTests
             new("A/Implementation.csproj", null, new("Uses framework metadata.")),
         ]);
         var context = Context(facts, DependencyKind.Module);
-        var result = await new ModuleCyclesRule().EvaluateAsync(context);
+        var result = await new ModuleCyclesRule().EvaluateAsync(context, TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Empty(result.Violations);
@@ -123,7 +123,7 @@ public sealed class ModuleCyclesRuleTests
         var unknown = new DependencyEvidence(source ? "Missing.csproj" : "A/Implementation.csproj",
             source ? "A/Contracts.csproj" : "Missing.csproj", new("Unmapped dependency."));
         var context = Context(Facts("A>B;B>A").Concat([unknown, unknown]));
-        var result = await new ModuleCyclesRule().EvaluateAsync(context);
+        var result = await new ModuleCyclesRule().EvaluateAsync(context, TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Single(result.Violations);
@@ -142,7 +142,7 @@ public sealed class ModuleCyclesRuleTests
     {
         var complete = Context(Facts("A>B;B>A"));
         var issue = new AnalysisIssue("partial-graph", "Extraction did not complete.");
-        var result = await new ModuleCyclesRule().EvaluateAsync(new(complete.Repository, complete.Graph, status, [issue]));
+        var result = await new ModuleCyclesRule().EvaluateAsync(new(complete.Repository, complete.Graph, status, [issue]), TestContext.Current.CancellationToken);
 
         Assert.Equal(status, result.Status);
         Assert.Equal(issue, Assert.Single(result.Issues));
@@ -159,7 +159,7 @@ public sealed class ModuleCyclesRuleTests
         var complete = Context([]);
         var issue = new AnalysisIssue("missing-context", "Dependency extraction has no context.");
         var result = await new ModuleCyclesRule().EvaluateAsync(new(repositoryMissing ? null : complete.Repository,
-            repositoryMissing ? complete.Graph : null, AnalysisStatus.Incomplete, [issue]));
+            repositoryMissing ? complete.Graph : null, AnalysisStatus.Incomplete, [issue]), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Equal(issue, Assert.Single(result.Issues));
@@ -179,8 +179,8 @@ public sealed class ModuleCyclesRuleTests
         var selected = policy.SelectRules<DependencyBuildResult>([new ModuleCyclesRule(), new ModuleDependenciesRule()]);
         Assert.Equal("AG003", Assert.Single(selected).Descriptor.Id);
         var service = new AnalysisService<DependencyBuildResult>(selected);
-        var result = await service.AnalyzeAsync(new(context, new(new Dictionary<string, DiagnosticSeverity> { ["AG003"] = severity })));
-        var finding = Assert.Single((await new ModuleCyclesRule().EvaluateAsync(context)).Violations);
+        var result = await service.AnalyzeAsync(new(context, new(new Dictionary<string, DiagnosticSeverity> { ["AG003"] = severity })), TestContext.Current.CancellationToken);
+        var finding = Assert.Single((await new ModuleCyclesRule().EvaluateAsync(context, TestContext.Current.CancellationToken)).Violations);
         var diagnostic = Assert.Single(result.Diagnostics);
 
         Assert.Equal(finding.Id, diagnostic.Id);
@@ -206,7 +206,7 @@ public sealed class ModuleCyclesRuleTests
             [new(source.ProjectPath!, target.ProjectPath, new($"Project '{source.Identity}' references '{target.Identity}'."),
                 projectReference: target.ProjectPath)]));
         var context = new DependencyBuildResult(repository, new DependencyGraph(nodes, edges), AnalysisStatus.Completed);
-        var result = await new ModuleCyclesRule().EvaluateAsync(context);
+        var result = await new ModuleCyclesRule().EvaluateAsync(context, TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Equal(names.Length, Assert.Single(result.Violations).Evidence.Count);
@@ -217,7 +217,7 @@ public sealed class ModuleCyclesRuleTests
     public async Task Null_and_cancelled_input_are_rejected()
     {
         var rule = new ModuleCyclesRule();
-        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!, TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() => rule.EvaluateAsync(Context([]), cancellation.Token));

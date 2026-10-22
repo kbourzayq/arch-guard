@@ -54,7 +54,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
             evidence => Assert.False(Path.IsPathFullyQualified(evidence.Fact.Location!.Path)));
         // BuildAsync has disposed the workspace: the graph and policy remain usable without host objects.
         Assert.True(result.Repository!.ResolvedPolicy.AllowsModuleDependency(Orders, Contracts));
-        Assert.NotEmpty(graph.Traverse(type.Source.Id));
+        Assert.NotEmpty(graph.Traverse(type.Source.Id, TestContext.Current.CancellationToken));
         var evaluation = await EvaluateDependenciesAsync(result, "AG001");
         Assert.True(evaluation.IsComplete);
         Assert.Empty(evaluation.Diagnostics);
@@ -79,14 +79,14 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         var projectPath = Path.Combine(root, Orders);
         var sourcePath = Path.Combine(root, "src/Orders/Orders.Application/Forbidden.cs");
         var targetPath = Path.Combine(root, "src/Billing/Billing.Infrastructure/VisibleStore.cs");
-        var original = await File.ReadAllTextAsync(projectPath);
+        var original = await File.ReadAllTextAsync(projectPath, TestContext.Current.CancellationToken);
         try
         {
             var xml = XDocument.Parse(original);
             xml.Root!.Add(new XElement("ItemGroup", new XElement("ProjectReference", new XAttribute("Include", "../../Billing/Billing.Infrastructure/Billing.Infrastructure.csproj"))));
-            await File.WriteAllTextAsync(projectPath, xml.ToString());
-            await File.WriteAllTextAsync(sourcePath, "namespace Orders.Application; public class Forbidden { public Billing.Infrastructure.VisibleStore Create() => new(); }");
-            await File.WriteAllTextAsync(targetPath, "namespace Billing.Infrastructure; public class VisibleStore;");
+            await File.WriteAllTextAsync(projectPath, xml.ToString(), TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(sourcePath, "namespace Orders.Application; public class Forbidden { public Billing.Infrastructure.VisibleStore Create() => new(); }", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(targetPath, "namespace Billing.Infrastructure; public class VisibleStore;", TestContext.Current.CancellationToken);
             await fixture.RestoreAsync(Path.Combine(root, "ModularMonolith.slnx"));
             var result = await BuildAsync();
             Complete(result);
@@ -145,7 +145,8 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         }
         finally
         {
-            await File.WriteAllTextAsync(projectPath, original);
+            // Cleanup must complete even when the test is cancelled.
+            await File.WriteAllTextAsync(projectPath, original, CancellationToken.None);
             File.Delete(sourcePath);
             File.Delete(targetPath);
             // Restore the original asset graph as well as the project file for later fixture consumers.
@@ -182,7 +183,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                     public bool MoveNext() => false;
                     public Base Current => new();
                 }
-                """);
+                """, TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(sourcePath, """
                 using Billing.Domain;
                 using Alias = Billing.Domain.Box<Billing.Domain.Base>;
@@ -203,7 +204,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 public class CycleB { public CycleA? Other; }
                 public class Outer { [Mark] public class Inner : Base; }
                 file class LocalHelper { public Base? Value => null; }
-                """);
+                """, TestContext.Current.CancellationToken);
             var result = await BuildAsync();
             Complete(result);
             var edges = result.Graph!.Edges.Where(edge => edge.Kind == DependencyKind.Type
@@ -213,7 +214,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 Assert.Contains(edges, edge => edge.Target.Name == "Billing.Domain." + target);
             }
 
-            var cycle = Assert.Single(result.Graph.FindCycles(DependencyKind.Type), component => component.Any(node => node.Name == "Billing.Application.CycleA"));
+            var cycle = Assert.Single(result.Graph.FindCycles(DependencyKind.Type, TestContext.Current.CancellationToken), component => component.Any(node => node.Name == "Billing.Application.CycleA"));
             Assert.Equal(new[] { "Billing.Application.CycleA", "Billing.Application.CycleB" }, cycle.Select(node => node.Name).Order(StringComparer.Ordinal));
             Assert.Contains(result.Graph.Edges, edge => edge.Kind == DependencyKind.Layer && edge.Source.Name == "Application"
                 && edge.Target.Name == "Domain" && edge.Evidence.Any(evidence => evidence.Fact.Location?.Path.EndsWith("Semantics.cs", StringComparison.Ordinal) == true));
@@ -245,7 +246,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 namespace Helpers;
                 public class Referenced { public int Value => 0; }
                 public static class NameFunctions { public static string @nameof() => "method"; }
-                """);
+                """, TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(sourcePath, """
                 namespace Billing.Application;
                 public class NameConsumer
@@ -253,12 +254,12 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                     public string M() => nameof(M);
                     public string Argument() => nameof(Helpers.Referenced.Value);
                 }
-                """);
+                """, TestContext.Current.CancellationToken);
             await File.WriteAllTextAsync(callPath, """
                 using static Helpers.NameFunctions;
                 namespace Billing.Application;
                 public class NamedCallConsumer { public string OrdinaryCall() => @nameof(); }
-                """);
+                """, TestContext.Current.CancellationToken);
             var result = await BuildAsync();
             Complete(result);
             var edges = result.Graph!.Edges.Where(edge => edge.Kind == DependencyKind.Type
@@ -309,7 +310,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 {
                     public static void Deconstruct(this double value, out int first, out int second) { first = 1; second = 2; }
                 }
-                """);
+                """, TestContext.Current.CancellationToken);
             // Each case has its own method scope and source line, but shares one design-time build.
             var methods = cases.Select((item, index) => $"    public void Run{index}() {{ {item.Statement} }}");
             await File.WriteAllTextAsync(sourcePath, $$"""
@@ -319,7 +320,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 {
                 {{string.Join("\n", methods)}}
                 }
-                """);
+                """, TestContext.Current.CancellationToken);
             var result = await BuildAsync();
             Complete(result);
             var graph = result.Graph!;
@@ -371,13 +372,13 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
               <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType></PropertyGroup>
               <ItemGroup><ProjectReference Include="../ModularMonolith/src/Billing/Billing.Contracts/Billing.Contracts.csproj" /></ItemGroup>
             </Project>
-            """);
-        await File.WriteAllTextAsync(Path.Combine(root, "Program.cs"), "Billing.Contracts.IInvoice? invoice = null; System.Console.WriteLine(invoice?.Total);");
+            """, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(root, "Program.cs"), "Billing.Contracts.IInvoice? invoice = null; System.Console.WriteLine(invoice?.Total);", TestContext.Current.CancellationToken);
         await fixture.RestoreAsync(projectPath);
         var policy = new ArchitecturePolicy([new("All", ["**/*.csproj"])], [new("All", ["**/*.csproj"])],
             new Dictionary<string, DiagnosticSeverity> { ["AG001"] = DiagnosticSeverity.Error });
-        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(projectPath, true));
-        var result = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, policy);
+        using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(projectPath, true), TestContext.Current.CancellationToken);
+        var result = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, policy, TestContext.Current.CancellationToken);
         Complete(result);
         Assert.Contains(result.Graph!.Edges, edge => edge.Kind == DependencyKind.Assembly
             && edge.Source.ProjectPath == "TopLevel/TopLevel.csproj" && edge.Target.ProjectPath == "ModularMonolith/" + Contracts
@@ -389,7 +390,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
     public async Task Generated_dependencies_use_portable_generator_scoped_evidence()
     {
         var projectPath = Path.Combine(fixture.Root, "GeneratorConsumer", "GeneratorConsumer.csproj");
-        var original = await File.ReadAllTextAsync(projectPath);
+        var original = await File.ReadAllTextAsync(projectPath, TestContext.Current.CancellationToken);
         var output = Path.Combine(Path.GetTempPath(), "arch-guard-graph-output-" + Guid.NewGuid().ToString("N"));
         var policy = new ArchitecturePolicy([new("All", ["**/*.csproj"])], [new("All", ["**/*.csproj"])],
             new Dictionary<string, DiagnosticSeverity> { ["AG001"] = DiagnosticSeverity.Error });
@@ -402,12 +403,12 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                 {
                     var project = XDocument.Parse(original);
                     project.Root!.Elements("PropertyGroup").First().Add(new XElement("IntermediateOutputPath", output + Path.DirectorySeparatorChar));
-                    await File.WriteAllTextAsync(projectPath, project.ToString());
+                    await File.WriteAllTextAsync(projectPath, project.ToString(), TestContext.Current.CancellationToken);
                     await fixture.RestoreAsync(projectPath);
                 }
 
-                using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(projectPath, true, configuration));
-                var result = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, policy);
+                using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(projectPath, true, configuration), TestContext.Current.CancellationToken);
+                var result = await new DependencyGraphBuilder().BuildAsync(workspace, fixture.Root, policy, TestContext.Current.CancellationToken);
                 Complete(result);
                 var uses = result.Graph!.Edges.Where(edge => edge.Kind == DependencyKind.Type
                     && edge.Source.Name == "Generated.LocalHelper" && edge.Target.Name == "System.Text.StringBuilder").ToArray();
@@ -429,7 +430,8 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         }
         finally
         {
-            await File.WriteAllTextAsync(projectPath, original);
+            // Cleanup must complete even when the test is cancelled.
+            await File.WriteAllTextAsync(projectPath, original, CancellationToken.None);
             if (Directory.Exists(output))
             {
                 Directory.Delete(output, recursive: true);
@@ -445,7 +447,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         var sourcePath = Path.Combine(root, "src/Orders/Orders.Application/Broken.cs");
         try
         {
-            await File.WriteAllTextAsync(sourcePath, "namespace Orders.Application; public class Broken { public Missing.Type? Value; public void Run(dynamic value) { value.Execute(); } }");
+            await File.WriteAllTextAsync(sourcePath, "namespace Orders.Application; public class Broken { public Missing.Type? Value; public void Run(dynamic value) { value.Execute(); } }", TestContext.Current.CancellationToken);
             var result = await BuildAsync();
             Assert.Equal(AnalysisStatus.Incomplete, result.Status);
             Assert.NotNull(result.Graph);
@@ -459,9 +461,9 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
             File.Delete(sourcePath);
         }
 
-        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"));
-        using var unavailable = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(root, "ModularMonolith.slnx")));
-        var missing = await new DependencyGraphBuilder().BuildAsync(unavailable, root, policy);
+        var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(root, "architecture.guardian.yaml"), TestContext.Current.CancellationToken);
+        using var unavailable = await new MSBuildWorkspaceLoader().LoadAsync(new(Path.Combine(root, "ModularMonolith.slnx")), TestContext.Current.CancellationToken);
+        var missing = await new DependencyGraphBuilder().BuildAsync(unavailable, root, policy, TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, missing.Status);
         Assert.Null(missing.Graph);
         Assert.Contains(missing.Issues, issue => issue.Code == "workspace-untrusted");
@@ -488,7 +490,7 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
                     public int Convert(dynamic value) => (int)value;
                     public async System.Threading.Tasks.Task Await(dynamic value) { await value; }
                 }
-                """);
+                """, TestContext.Current.CancellationToken);
             var result = await BuildAsync();
             Assert.Equal(AnalysisStatus.Incomplete, result.Status);
             Assert.DoesNotContain(result.Issues, issue => issue.Code is "dependency-semantic-error" or "compiler-error");
@@ -548,15 +550,14 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         const string billing = "src/Billing/Billing.Application/Billing.Application.csproj";
         var projectPath = Path.Combine(root, billing);
         var sourcePath = Path.Combine(root, "src/Billing/Billing.Application/OrderUse.cs");
-        var original = await File.ReadAllTextAsync(projectPath);
+        var original = await File.ReadAllTextAsync(projectPath, TestContext.Current.CancellationToken);
         try
         {
             var xml = XDocument.Parse(original);
             xml.Root!.Add(new XElement("ItemGroup", new XElement("ProjectReference",
                 new XAttribute("Include", "../../Orders/Orders.Application/Orders.Application.csproj"))));
-            await File.WriteAllTextAsync(projectPath, xml.ToString());
-            await File.WriteAllTextAsync(sourcePath,
-                "namespace Billing.Application; public class OrderUse { public Orders.Application.SubmitOrder? Value { get; set; } }");
+            await File.WriteAllTextAsync(projectPath, xml.ToString(), TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(sourcePath, "namespace Billing.Application; public class OrderUse { public Orders.Application.SubmitOrder? Value { get; set; } }", TestContext.Current.CancellationToken);
             await fixture.RestoreAsync(Path.Combine(root, "ModularMonolith.slnx"));
             var context = await BuildAsync();
             Complete(context);
@@ -573,7 +574,8 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         }
         finally
         {
-            await File.WriteAllTextAsync(projectPath, original);
+            // Cleanup must complete even when the test is cancelled.
+            await File.WriteAllTextAsync(projectPath, original, CancellationToken.None);
             File.Delete(sourcePath);
             // Restore the original assets too: SDK-expanded references otherwise leak into later tests.
             await fixture.RestoreAsync(Path.Combine(root, "ModularMonolith.slnx"));

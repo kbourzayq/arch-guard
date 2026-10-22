@@ -27,7 +27,7 @@ public sealed class DomainInfrastructureRuleTests
     [InlineData("Allowed", "", 0)]
     public async Task Restrictions_use_bound_names_and_segment_boundaries(string assembly, string ns, int count)
     {
-        var result = await new DomainInfrastructureRule().EvaluateAsync(Context([Use(assembly, ns)]));
+        var result = await new DomainInfrastructureRule().EvaluateAsync(Context([Use(assembly, ns)]), TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Completed, result.Status);
         Assert.Equal(count, result.Violations.Count);
         Assert.All(result.Violations, item =>
@@ -50,12 +50,12 @@ public sealed class DomainInfrastructureRuleTests
         var context = Context([first, second, first, new(Project, null, new("Unused forbidden reference."))]);
         var policy = context.Repository!.Policy;
         var rules = policy.SelectRules<DependencyBuildResult>([new DomainInfrastructureRule(), new ModuleDependenciesRule()]);
-        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, policy.SeverityPolicy));
+        var result = await new AnalysisService<DependencyBuildResult>(rules).AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(2, diagnostic.Evidence.Count);
         Assert.False(policy.Gate.Passes(result));
-        var reversed = await new DomainInfrastructureRule().EvaluateAsync(Context([second, first]));
+        var reversed = await new DomainInfrastructureRule().EvaluateAsync(Context([second, first]), TestContext.Current.CancellationToken);
         Assert.Equal(diagnostic.Id, Assert.Single(reversed.Violations).Id);
     }
 
@@ -67,7 +67,7 @@ public sealed class DomainInfrastructureRuleTests
             new("Missing.csproj", null, new("Unknown source."), targetSymbol: "Target.Api"),
             new(Project, null, new("Legacy semantic evidence."), targetSymbol: "Target.Api")]);
         var rule = new DomainInfrastructureRule();
-        var result = await rule.EvaluateAsync(context);
+        var result = await rule.EvaluateAsync(context, TestContext.Current.CancellationToken);
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Single(result.Violations);
         Assert.Contains(result.Issues, issue => issue.Code == "dependency-project-unmapped");
@@ -75,16 +75,16 @@ public sealed class DomainInfrastructureRuleTests
         var upstream = new AnalysisIssue("partial-input", "Input is partial.");
         foreach (var status in new[] { AnalysisStatus.Incomplete, AnalysisStatus.Failed, AnalysisStatus.Cancelled })
         {
-            var partial = await rule.EvaluateAsync(new(context.Repository, context.Graph, status, [upstream]));
+            var partial = await rule.EvaluateAsync(new(context.Repository, context.Graph, status, [upstream]), TestContext.Current.CancellationToken);
             Assert.Equal(status, partial.Status);
             Assert.Single(partial.Violations);
             Assert.Contains(upstream, partial.Issues);
-            var missing = await rule.EvaluateAsync(new(null, null, status, [upstream]));
+            var missing = await rule.EvaluateAsync(new(null, null, status, [upstream]), TestContext.Current.CancellationToken);
             Assert.Equal(status, missing.Status);
             Assert.Empty(missing.Violations);
         }
 
-        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => rule.EvaluateAsync(null!, TestContext.Current.CancellationToken));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() => rule.EvaluateAsync(context, cancellation.Token));
@@ -100,7 +100,7 @@ public sealed class DomainInfrastructureRuleTests
     [InlineData("System.Net.Other", 2)]
     public async Task Namespace_exceptions_are_explicit_and_segment_scoped(string ns, int count)
     {
-        var result = await new DomainInfrastructureRule().EvaluateAsync(Context([Use("Forbidden.Library", ns)]));
+        var result = await new DomainInfrastructureRule().EvaluateAsync(Context([Use("Forbidden.Library", ns)]), TestContext.Current.CancellationToken);
         Assert.Equal(count, result.Violations.Count);
     }
 
@@ -125,21 +125,21 @@ public sealed class DomainInfrastructureRuleTests
         var context = new DependencyBuildResult(repository, graph, AnalysisStatus.Completed);
         var result = await new AnalysisService<DependencyBuildResult>(policy.SelectRules<DependencyBuildResult>(
             [new LayerDependenciesRule(), new ForbiddenReferencesRule(), new DomainInfrastructureRule()]))
-            .AnalyzeAsync(new(context, policy.SeverityPolicy));
+            .AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
         Assert.Equal(new[] { "AG002", "AG005", "AG006" }, result.Diagnostics.Select(item => item.RuleId).Order());
         var unconfigured = new ArchitecturePolicy(policy.Modules,
             [new("Business", [Project]), new("Storage", ["Store.csproj"])], policy.SeverityPolicy.RuleSeverities);
         var cleanRepository = new RepositoryModel(Project, unconfigured, repository.Projects);
-        Assert.Empty((await new DomainInfrastructureRule().EvaluateAsync(new(cleanRepository, graph, AnalysisStatus.Completed))).Violations);
+        Assert.Empty((await new DomainInfrastructureRule().EvaluateAsync(new(cleanRepository, graph, AnalysisStatus.Completed), TestContext.Current.CancellationToken)).Violations);
 
         var excepted = new ArchitecturePolicy(policy.Modules,
             [new("Business", [Project], domainInfrastructure: new(forbiddenNamespaces: ["Persistence"], allowedNamespaces: ["Persistence"])),
                 new("Storage", ["Store.csproj"])], policy.SeverityPolicy.RuleSeverities);
         var exceptedRepository = new RepositoryModel(Project, excepted, repository.Projects);
         var exceptedContext = new DependencyBuildResult(exceptedRepository, graph, AnalysisStatus.Completed);
-        Assert.Empty((await new DomainInfrastructureRule().EvaluateAsync(exceptedContext)).Violations);
-        Assert.Single((await new ForbiddenReferencesRule().EvaluateAsync(exceptedContext)).Violations);
-        Assert.Single((await new LayerDependenciesRule().EvaluateAsync(exceptedContext)).Violations);
+        Assert.Empty((await new DomainInfrastructureRule().EvaluateAsync(exceptedContext, TestContext.Current.CancellationToken)).Violations);
+        Assert.Single((await new ForbiddenReferencesRule().EvaluateAsync(exceptedContext, TestContext.Current.CancellationToken)).Violations);
+        Assert.Single((await new LayerDependenciesRule().EvaluateAsync(exceptedContext, TestContext.Current.CancellationToken)).Violations);
     }
 
     private static DependencyEvidence Use(string assembly, string ns, int line = 3) => new(Project, null,

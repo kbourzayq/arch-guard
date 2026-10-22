@@ -95,12 +95,12 @@ public sealed class ExplanationToolTests
     {
         using var fixture = new ArchitectureToolTests.InputFiles();
         var project = Path.Combine(fixture.Root, "App", "App.csproj");
-        await File.WriteAllTextAsync(project, (await File.ReadAllTextAsync(project)).Replace("</Project>",
-            "<ItemGroup><ProjectReference Include=\"../Library/Library.csproj\" /></ItemGroup></Project>", StringComparison.Ordinal));
-        await File.WriteAllTextAsync(Path.Combine(fixture.Root, "Library", "Target.cs"), "namespace Library; public class Target { }");
+        await File.WriteAllTextAsync(project, (await File.ReadAllTextAsync(project, TestContext.Current.CancellationToken)).Replace("</Project>",
+            "<ItemGroup><ProjectReference Include=\"../Library/Library.csproj\" /></ItemGroup></Project>", StringComparison.Ordinal), TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(fixture.Root, "Library", "Target.cs"), "namespace Library; public class Target { }", TestContext.Current.CancellationToken);
         var policyPath = Path.Combine(fixture.Root, "policy.yaml");
         var denied = ArchitectureToolTests.InputFiles.Policy.Replace("[\"contract:Library/api\"]", "[]", StringComparison.Ordinal);
-        await File.WriteAllTextAsync(policyPath, denied);
+        await File.WriteAllTextAsync(policyPath, denied, TestContext.Current.CancellationToken);
         var restore = await Repository.Dotnet(TimeSpan.FromSeconds(60), "restore", Path.Combine(fixture.Root, "Input.slnx"), "--source", fixture.Root,
             "--disable-parallel", "--disable-build-servers");
         Assert.True(restore.ExitCode == 0, restore.Output + restore.Error);

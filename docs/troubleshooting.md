@@ -7,7 +7,7 @@ An empty diagnostic list alone does not establish complete analysis.
 
 **The SDK requested by `global.json` is unavailable.** Check `dotnet --list-sdks`
 and install the selected version or an allowed stable patch. This checkout requires
-the `10.0.3xx` SDK feature band; a runtime-only installation is insufficient.
+the `10.0.4xx` SDK feature band; a runtime-only installation is insufficient.
 Your target repository may select a different SDK through its own `global.json`.
 
 **The `archguard` command is missing.** The CLI is currently installed from source.

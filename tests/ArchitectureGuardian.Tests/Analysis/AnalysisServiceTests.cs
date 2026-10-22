@@ -49,9 +49,9 @@ public sealed class AnalysisServiceTests
             return Task.FromResult(new RuleEvaluationResult(AnalysisStatus.Completed, reverse ? findings.Reverse() : findings));
         });
         var first = await new AnalysisService<string>([CreateRule(RuleCatalog.ModuleCycles, false), CreateRule(RuleCatalog.ModuleDependencies, false)])
-            .AnalyzeAsync(new(Context));
+            .AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
         var second = await new AnalysisService<string>([CreateRule(RuleCatalog.ModuleDependencies, true), CreateRule(RuleCatalog.ModuleCycles, true)])
-            .AnalyzeAsync(new(Context));
+            .AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(["AG001", "AG003", "AG001", "AG003"], calls);
         Assert.Equal(first.Diagnostics.Select(item => item.Id), second.Diagnostics.Select(item => item.Id));
@@ -61,7 +61,7 @@ public sealed class AnalysisServiceTests
     [Fact]
     public async Task Missing_rules_never_report_clean_completion()
     {
-        var result = await new AnalysisService<string>([]).AnalyzeAsync(new(Context));
+        var result = await new AnalysisService<string>([]).AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Empty(result.Diagnostics);
@@ -76,7 +76,7 @@ public sealed class AnalysisServiceTests
         var incomplete = new TestRule(RuleCatalog.ModuleDependencies, (_, _) => Task.FromResult(
             new RuleEvaluationResult(AnalysisStatus.Incomplete, [DiagnosticTests.Finding()], [issue])));
         var remaining = CleanRule(RuleCatalog.ModuleCycles);
-        var result = await new AnalysisService<string>([remaining, incomplete]).AnalyzeAsync(new(Context));
+        var result = await new AnalysisService<string>([remaining, incomplete]).AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Incomplete, result.Status);
         Assert.Single(result.Diagnostics);
@@ -96,7 +96,7 @@ public sealed class AnalysisServiceTests
             : Task.FromResult(new RuleEvaluationResult(AnalysisStatus.Failed,
                 issues: [new("invalid-snapshot", "The snapshot is invalid.", "AG002")])));
         var later = UnexpectedRule(RuleCatalog.ModuleCycles);
-        var result = await new AnalysisService<string>([FindingRule(), problem, later]).AnalyzeAsync(new(Context));
+        var result = await new AnalysisService<string>([FindingRule(), problem, later]).AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Failed, result.Status);
         Assert.Single(result.Diagnostics);
@@ -154,7 +154,7 @@ public sealed class AnalysisServiceTests
     {
         var rule = new TestRule(RuleCatalog.ModuleDependencies, (_, _) => throw new OperationCanceledException("Unexpected cancellation."));
 
-        var result = await new AnalysisService<string>([rule]).AnalyzeAsync(new(Context));
+        var result = await new AnalysisService<string>([rule]).AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Failed, result.Status);
         Assert.Equal("rule-failed", Assert.Single(result.Issues).Code);
@@ -168,7 +168,7 @@ public sealed class AnalysisServiceTests
             new RuleEvaluationResult(AnalysisStatus.Cancelled, [DiagnosticTests.Finding(RuleCatalog.LayerDependencies)])));
         var later = UnexpectedRule(RuleCatalog.ModuleCycles);
 
-        var result = await new AnalysisService<string>([FindingRule(), cancelled, later]).AnalyzeAsync(new(Context));
+        var result = await new AnalysisService<string>([FindingRule(), cancelled, later]).AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Cancelled, result.Status);
         Assert.Equal(2, result.Diagnostics.Count);
@@ -182,7 +182,7 @@ public sealed class AnalysisServiceTests
         var rule = new TestRule(RuleCatalog.LayerDependencies, (_, _) => Task.FromResult(
             new RuleEvaluationResult(AnalysisStatus.Completed, [DiagnosticTests.Finding()])));
 
-        var result = await new AnalysisService<string>([rule]).AnalyzeAsync(new(Context));
+        var result = await new AnalysisService<string>([rule]).AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Failed, result.Status);
         Assert.Empty(result.Diagnostics);
@@ -195,7 +195,7 @@ public sealed class AnalysisServiceTests
     {
         var rule = new TestRule(RuleCatalog.ModuleDependencies, (_, _) => Task.FromResult<RuleEvaluationResult>(null!));
 
-        var result = await new AnalysisService<string>([rule]).AnalyzeAsync(new(Context));
+        var result = await new AnalysisService<string>([rule]).AnalyzeAsync(new(Context), TestContext.Current.CancellationToken);
 
         Assert.Equal(AnalysisStatus.Failed, result.Status);
         Assert.Equal("AG001", Assert.Single(result.Issues).RuleId);
@@ -210,7 +210,7 @@ public sealed class AnalysisServiceTests
         var service = new AnalysisService<string>(rules);
         rules.Clear();
 
-        Assert.True((await service.AnalyzeAsync(new(Context))).IsComplete);
+        Assert.True((await service.AnalyzeAsync(new(Context), TestContext.Current.CancellationToken)).IsComplete);
         Assert.Throws<ArgumentException>(() => new AnalysisService<string>([FindingRule(), FindingRule()]));
         Assert.Throws<ArgumentException>(() => new AnalysisService<string>([null!]));
         Assert.Throws<ArgumentNullException>(() => new AnalysisRequest<string>(null!));

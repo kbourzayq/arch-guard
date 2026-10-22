@@ -36,7 +36,7 @@ public sealed class ReferenceSolutionTests(ReferenceSolutionFixture fixture) : I
         var root = Path.Combine(fixture.Root, solution);
         var input = Path.Combine(root, solution + ".slnx");
         var policyPath = Path.Combine(root, "architecture.guardian.yaml");
-        var policy = await new YamlPolicyLoader().LoadAsync(policyPath);
+        var policy = await new YamlPolicyLoader().LoadAsync(policyPath, TestContext.Current.CancellationToken);
         var rules = policy.SelectRules<DependencyBuildResult>(
             [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule()]);
         var service = new AnalysisService<DependencyBuildResult>(rules);

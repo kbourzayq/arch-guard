@@ -34,6 +34,7 @@ jobs:
       - name: Check formatting
         run: dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
       - name: Test contracts, analysis, architecture boundaries and CLI
+        # xUnit v3 uses the VSTest adapter; retain VSTest filtering and TRX reporting.
         # Each assembly already runs bounded parallel scenarios; avoid multiplying workspace builds across test hosts.
         run: dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
       - uses: actions/upload-artifact@v4
@@ -69,7 +70,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        sdk: ['8.0.100', '9.0.100', '10.0.301']
+        sdk: ['8.0.100', '9.0.100', '10.0.402']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:

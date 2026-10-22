@@ -199,7 +199,7 @@ and configuration files. Environment keys are `Workspace__Root` and
 Invalid settings fail startup with a nonzero exit code and stderr diagnostics.
 The SDK owns stdin/stdout; console logging goes to stderr.
 
-The server uses ModelContextProtocol C# SDK 2.2.0 with standard .NET hosting and
+The server uses ModelContextProtocol C# SDK 2.3.0 with standard .NET hosting and
 stdio transport. It negotiates protocol versions, including the `2025-11-25`
 handshake. Closing stdin ends the session; host shutdown and Ctrl+C use cooperative
 cancellation. No HTTP endpoint or web dashboard is provided.

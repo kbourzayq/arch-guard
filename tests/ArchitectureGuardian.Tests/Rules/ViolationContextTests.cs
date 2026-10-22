@@ -34,10 +34,10 @@ public sealed class ViolationContextTests
             new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule(), new DomainInfrastructureRule()];
         foreach (var rule in rules)
         {
-            var result = await rule.EvaluateAsync(context);
+            var result = await rule.EvaluateAsync(context, TestContext.Current.CancellationToken);
             Assert.Equal(AnalysisStatus.Completed, result.Status);
             Assert.NotEmpty(result.Violations);
-            var repeated = await rule.EvaluateAsync(new(repository, new([], edges.Reverse()), AnalysisStatus.Completed));
+            var repeated = await rule.EvaluateAsync(new(repository, new([], edges.Reverse()), AnalysisStatus.Completed), TestContext.Current.CancellationToken);
             Assert.Equal(result.Violations.Select(item => item.Id).Order(StringComparer.Ordinal), repeated.Violations.Select(item => item.Id).Order(StringComparer.Ordinal));
             foreach (var finding in result.Violations)
             {
