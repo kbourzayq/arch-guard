@@ -86,3 +86,10 @@ Core owns immutable `BaselineEntry`, `BaselineSnapshot`, `BaselineComparison` an
 No serializer or filesystem dependency is added to Core. Fixtures in
 `BaselineTests`, `JsonBaselineStoreTests` and `CliWorkspaceTests` cover movement,
 renames, ambiguity, severity, persistence and operational failure behavior.
+
+## Git comparison
+
+`scan --base <commit-or-ref>` builds its comparison inventory from a complete scan
+of that Git tree, using the same stable fingerprints described here. It uses each
+tree's policy and gates new candidate findings. It does not read or write a JSON
+baseline, and cannot combine with `--baseline`. See [change analysis](changes.md).

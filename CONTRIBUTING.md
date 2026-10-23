@@ -87,6 +87,14 @@ helper disables build-worker reuse and applies its deadline through output drain
 Integration fixtures use isolated copies and prepare their required contexts
 through the fixture preparation solutions. Deliberately broken inputs are excluded
 from preparation; do not fix those intentional failures.
+The reference fixtures restore their four configuration graphs serially in one
+MSBuild process through `tests/Fixtures/ReferenceSolutions/Preparation.proj`.
+CLI scenarios combine compatible rule assertions to reduce repeated workspace
+loads while retaining process parity, mutation and incomplete-coverage checks.
+The architecture suite starts its measured longest collections first to keep both
+bounded workers busy; update `WorkspaceCollectionOrderer` if profiling changes those priorities.
+CI caches NuGet's global packages using the committed lock files as its cache key;
+locked restore still runs on every build.
 
 For compiler package changes, also build and verify a consumer package:
 
@@ -162,16 +170,13 @@ Before publishing a release or accepting a coding-agent correction:
 - Run the stdio correction integration test with the full suite. It verifies
   discovery, evidence-backed guidance, client-side correction and unchanged inputs
   across the read-only server calls.
-- Until [F23](https://github.com/kbourzayq/arch-guard/issues/23) is delivered,
-  `analyze_changes` is explicitly `unsupported`, with no evaluated gate or counts.
-  It cannot satisfy release validation. Keep the full scan mandatory.
-- **F23 follow-up:** when comparison is implemented, update the correction test's
-  unsupported assertion and this checklist together. Require CLI `scan --base` or
-  MCP `analyze_changes` against an explicit release base, covering staged,
-  unstaged and untracked working-tree changes with full base/candidate architecture
-  contexts. Require completed coverage and a passed gate; missing refs, failed
-  snapshot loads and unsupported results must block comparison approval. Retain
-  full-scan validation and normal CI.
+- Require CLI `scan --base <release-base>` or MCP `analyze_changes` against an
+  explicit release base, with completed coverage and a passed new-finding gate.
+  Comparison covers staged, unstaged and non-ignored untracked working-tree inputs
+  through full base/candidate contexts and each tree's policy. Missing refs,
+  shallow history and failed snapshot loads block comparison approval. Prepare
+  both snapshots' SDK/package requirements in advance; see [change analysis](docs/changes.md).
+  Retain full-scan validation and normal CI: existing debt can pass a comparison.
 
 ## Report a bug
 

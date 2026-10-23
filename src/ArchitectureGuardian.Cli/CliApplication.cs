@@ -91,6 +91,10 @@ internal static class CliApplication
             Description = "Explicit baseline JSON path; scan reads it, baseline update replaces it.",
             Required = name == "update",
         };
+        var baseReference = new Option<string?>("--base")
+        {
+            Description = "Compare the full working tree with this exact Git commit/ref; gate new findings. Cannot combine with --baseline.",
+        };
         var command = new Command(name, description) { input, trusted, configuration, framework };
         if (name != "load")
         {
@@ -101,10 +105,15 @@ internal static class CliApplication
         {
             command.Add(baselinePath);
         }
+        if (name == "scan") { command.Add(baseReference); }
 
         // Reject repeated flags as well as repeated value options instead of silently accepting a typo.
         command.Validators.Add(result =>
         {
+            if (name == "scan" && result.GetResult(baseReference) is not null && result.GetResult(baselinePath) is not null)
+            {
+                result.AddError("--base and --baseline cannot be combined.");
+            }
             foreach (var option in command.Options)
             {
                 if (result.GetResult(option) is { } optionResult && optionResult.IdentifierTokenCount > 1)
@@ -118,7 +127,8 @@ internal static class CliApplication
             var request = new WorkspaceLoadRequest(result.GetValue(input)!, result.GetValue(trusted),
                 result.GetValue(configuration)!, result.GetValue(framework));
             return await WorkspaceCommands.RunAsync(name, request, name == "load" ? null : result.GetValue(policy),
-                name is "scan" or "update" ? result.GetValue(baselinePath) : null, renderer, token);
+                name is "scan" or "update" ? result.GetValue(baselinePath) : null, renderer, token,
+                name == "scan" ? result.GetValue(baseReference) : null);
         });
         return command;
     }

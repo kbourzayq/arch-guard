@@ -7,6 +7,7 @@ namespace ArchitectureGuardian.ArchitectureTests.Cli;
 
 /// <summary>Exercises policy-driven commands in process, retaining representative public process checks.</summary>
 [Trait("Category", "Integration")]
+[Collection(nameof(CliWorkspaceTests))]
 public sealed class CliWorkspaceTests
 {
     /// <summary>Checks findings, gates, partial coverage and inspection without repeatedly cold-starting the workspace host.</summary>
@@ -86,62 +87,55 @@ public sealed class CliWorkspaceTests
             Assert.Contains("No architecture rules evaluated", inspect.Output);
             Assert.Equal(inspect, await RunCliProcess("inspect", solution, "--policy", policyPath, "--trusted"));
 
-            // Project input includes its referenced project and uses the same policy-relative inventory.
-            var projectScan = await RunCli("scan", Path.Combine(directory, "App", "App.csproj"), "--policy", policyPath, "--trusted");
-            Assert.True(projectScan.ExitCode == 0, projectScan.Output + projectScan.Error);
-
-            // AG004 treats public types outside declared contracts as implementation, even with module permission.
-            var contractPolicy = Policy("error", "error", true).Replace("AG003: error", "AG004: error", StringComparison.Ordinal);
-            await File.WriteAllTextAsync(policyPath, contractPolicy, TestContext.Current.CancellationToken);
-            var contractScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
-            Assert.True(contractScan.ExitCode == 0, contractScan.Output + contractScan.Error);
+            // Exercise compatible rule selections together; each command still loads the real workspace.
+            var contractPolicy = Policy("error", "error", true)
+                .Replace("AG003: error", "AG004: error\n  AG005: error\n  AG006: error", StringComparison.Ordinal);
+            // AG004 rejects implementation access even with module permission; AG005/AG006 reject allowed references.
             var implementationPolicy = contractPolicy.Replace("contract:Library/api", "module:Library", StringComparison.Ordinal)
-                .Replace("    contracts:\n      - id: api\n        projects: [\"Library/*.csproj\"]\n", "", StringComparison.Ordinal);
+                .Replace("    contracts:\n      - id: api\n        projects: [\"Library/*.csproj\"]\n", "", StringComparison.Ordinal)
+                .Replace("  - id: App\n", "  - id: App\n    forbiddenAssemblies: [Library]\n", StringComparison.Ordinal)
+                .Replace("  - id: Application\n", "  - id: Application\n    domainInfrastructure:\n      forbiddenNamespaces: [Library]\n", StringComparison.Ordinal);
             await File.WriteAllTextAsync(policyPath, implementationPolicy, TestContext.Current.CancellationToken);
             var implementationScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
             Assert.True(implementationScan.ExitCode == 1, implementationScan.Output + implementationScan.Error);
             Assert.Empty(implementationScan.Error);
             Assert.Contains("error AG004:", implementationScan.Output);
+            Assert.Contains("error AG005:", implementationScan.Output);
+            Assert.Contains("modules.App.forbiddenAssemblies restriction 'Library'", implementationScan.Output);
+            Assert.Contains("error AG006:", implementationScan.Output);
+            Assert.Contains("layers.Application.domainInfrastructure.forbiddenNamespaces", implementationScan.Output);
             Assert.Contains("symbol=Library.Contract", implementationScan.Output);
             Assert.Contains("Consumer.cs(1,", implementationScan.Output);
             Assert.DoesNotContain("AG001:", implementationScan.Output);
             Assert.DoesNotContain("AG002:", implementationScan.Output);
+            var implementationInspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
+            Assert.Equal(0, implementationInspect.ExitCode);
+            Assert.Contains("Forbidden assemblies: Library", implementationInspect.Output);
+            Assert.Contains("AG006 infrastructure namespaces (including descendants): Library", implementationInspect.Output);
 
-            // AG005 is selected through the CLI and bans references even to an allowed public contract.
-            foreach (var field in new[] { "forbiddenAssemblies", "forbiddenNamespaces" })
-            {
-                var restrictedPolicy = Policy("error", "error", true).Replace("AG003: error", "AG005: error", StringComparison.Ordinal)
-                    .Replace("  - id: App\n", $"  - id: App\n    {field}: [Library]\n", StringComparison.Ordinal);
-                await File.WriteAllTextAsync(policyPath, restrictedPolicy, TestContext.Current.CancellationToken);
-                var restricted = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
-                Assert.True(restricted.ExitCode == 1, restricted.Output + restricted.Error);
-                Assert.Empty(restricted.Error);
-                Assert.Contains("error AG005:", restricted.Output);
-                Assert.Contains($"modules.App.{field} restriction 'Library'", restricted.Output);
-                Assert.Contains("symbol=Library.Contract", restricted.Output);
-                Assert.Contains("Consumer.cs(1,", restricted.Output);
-                Assert.DoesNotContain("AG001:", restricted.Output);
-                var restrictions = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
-                Assert.Equal(0, restrictions.ExitCode);
-                Assert.Contains(field == "forbiddenAssemblies" ? "Forbidden assemblies: Library"
-                    : "Forbidden namespaces (including descendants): Library", restrictions.Output);
-            }
-
-            // AG006 applies to the configured source layer, even when its name is Application.
-            var domainPolicy = Policy("error", "error", true).Replace("AG003: error", "AG006: error", StringComparison.Ordinal)
+            // Both AG005 bans override an allowed contract, while AG006's namespace exception remains effective.
+            var domainPolicy = contractPolicy
                 .Replace("  - id: Application\n", "  - id: Application\n    domainInfrastructure:\n      forbiddenNamespaces: [Library]\n", StringComparison.Ordinal);
-            await File.WriteAllTextAsync(policyPath, domainPolicy, TestContext.Current.CancellationToken);
-            var domainScan = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
-            Assert.True(domainScan.ExitCode == 1, domainScan.Output + domainScan.Error);
-            Assert.Empty(domainScan.Error);
-            Assert.Contains("error AG006:", domainScan.Output);
-            Assert.Contains("layers.Application.domainInfrastructure.forbiddenNamespaces", domainScan.Output);
-            Assert.Contains("Consumer.cs(1,", domainScan.Output);
-            var domainInspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
-            Assert.Equal(0, domainInspect.ExitCode);
-            Assert.Contains("AG006 infrastructure namespaces (including descendants): Library", domainInspect.Output);
-            await File.WriteAllTextAsync(policyPath, domainPolicy.Replace("forbiddenNamespaces: [Library]", "forbiddenNamespaces: [Library]\n      allowedNamespaces: [Library]", StringComparison.Ordinal), TestContext.Current.CancellationToken);
-            var exempted = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+            var exemptedPolicy = domainPolicy.Replace("forbiddenNamespaces: [Library]", "forbiddenNamespaces: [Library]\n      allowedNamespaces: [Library]", StringComparison.Ordinal);
+            var namespacePolicy = exemptedPolicy.Replace("  - id: App\n", "  - id: App\n    forbiddenAssemblies: [Library]\n    forbiddenNamespaces: [Library]\n", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(policyPath, namespacePolicy, TestContext.Current.CancellationToken);
+            var restricted = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
+            Assert.True(restricted.ExitCode == 1, restricted.Output + restricted.Error);
+            Assert.Empty(restricted.Error);
+            Assert.Contains("error AG005:", restricted.Output);
+            Assert.Contains("modules.App.forbiddenAssemblies restriction 'Library'", restricted.Output);
+            Assert.Contains("modules.App.forbiddenNamespaces restriction 'Library'", restricted.Output);
+            Assert.Contains("symbol=Library.Contract", restricted.Output);
+            Assert.Contains("Consumer.cs(1,", restricted.Output);
+            foreach (var rule in new[] { "AG001:", "AG002:", "AG004:", "AG006:" }) { Assert.DoesNotContain(rule, restricted.Output); }
+            var restrictions = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
+            Assert.Equal(0, restrictions.ExitCode);
+            Assert.Contains("Forbidden assemblies: Library", restrictions.Output);
+            Assert.Contains("Forbidden namespaces (including descendants): Library", restrictions.Output);
+
+            // Project input also includes its reference and preserves contract/exception acceptance.
+            await File.WriteAllTextAsync(policyPath, exemptedPolicy, TestContext.Current.CancellationToken);
+            var exempted = await RunCli("scan", Path.Combine(directory, "App", "App.csproj"), "--policy", policyPath, "--trusted");
             Assert.True(exempted.ExitCode == 0, exempted.Output + exempted.Error);
             Assert.Contains("0 diagnostic(s)", exempted.Output);
 

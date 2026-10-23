@@ -11,6 +11,7 @@ internal static class SdkDiscovery
         var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
         {
             WorkingDirectory = workingDirectory,
+            RedirectStandardInput = true,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -19,6 +20,7 @@ internal static class SdkDiscovery
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start .NET SDK discovery.");
+        process.StandardInput.Close();
         var output = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var error = process.StandardError.ReadToEndAsync(cancellationToken);
         try

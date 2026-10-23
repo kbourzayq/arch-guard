@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Analysis.Dependencies;
+using ArchitectureGuardian.Analysis.Changes;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Core.Analysis;
 using ArchitectureGuardian.Core.Dependencies;
@@ -6,7 +7,7 @@ using ArchitectureGuardian.Core.Policies;
 
 namespace ArchitectureGuardian.Analysis.Orchestration;
 
-/// <summary>Shares the solution scan pipeline and reserved change-analysis entry point between hosts.</summary>
+/// <summary>Shares full solution scans and full-context Git comparison between hosts.</summary>
 public sealed class SolutionAnalysisService
 {
     /// <summary>Selects policy rules, loads trusted context, extracts dependencies and evaluates the shared solution engine.</summary>
@@ -30,19 +31,22 @@ public sealed class SolutionAnalysisService
             new(context, policy.SeverityPolicy), cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Reserves full-context base/candidate comparison without substituting a passing full scan.</summary>
-    /// <param name="baseReference">Explicit base commit or reference; not resolved until F23 implements comparison.</param>
-    /// <param name="scope">Explicit comparison scope; currently only solution is defined.</param>
-    /// <param name="cancellationToken">Cooperative cancellation; no repository build or Git operation is performed.</param>
-    /// <returns>An incomplete result explaining that comparison is unsupported, never a completed empty analysis.</returns>
-    /// <exception cref="ArgumentException">The base is blank or the scope is not solution.</exception>
-    /// <exception cref="OperationCanceledException">Cancellation is requested.</exception>
-    public Task<AnalysisResult> AnalyzeChangesAsync(string baseReference, string scope, CancellationToken cancellationToken = default)
+    /// <summary>Compares complete base and working-tree scans using each snapshot's policy and stable finding fingerprints.</summary>
+    /// <param name="request">Candidate input, trust for both snapshots and shared build context.</param>
+    /// <param name="policyPath">Explicit policy path, present at the same relative path in both snapshots.</param>
+    /// <param name="baseReference">Exact Git commit/ref; no implicit merge-base selection or network fetch.</param>
+    /// <param name="loader">Host-supplied policy loader, invoked separately for both snapshots.</param>
+    /// <param name="allowedRoot">Optional operator boundary that must contain the Git root.</param>
+    /// <param name="cancellationToken">Cooperative cancellation through snapshot capture, offline preparation and scans.</param>
+    /// <returns>Candidate findings and combined coverage; only completed comparisons can pass a new-finding gate.</returns>
+    /// <remarks>Comparison build-context values accept only letters, digits, spaces, '.', '_' and '-'; unsupported MSBuild syntax returns incomplete coverage before preparation.</remarks>
+    public Task<ChangeAnalysisResult> AnalyzeChangesAsync(WorkspaceLoadRequest request, string policyPath,
+        string baseReference, IPolicyLoader loader, string? allowedRoot = null, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(policyPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(baseReference);
-        if (scope != "solution") { throw new ArgumentException("Only the solution comparison scope is defined.", nameof(scope)); }
-        return Task.FromResult(new AnalysisResult(AnalysisStatus.Incomplete, issues:
-            [new("change-analysis-unsupported", "Base/candidate graph comparison is unavailable until F23. No reference was resolved and no changes were analyzed.")]));
+        ArgumentNullException.ThrowIfNull(loader);
+        return ChangeAnalysisService.AnalyzeAsync(request, policyPath, baseReference, loader, allowedRoot, cancellationToken);
     }
 }

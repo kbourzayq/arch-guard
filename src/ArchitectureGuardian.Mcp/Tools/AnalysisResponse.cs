@@ -4,7 +4,7 @@ namespace ArchitectureGuardian.Mcp.Tools;
 
 /// <summary>Versioned scan/comparison response; unavailable work cannot establish a passing gate.</summary>
 /// <param name="SchemaVersion">Response schema version.</param>
-/// <param name="Status">Completed, incomplete, failed, cancelled or unsupported.</param>
+/// <param name="Status">Completed, incomplete, failed or cancelled.</param>
 /// <param name="Scope">Explicit analysis scope, currently solution.</param>
 /// <param name="InputPath">Operator-root-relative solution or project path.</param>
 /// <param name="PolicyPath">Operator-root-relative policy path.</param>
@@ -12,10 +12,11 @@ namespace ArchitectureGuardian.Mcp.Tools;
 /// <param name="TargetFramework">Explicit framework, or null for input default.</param>
 /// <param name="BaseReference">Requested comparison base, or null for a full scan.</param>
 /// <param name="GateOutcome">Passed, failed, or not-evaluated when coverage is unavailable.</param>
-/// <param name="FailOn">Configured inclusive severity threshold.</param>
-/// <param name="Counts">Counts of all diagnostics in this response; null when comparison is unsupported.</param>
+/// <param name="FailOn">Configured inclusive severity threshold, or unavailable if candidate policy could not be loaded.</param>
+/// <param name="Counts">Counts of all candidate diagnostics available in this response.</param>
 /// <param name="Diagnostics">Complete evidence-backed diagnostic payload, never silently truncated.</param>
 /// <param name="Issues">Operational coverage problems, separate from findings.</param>
+/// <param name="Comparison">Base commit and classifications, or null for a full scan or unavailable base.</param>
 internal sealed record AnalysisResponse(
     int SchemaVersion,
     string Status,
@@ -29,4 +30,5 @@ internal sealed record AnalysisResponse(
     string FailOn,
     DiagnosticCounts? Counts,
     IReadOnlyList<AnalysisDiagnostic> Diagnostics,
-    IReadOnlyList<AnalysisIssue> Issues);
+    IReadOnlyList<AnalysisIssue> Issues,
+    ChangeSummary? Comparison = null);

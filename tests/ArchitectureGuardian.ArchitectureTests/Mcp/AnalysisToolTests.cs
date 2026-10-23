@@ -16,9 +16,9 @@ namespace ArchitectureGuardian.ArchitectureTests.Mcp;
 /// <summary>Verifies analysis contracts over the SDK and parity with the shared CLI pipeline.</summary>
 public sealed class AnalysisToolTests
 {
-    /// <summary>Unavailable comparison has a stable structured schema, requires a base/scope and never claims zero findings or a passing gate.</summary>
+    /// <summary>Comparison requires trust, an explicit base/scope and never claims a passing gate without coverage.</summary>
     [Fact]
-    public async Task Changes_are_explicitly_unsupported_and_require_base_and_scope()
+    public async Task Changes_require_trust_base_and_scope()
     {
         using var fixture = new ArchitectureToolTests.InputFiles();
         await ToolRegistrationTests.WithServer(async (client, token) =>
@@ -33,13 +33,13 @@ public sealed class AnalysisToolTests
             using var response = await Call(client, "analyze_changes", arguments, token);
             var result = response.RootElement;
             Assert.Equal(1, result.GetProperty("schemaVersion").GetInt32());
-            Assert.Equal("unsupported", result.GetProperty("status").GetString());
+            Assert.Equal("incomplete", result.GetProperty("status").GetString());
             Assert.Equal("not-evaluated", result.GetProperty("gateOutcome").GetString());
-            Assert.Equal(JsonValueKind.Null, result.GetProperty("counts").ValueKind);
+            Assert.Equal(0, result.GetProperty("counts").GetProperty("total").GetInt32());
             Assert.Equal("refs/heads/main", result.GetProperty("baseReference").GetString());
             Assert.Equal("solution", result.GetProperty("scope").GetString());
             Assert.Empty(result.GetProperty("diagnostics").EnumerateArray());
-            Assert.Equal("change-analysis-unsupported", Assert.Single(result.GetProperty("issues").EnumerateArray()).GetProperty("code").GetString());
+            Assert.Equal("workspace-untrusted", Assert.Single(result.GetProperty("issues").EnumerateArray()).GetProperty("code").GetString());
 
             foreach (var (key, value) in new[] { ("baseReference", ""), ("baseReference", new string('x', 257)), ("scope", "changed-lines") })
             {
@@ -52,7 +52,7 @@ public sealed class AnalysisToolTests
                 missing.Remove(key);
                 Assert.True((await client.CallToolAsync("analyze_changes", missing, cancellationToken: token)).IsError);
             }
-        }, root: fixture.Root); // No build trust or restore is needed for the unsupported interface.
+        }, root: fixture.Root);
     }
 
     /// <summary>Untrusted loading retains operational issues; argument errors cannot become a completed scan.</summary>

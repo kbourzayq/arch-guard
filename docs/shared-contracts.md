@@ -101,12 +101,15 @@ All six canonical rules are available through this composition.
 between CLI `scan` and MCP `analyze_solution`: policy selection before build
 execution, workspace loading, dependency extraction and `AnalysisService` evaluation.
 Hosts still own policy loading, gate rendering and protocol/process behavior.
-`AnalyzeChangesAsync(baseReference, scope, cancellationToken)` reserves comparison
-with an explicit base and `solution` scope. Until graph comparison is implemented,
-it returns `Incomplete` with `change-analysis-unsupported`, performs no Git/build
-execution and cannot pass a gate.
-MCP maps that unsupported capability to its versioned response contract; see the
-[MCP guide](mcp.md#analyze_changes).
+`AnalyzeChangesAsync` accepts workspace/build/trust context, explicit policy and Git
+base, a host-supplied `IPolicyLoader` and an optional operator root. Analysis captures
+full snapshots, prepares their assets with cache-only restore and runs the shared
+scan pipeline independently with each tree's policy. `ChangeAnalysisResult` retains
+combined coverage, candidate diagnostics, the resolved base commit and a
+`BaselineComparison` when the base completed. The candidate severity gate applies
+only to new fingerprints, and neither tree's missing coverage can pass. Core
+fingerprint/gate contracts stay pure; Git, processes and snapshot I/O stay in Analysis.
+See [change analysis](changes.md) and the [MCP guide](mcp.md#analyze_changes).
 
 ```mermaid
 sequenceDiagram

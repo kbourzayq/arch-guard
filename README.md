@@ -35,10 +35,10 @@ The compiler analyzer targets `netstandard2.0` with a Roslyn 4.8 API floor.
 
 Full-solution scans, YAML policy, six architecture rules and the MCP server are
 implemented, including [explicit diagnostic baselines](docs/baselines.md) and new-violation gates.
-Change comparison, report export and packaged CLI
-installation are planned; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
-The MCP `analyze_changes` interface explicitly reports `unsupported` until graph
-comparison is implemented. See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
+[Full-context Git change comparison](docs/changes.md) is available through CLI
+`scan --base` and MCP `analyze_changes`. Report export and packaged CLI installation
+are planned; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
+See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
 before adopting a scan as a required gate.
 
 ## Install and run your first scan
@@ -83,8 +83,8 @@ cycles or establish whole-solution coverage. See the [engine comparison](docs/se
 
 For MCP, publish the server and configure its executable and workspace root using
 the [portable configuration templates](docs/mcp.md#configure-your-client). All five
-tools are read-only: `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and the
-reserved `analyze_changes` interface. Workspace execution requires operator trust.
+tools are read-only: `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and
+`analyze_changes`. Workspace execution requires operator trust.
 Follow the [coding-agent correction workflow](docs/mcp.md#coding-agent-correction-workflow)
 to inspect policy, explain a finding, edit through the client and verify a fresh scan.
 Agent validation complements the repository's normal CI gate.
