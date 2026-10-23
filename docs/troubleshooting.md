@@ -91,7 +91,8 @@ introduced a violation.
 - Compiler analysis checks a narrower bound-name surface and requires an explicit
   XML ownership snapshot. It does not discover missing referenced-assembly mappings
   or check whole-solution cycles. IDE UI behavior is not validated by this repository.
-- Change comparison, baselines and report export are planned capabilities.
+- Change comparison and report export are planned capabilities. CLI
+  [baselines](baselines.md) require explicit files and never relax coverage failures.
 
 See [semantic accuracy](semantic-accuracy.md) for the rule-by-rule scope and
 [contributing](../CONTRIBUTING.md#report-a-bug) for a useful issue report.

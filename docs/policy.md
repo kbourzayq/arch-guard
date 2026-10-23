@@ -238,7 +238,9 @@ reporting levels after discovery without changing their identity or evidence.
 is inclusive: `warning` fails on warnings and errors; `info` fails on any diagnostic;
 `error` fails on errors. Incomplete, failed and cancelled analysis always fails the
 gate, regardless of threshold or diagnostic count. An empty completed result passes.
-Baseline-aware gate semantics are planned; v1 has no baseline setting.
+CLI `scan --baseline <path>` applies the same threshold only to new findings.
+Baseline files are explicit command inputs; YAML v1 has no baseline setting.
+See [diagnostic baselines](baselines.md).
 
 ## Host composition
 

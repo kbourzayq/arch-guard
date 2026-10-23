@@ -1,8 +1,10 @@
+using ArchitectureGuardian.Analysis.Baselines;
 using ArchitectureGuardian.Analysis.Orchestration;
 using ArchitectureGuardian.Analysis.Repositories;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Configuration.Yaml;
 using ArchitectureGuardian.Core.Analysis;
+using ArchitectureGuardian.Core.Baselines;
 
 namespace ArchitectureGuardian.Cli;
 
@@ -10,12 +12,16 @@ namespace ArchitectureGuardian.Cli;
 internal static class WorkspaceCommands
 {
     internal static async Task<int> RunAsync(string command, WorkspaceLoadRequest request, string? policyPath,
-        ConsoleRenderer renderer, CancellationToken cancellationToken)
+        string? baselinePath, ConsoleRenderer renderer, CancellationToken cancellationToken)
     {
         var fullPolicyPath = policyPath is null ? null : Path.GetFullPath(policyPath);
         var policy = fullPolicyPath is null ? null : await new YamlPolicyLoader().LoadAsync(fullPolicyPath, cancellationToken);
-        if (command == "scan")
+        if (baselinePath is not null) { ArgumentException.ThrowIfNullOrWhiteSpace(baselinePath); }
+        if (command is "scan" or "update")
         {
+            var store = new JsonBaselineStore();
+            var baseline = command == "scan" && baselinePath is not null
+                ? await store.LoadAsync(baselinePath, cancellationToken) : null;
             var analysis = await new SolutionAnalysisService().AnalyzeAsync(request, Path.GetDirectoryName(fullPolicyPath!)!, policy!, cancellationToken);
             renderer.Diagnostics(analysis.Diagnostics);
             if (!analysis.IsComplete)
@@ -23,7 +29,18 @@ internal static class WorkspaceCommands
                 return renderer.Coverage("Analysis", analysis.Status, analysis.Issues);
             }
 
-            var passed = policy!.Gate.Passes(analysis);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (command == "update")
+            {
+                var snapshot = BaselineSnapshot.Capture(analysis);
+                await store.SaveAsync(baselinePath!, snapshot, cancellationToken);
+                renderer.BaselineUpdated(snapshot.Entries.Count);
+                return 0;
+            }
+
+            var comparison = baseline is null ? null : new BaselineComparison(analysis, baseline);
+            if (comparison is not null) { renderer.Baseline(comparison); }
+            var passed = comparison is null ? policy!.Gate.Passes(analysis) : policy!.Gate.PassesNewFindings(comparison);
             renderer.Gate(passed, analysis.Diagnostics.Count);
             return passed ? 0 : 1;
         }

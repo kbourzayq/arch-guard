@@ -151,7 +151,69 @@ public sealed class CliWorkspaceTests
             Assert.Equal(1, first.ExitCode);
             Assert.Equal(first.Output, second.Output);
 
+            // Baseline writes are explicit; source movement preserves debt while a newly selected restriction blocks.
+            var baselinePath = Path.Combine(directory, "baseline.json");
+            var update = await RunCli("baseline", "update", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
+            Assert.True(update.ExitCode == 0, update.Output + update.Error);
+            Assert.Contains("Baseline updated: 2 accepted", update.Output);
+            var baselineBytes = await File.ReadAllBytesAsync(baselinePath, TestContext.Current.CancellationToken);
+            var accepted = await RunCli("scan", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
+            Assert.True(accepted.ExitCode == 0, accepted.Output + accepted.Error);
+            Assert.Contains("2 existing, 0 new, 0 resolved", accepted.Output);
+            Assert.Contains("error AG001:", accepted.Output);
+            Assert.Contains("Existing:", accepted.Output);
+
+            var moved = Path.Combine(directory, "App", "Renamed.cs");
+            File.Move(source, moved);
+            source = moved;
+            await File.WriteAllTextAsync(source, "\n\npublic class Consumer : Library.Contract { }", TestContext.Current.CancellationToken);
+            var movedScan = await RunCli("scan", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
+            Assert.True(movedScan.ExitCode == 0, movedScan.Output + movedScan.Error);
+            Assert.Contains("2 existing, 0 new, 0 resolved", movedScan.Output);
+            Assert.Contains("Renamed.cs(3,", movedScan.Output);
+            Assert.Equal(baselineBytes, await File.ReadAllBytesAsync(baselinePath, TestContext.Current.CancellationToken));
+
+            var newRestriction = Policy("error", "error", false)
+                .Replace("AG003: error", "AG003: error\n  AG005: error", StringComparison.Ordinal)
+                .Replace("  - id: App\n", "  - id: App\n    forbiddenNamespaces: [Library]\n", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(policyPath, newRestriction, TestContext.Current.CancellationToken);
+            var newScan = await RunCli("scan", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
+            Assert.True(newScan.ExitCode == 1, newScan.Output + newScan.Error);
+            Assert.Contains("2 existing, 1 new, 0 resolved", newScan.Output);
+            Assert.Contains("New:", newScan.Output);
+            Assert.Contains("Gate failed", newScan.Output);
+            Assert.Equal(baselineBytes, await File.ReadAllBytesAsync(baselinePath, TestContext.Current.CancellationToken));
+
+            await File.WriteAllTextAsync(policyPath, Policy("error", "error", true), TestContext.Current.CancellationToken);
+            var resolved = await RunCli("scan", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
+            Assert.True(resolved.ExitCode == 0, resolved.Output + resolved.Error);
+            Assert.Contains("0 existing, 0 new, 2 resolved", resolved.Output);
+            Assert.Contains("Resolved:", resolved.Output);
+            await File.WriteAllTextAsync(policyPath, Policy("error", "error", false), TestContext.Current.CancellationToken);
+
             await File.AppendAllTextAsync(source, " public class Broken : MissingType { }", TestContext.Current.CancellationToken);
+            var incompleteBaseline = await RunCli("scan", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
+            Assert.Equal(2, incompleteBaseline.ExitCode);
+            Assert.Contains("incomplete", incompleteBaseline.Error);
+            Assert.DoesNotContain("Gate passed", incompleteBaseline.Output);
+            Assert.DoesNotContain("resolved", incompleteBaseline.Output);
+            var incompleteUpdate = await RunCli("baseline", "update", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
+            Assert.Equal(2, incompleteUpdate.ExitCode);
+            Assert.DoesNotContain("Baseline updated", incompleteUpdate.Output);
+            Assert.Equal(baselineBytes, await File.ReadAllBytesAsync(baselinePath, TestContext.Current.CancellationToken));
+
+            // A valid accepted inventory cannot mask an input-loading failure either.
+            var missingInput = Path.Combine(directory, "Missing.slnx");
+            foreach (var command in new[] { new[] { "scan" }, new[] { "baseline", "update" } })
+            {
+                var missing = await RunCli([.. command, missingInput, "--policy", policyPath, "--baseline", baselinePath, "--trusted"]);
+                Assert.Equal(2, missing.ExitCode);
+                Assert.NotEmpty(missing.Error);
+                Assert.DoesNotContain("Gate passed", missing.Output);
+                Assert.DoesNotContain("Baseline updated", missing.Output);
+                Assert.Equal(baselineBytes, await File.ReadAllBytesAsync(baselinePath, TestContext.Current.CancellationToken));
+            }
+
             var incomplete = await RunCliProcess("scan", solution, "--policy", policyPath, "--trusted");
             Assert.Equal(2, incomplete.ExitCode);
             Assert.Contains("AG001:", incomplete.Output);

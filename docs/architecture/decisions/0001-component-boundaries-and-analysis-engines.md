@@ -118,7 +118,7 @@ operational issues. Diagnostics with error severity can still belong to complete
 analysis, because completion describes coverage rather than policy compliance.
 
 Contracts snapshot their collections. Canonical content produces reproducible
-ordering and SHA-256 diagnostic identities independently of severity. F22 will define
+ordering and SHA-256 diagnostic identities independently of severity. F22 defines separate
 baseline fingerprints and movement/rename matching; F02 does not promise identity
 stability across changed source, wording or contract versions. See the
 [shared contracts guide](../../shared-contracts.md) for the complete behavior.
@@ -144,8 +144,8 @@ violations themselves. Module and contract references are explicitly distinguish
 permissions are direct and directional. Rule selection rejects missing selected
 implementations. Severity remains a reporting decision after discovery. `GatePolicy`
 checks an inclusive severity threshold and always rejects incomplete, failed or
-cancelled coverage. Baseline-aware gates remain F22. F10 composes these contracts
-through CLI scanning; Configuration itself remains independent of workspace loading
+cancelled coverage. F22 adds baseline-aware gates separately from evaluation.
+F10 composes these contracts through CLI scanning; Configuration itself remains independent of workspace loading
 and hosts.
 
 ## Decision: separate solution-wide and compiler-hosted analysis
@@ -473,3 +473,21 @@ analysis; incomplete coverage retains its issues and cannot establish staleness.
 Remediation names configured contracts without inventing source locations or
 replacement symbols, and warns that independent permissions still apply. Schemas,
 limits, trust and cancellation follow the existing MCP adapter contract.
+
+## F22: explicit diagnostic baselines
+
+Core owns immutable semantic baseline identities, snapshots and conservative
+one-to-one classification. Fingerprints version rule/target/context identity
+separately from existing location-sensitive diagnostic IDs. Source movement can
+retain identity; project/module/symbol renames and changed constraints require
+explicit acceptance. Ambiguous matches remain new and cannot suppress a gate.
+`GatePolicy.PassesNewFindings` checks completed coverage and only new severities;
+the original full-result gate remains available to CLI without a baseline and MCP.
+
+Analysis owns strict JSON persistence in `JsonBaselineStore`; serializers and file
+access stay outside Core. CLI exposes `baseline update` and `scan --baseline`.
+Updates require completed analysis and atomically replace an explicitly named file;
+scans are read-only. Partial findings remain visible and operational failures
+cannot become accepted debt or resolved-entry claims. No new package, production
+project, YAML schema change or dependency boundary is introduced. See the
+[baseline guide](../../baselines.md) for the v1 wire shape and matching fixtures.

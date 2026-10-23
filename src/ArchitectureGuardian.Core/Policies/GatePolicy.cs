@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Core.Analysis;
+using ArchitectureGuardian.Core.Baselines;
 using ArchitectureGuardian.Core.Diagnostics;
 
 namespace ArchitectureGuardian.Core.Policies;
@@ -30,5 +31,14 @@ public sealed class GatePolicy
     {
         ArgumentNullException.ThrowIfNull(result);
         return result.IsComplete && result.Diagnostics.All(diagnostic => diagnostic.Severity < FailOn);
+    }
+
+    /// <summary>Checks completed coverage and the severity of new findings, retaining existing debt for reporting.</summary>
+    /// <param name="comparison">The current analysis classified against an explicit baseline.</param>
+    /// <returns>True only for completed analysis without new findings at or above the threshold.</returns>
+    public bool PassesNewFindings(BaselineComparison comparison)
+    {
+        ArgumentNullException.ThrowIfNull(comparison);
+        return comparison.Analysis.IsComplete && comparison.New.All(diagnostic => diagnostic.Severity < FailOn);
     }
 }

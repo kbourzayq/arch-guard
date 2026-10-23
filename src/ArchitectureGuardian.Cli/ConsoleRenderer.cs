@@ -1,5 +1,6 @@
 using System.Globalization;
 using ArchitectureGuardian.Core.Analysis;
+using ArchitectureGuardian.Core.Baselines;
 using ArchitectureGuardian.Core.Diagnostics;
 using ArchitectureGuardian.Core.Repositories;
 using ArchitectureGuardian.Core.Rules;
@@ -45,6 +46,18 @@ internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
 
     internal void Gate(bool passed, int count) => output.WriteLine(FormattableString.Invariant(
         $"Analysis completed: {count} diagnostic(s). Gate {(passed ? "passed" : "failed")}."));
+
+    internal void BaselineUpdated(int count) => output.WriteLine(FormattableString.Invariant(
+        $"Baseline updated: {count} accepted finding(s). Review and commit the baseline explicitly."));
+
+    internal void Baseline(BaselineComparison comparison)
+    {
+        output.WriteLine(FormattableString.Invariant(
+            $"Baseline: {comparison.Existing.Count} existing, {comparison.New.Count} new, {comparison.Resolved.Count} resolved."));
+        foreach (var diagnostic in comparison.Existing) { output.WriteLine($"  Existing: {diagnostic.Id}"); }
+        foreach (var diagnostic in comparison.New) { output.WriteLine($"  New: {diagnostic.Id}"); }
+        foreach (var entry in comparison.Resolved) { output.WriteLine($"  Resolved: {entry.RuleId} {entry.Fingerprint}"); }
+    }
 
     internal void Diagnostics(IEnumerable<Diagnostic> diagnostics)
     {

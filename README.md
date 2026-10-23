@@ -34,7 +34,8 @@ CLI and MCP run on .NET 10; development and CI cover Linux, macOS and Windows.
 The compiler analyzer targets `netstandard2.0` with a Roslyn 4.8 API floor.
 
 Full-solution scans, YAML policy, six architecture rules and the MCP server are
-implemented. Change comparison, baselines, report export and packaged CLI
+implemented, including [explicit diagnostic baselines](docs/baselines.md) and new-violation gates.
+Change comparison, report export and packaged CLI
 installation are planned; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 The MCP `analyze_changes` interface explicitly reports `unsupported` until graph
 comparison is implemented. See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
