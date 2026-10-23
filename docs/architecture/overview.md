@@ -17,7 +17,7 @@ records the decisions and constraints behind them.
 | CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
-| MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and explicit unsupported `analyze_changes` | Change comparison implementation |
+| MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and `analyze_changes` with full base/candidate comparison | Report export |
 | Other adapters | None | Reports |
 | Quality gates | Inclusive severity threshold, explicit baselines and new-violation gates; noncompleted coverage always fails | — |
 
@@ -142,8 +142,11 @@ loads YAML, then the service selects rules, loads the trusted workspace, resolve
 ownership, extracts dependency evidence and evaluates Core rules with policy
 severities. The host renders diagnostics and applies the gate only to complete
 results. MCP metadata tools reuse the policy and normalization stages without rule
-evaluation. `analyze_changes` reserves full base/candidate comparison; its current
-response explicitly reports that comparison is unsupported.
+evaluation. `scan --base` and MCP `analyze_changes` share full base/candidate comparison.
+Analysis captures Git and working-tree snapshots, prepares assets using cache-only
+restore, loads each tree's policy and reuses the full scan pipeline. Stable finding
+fingerprints classify existing/new/resolved diagnostics; only new findings are
+subject to the candidate gate, after both snapshots complete. See [change analysis](../changes.md).
 
 MCP `explain_violation` distinguishes policy-only rule guidance from an exact
 diagnostic reference verified through fresh solution analysis. Core evaluators

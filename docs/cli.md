@@ -28,7 +28,8 @@ uses the same commands.
 | `explain` | `<rule-id>` | Print local rule metadata without loading a workspace |
 
 `scan`, `baseline update`, `inspect` and `load` also accept `--trusted`, `--configuration` (default
-`Debug`) and `--framework`. There is no automatic restore or policy discovery.
+`Debug`) and `--framework`. Full scans do not restore automatically; change
+comparison prepares temporary snapshots with cache-only restore. There is no policy discovery.
 
 ## Scan a solution or project
 
@@ -83,6 +84,15 @@ findings and gates only new findings. `baseline update <input> --policy <path>
 analysis, returning `0` for a successful write. Scans never update it. Coverage
 failures still return `2`. See [baselines](baselines.md) for versioning, movement,
 rename and ambiguous-match behavior, and review requirements.
+
+## Compare changes against a Git base
+
+`scan <input> --policy <path> --base <commit-or-ref> --trusted` evaluates the
+complete base and working-tree architecture contexts and gates only new findings.
+It includes staged, unstaged and non-ignored untracked files. Both snapshots must
+complete before the command returns `0` or `1`; unavailable refs or context return
+`2`. `--base` and `--baseline` are mutually exclusive. See [change analysis](changes.md)
+for exact Git, policy, rename, offline preparation and trust semantics.
 
 ## Inspect resolved boundaries
 

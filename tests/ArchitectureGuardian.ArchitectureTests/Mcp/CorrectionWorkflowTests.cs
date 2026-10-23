@@ -24,6 +24,7 @@ public sealed class CorrectionWorkflowTests
         try
         {
             await fixture.Restore();
+            await fixture.InitializeGit();
             using var startup = CancellationTokenSource.CreateLinkedTokenSource(token);
             startup.CancelAfter(TimeSpan.FromSeconds(20));
             var transport = new StdioClientTransport(new StdioClientTransportOptions
@@ -103,10 +104,16 @@ public sealed class CorrectionWorkflowTests
             changesArguments["baseReference"] = "HEAD";
             changesArguments["scope"] = "solution";
             using var changes = Parse(await fixture.Call(client, "analyze_changes", changesArguments, token));
-            Assert.Equal("unsupported", changes.RootElement.GetProperty("status").GetString());
-            Assert.Equal("not-evaluated", changes.RootElement.GetProperty("gateOutcome").GetString());
-            Assert.Equal(JsonValueKind.Null, changes.RootElement.GetProperty("counts").ValueKind);
-            Assert.Contains(changes.RootElement.GetProperty("issues").EnumerateArray(), issue => issue.GetProperty("code").GetString() == "change-analysis-unsupported");
+            AssertComplete(changes.RootElement);
+            Assert.Equal("passed", changes.RootElement.GetProperty("gateOutcome").GetString());
+            Assert.Equal(0, changes.RootElement.GetProperty("counts").GetProperty("total").GetInt32());
+            Assert.Empty(changes.RootElement.GetProperty("comparison").GetProperty("new").EnumerateArray());
+            Assert.Single(changes.RootElement.GetProperty("comparison").GetProperty("resolved").EnumerateArray());
+            var cli = await Repository.Dotnet(TimeSpan.FromSeconds(90), Path.Combine(AppContext.BaseDirectory, "ArchitectureGuardian.Cli.dll"),
+                "scan", Path.Combine(fixture.Root, "Correction.slnx"), "--policy", Path.Combine(fixture.Root, "architecture.guardian.yaml"),
+                "--configuration", "Release", "--trusted", "--base", "HEAD");
+            Assert.True(cli.ExitCode == 0, cli.Output + cli.Error);
+            Assert.Contains("0 existing, 0 new, 1 resolved", cli.Output);
         }
         catch (Exception exception)
         {
@@ -159,6 +166,14 @@ public sealed class CorrectionWorkflowTests
             Assert.True(result.ExitCode == 0, result.Output + result.Error);
         }
 
+        internal async Task InitializeGit()
+        {
+            File.WriteAllText(Path.Combine(Root, ".gitignore"), "**/bin/\n**/obj/\n");
+            await ChangeInputFiles.GitAt(Root, "init", "-b", "main");
+            await ChangeInputFiles.GitAt(Root, "add", ".");
+            await ChangeInputFiles.GitAt(Root, "-c", "user.name=Architecture Tests", "-c", "user.email=tests@example.invalid", "commit", "-m", "seeded violation");
+        }
+
         internal async Task Correct(CancellationToken token)
         {
             await File.WriteAllTextAsync(Path.Combine(Root, "Consumer", "Checkout.cs"), """
@@ -192,6 +207,10 @@ public sealed class CorrectionWorkflowTests
             .Where(path => !Path.GetRelativePath(root, path).Split(Path.DirectorySeparatorChar).Any(part => part is "bin" or "obj"));
 
         /// <summary>Removes fixture inputs and build outputs after the protocol client has shut down.</summary>
-        public void Dispose() => Directory.Delete(Root, recursive: true);
+        public void Dispose()
+        {
+            foreach (var file in Directory.EnumerateFiles(Root, "*", SearchOption.AllDirectories)) { File.SetAttributes(file, FileAttributes.Normal); }
+            Directory.Delete(Root, recursive: true);
+        }
     }
 }

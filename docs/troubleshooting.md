@@ -73,10 +73,12 @@ findings. Use supported metadata filters for `get_architecture`/`list_rules`, or
 smaller complete input/policy scope for `analyze_solution`. Do not interpret the
 error as a clean scan. The [MCP reference](mcp.md) lists all limits.
 
-**`analyze_changes` returns unsupported.** Graph comparison is not implemented yet.
-The reserved interface has no passing result, counts or gate decision. Use a
-full-solution scan for current-state analysis; it does not answer which changes
-introduced a violation.
+**Change comparison cannot load its base or snapshot.** Fetch the explicit base
+(and required history in a shallow clone), install the SDK required by each tree,
+and populate the package cache through an explicit restore. Comparison uses
+cache-only restore in temporary snapshots and never fetches Git history or downloads
+packages. Confirm that the input and policy exist at the same relative paths in
+both trees and that MCP `Workspace:Root` contains the Git root. See [change analysis](changes.md).
 
 ## Known analysis limitations
 
@@ -91,7 +93,8 @@ introduced a violation.
 - Compiler analysis checks a narrower bound-name surface and requires an explicit
   XML ownership snapshot. It does not discover missing referenced-assembly mappings
   or check whole-solution cycles. IDE UI behavior is not validated by this repository.
-- Change comparison and report export are planned capabilities. CLI
+- Report export is planned. Git comparison uses isolated full snapshots; see
+  [change analysis](changes.md) for supported inputs and offline preparation. CLI
   [baselines](baselines.md) require explicit files and never relax coverage failures.
 
 See [semantic accuracy](semantic-accuracy.md) for the rule-by-rule scope and

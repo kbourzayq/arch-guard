@@ -10,7 +10,7 @@ policy, workspace and rule engine. It registers five read-only tools:
 | `get_architecture` | Resolve modules, layers, ownership, public contracts and constraints | Yes |
 | `analyze_solution` | Scan the complete input and return coverage, gate, counts and evidence | Yes |
 | `explain_violation` | Explain a rule or resolve a current diagnostic with evidence, path, policy and remediation | Diagnostic mode only |
-| `analyze_changes` | Reserved graph-comparison interface; currently returns `unsupported` | No |
+| `analyze_changes` | Compare full Git base/candidate contexts and gate new findings | Yes, for both trees |
 
 No prompts or resources are registered. Source/policy/baseline mutation, automatic
 restore and arbitrary shell execution are outside the server's capabilities.
@@ -244,16 +244,19 @@ your real input and preserve configuration/framework across calls:
    old diagnostic ID then produces an unknown/stale error; use IDs from the fresh
    scan for any remaining findings.
 
-The server has no source, policy or baseline write tools, shell tool or automatic
-restore. The agent's file/command tools perform edits and restores under their own
-permissions. Trusted MSBuild evaluation can execute build logic and create `bin/`
+The server has no source, policy or baseline write tools or shell tool. Full scans
+require explicit restore; change comparison prepares temporary snapshots with
+cache-only restore. The agent's file/command tools perform edits and restores
+under their own permissions. Trusted MSBuild evaluation can execute build logic and create `bin/`
 and `obj/` artifacts; read-only annotations are not a build sandbox. Resolve any
 incomplete, failed or cancelled analysis before claiming the correction passed.
 
-For working-tree comparisons, `analyze_changes` currently returns `unsupported`,
-`gateOutcome: "not-evaluated"` and null counts even after a clean full scan.
-Do not use that as release approval. See the [release validation checklist](../CONTRIBUTING.md#release-validation)
-and the pending [F23 implementation](https://github.com/kbourzayq/arch-guard/issues/23).
+For working-tree comparisons, call `analyze_changes` against an explicit release
+base and require `completed` coverage and a `passed` new-finding gate. It includes
+staged, unstaged and non-ignored untracked files with each tree's full architecture
+context and policy. Keep full scans and normal CI mandatory because existing debt
+can pass a comparison. See [change analysis](changes.md) and the
+[release validation checklist](../CONTRIBUTING.md#release-validation).
 
 ## Workspace, cancellation, limits and errors
 
@@ -272,7 +275,9 @@ itself is operator-owned. These checks are preflight validation: concurrent file
 replacement is outside the contract. The root does not sandbox trusted MSBuild,
 its imports, referenced projects, generators or SDK discovery. Trust only repositories
 whose build logic you authorize. The existing [workspace trust contract](workspace-loading.md),
-no-restore behavior and one-SDK-per-process limitation apply.
+full-scan no-restore behavior and one-SDK-per-process limitation apply. Change
+comparison prepares temporary snapshots with cache-only restore; incompatible SDK
+contexts still block coverage.
 
 | Boundary | Current contract |
 | --- | --- |
@@ -396,22 +401,23 @@ there are no diagnostic/module filters that could hide a coverage or gate failur
 {"inputPath":"MyApp.slnx","policyPath":"architecture.guardian.yaml","configuration":"Release"}
 ```
 
-The schema below is shared with `analyze_changes` and stays at version 1 while
-comparison remains unavailable:
+The schema below is shared with `analyze_changes` at version 1; `comparison` is an
+additive nullable field:
 
 | Response field | Type and meaning |
 | --- | --- |
 | `schemaVersion` | integer, currently 1 |
-| `status` | `completed`, `incomplete`, `failed`, `cancelled`, or `unsupported` |
+| `status` | `completed`, `incomplete`, `failed`, or `cancelled` |
 | `scope` | `solution`; full architecture context, including project input when supplied |
 | `inputPath`, `policyPath` | operator-root-relative paths |
 | `configuration`, `targetFramework` | requested configuration and nullable explicit framework |
 | `baseReference` | null for a full scan; explicit requested ref for a comparison |
 | `gateOutcome` | `passed` or `failed` only for completed analysis; otherwise `not-evaluated` |
-| `failOn` | configured inclusive severity threshold (`info`, `warning`, `error`) |
-| `counts` | `{total, info, warning, error}` integers for all available diagnostics; null for unsupported comparison |
+| `failOn` | configured inclusive severity threshold (`info`, `warning`, `error`); `unavailable` if candidate policy could not load |
+| `counts` | `{total, info, warning, error}` integers for all available candidate diagnostics |
 | `diagnostics` | complete array of `{id, ruleId, severity, message, location, target, evidence, remediation, documentationUrl}` |
 | `issues` | array of `{code, message, ruleId, location}` coverage issues; rule/location may be null |
+| `comparison` | null for full scans or an unavailable base; otherwise `{baseCommit, existing, new, resolved}` |
 
 Diagnostic IDs, evidence order, source spans and policy-assigned severity come from
 the shared CLI engine. `target` contains nullable `module`/`symbol` identifiers.
@@ -431,26 +437,37 @@ use a smaller complete input/policy scope. Findings and evidence are never trunc
 
 Required arguments: `inputPath`, `policyPath`, `baseReference`, and `scope`.
 Optional: `configuration` and `targetFramework`, as above. The only defined scope
-is the exact string `solution`; it reserves full-context graph comparison rather
-than changed-line filtering. A base reference must be nonblank and at most 256
-characters. Omission of either base or scope is an error.
+is the exact string `solution`, selecting full-context graph comparison. A base
+reference must be nonblank and at most 256 characters. Omission of either base or
+scope is an error.
 
 ```json
 {"inputPath":"MyApp.slnx","policyPath":"architecture.guardian.yaml","baseReference":"refs/heads/main","scope":"solution"}
 ```
 
-Until [graph comparison is implemented](https://github.com/kbourzayq/arch-guard/issues/23), valid calls return
-`status: "unsupported"`, `gateOutcome: "not-evaluated"`, `counts: null`, empty
-`diagnostics`, and an issue with code `change-analysis-unsupported`. This structured
-capability response is delivered with `isError: false`; callers must inspect status
-and gate outcome. Invalid arguments, paths or policy produce tool errors instead.
+The exact base commit is resolved locally; no merge-base selection or fetch occurs.
+The candidate is the on-disk working tree, including staged, unstaged and non-ignored
+untracked files. Each snapshot's policy, project inventory and graph are evaluated
+independently. Only new candidate findings are gated, using stable fingerprints.
+All candidate diagnostics and counts remain visible. `comparison.baseCommit` is
+the resolved SHA; `existing` and `new` are candidate diagnostic-ID arrays;
+`resolved` contains absent base entries with fingerprint, rule, target, dependency
+path, constraints and original snapshot ID. Missing findings are not resolved from
+an incomplete candidate. If the base is unavailable, `comparison` is null.
 
-The tool validates explicit paths and policy and echoes the requested base/build
-context. It does not resolve refs, run Git, load workspaces, restore, or execute
-build logic, so it needs no build trust. It never substitutes a full scan, zero-change
-claim or passing gate. Ref existence, shallow clones, policy changes, removed/renamed
-projects, staged/unstaged/untracked files and dirty-tree semantics will be defined
-and verified by complete base/candidate snapshot comparison.
+Both trees require operator build trust. `Workspace:Root` must contain the Git
+root, and the input/policy paths must exist at the same relative paths in both
+snapshots. Temporary snapshots use cache-only locked restore, with no package
+download; prepare both trees' SDKs and package cache explicitly. Original inputs,
+Git index and refs are unchanged by snapshot preparation. Read-only annotations
+are not a sandbox for trusted build logic. See [change analysis](changes.md) for
+policy changes, removed/renamed projects, shallow clones, snapshot limitations
+and dirty-tree semantics.
+
+Unavailable refs, policy or snapshot loads return incomplete coverage with issues
+and `gateOutcome: "not-evaluated"`, delivered with `isError: false`. Invalid tool
+arguments or candidate paths produce tool errors. Cancellation follows SDK semantics;
+output above 65536 UTF-8 bytes is an explicit error with no truncated result.
 
 ### `explain_violation`
 
@@ -555,8 +572,9 @@ invocation and result/error serialization. See the official [tools guide](https:
 finds the fixture's seeded AG001, requests an instance explanation, corrects source
 and references through test-side file access, restores externally and verifies a
 completed passing rescan. Each tool call compares all fixture input bytes before
-and after, excluding `bin/` and `obj/`, including the calls returning stale-ID and
-unsupported-comparison results. The client captures stderr and has bounded startup,
+and after, excluding `bin/` and `obj/`, including stale-ID and completed Git
+comparison calls. It also verifies CLI comparison parity. The client captures
+stderr and has bounded startup,
 session and SDK shutdown timeouts. It uses an isolated copy; checked-in fixture
 inputs remain unchanged. This deterministic protocol test requires no LLM or
 coding-agent subscription and runs in the normal cross-platform CI matrix.
@@ -582,7 +600,7 @@ and cancellation before serialization. Dependency tests enforce the Analysis and
 Configuration project references in Debug and Release. These tests run with the normal
 solution checks.
 `Mcp/AnalysisToolTests` checks shared CLI scan parity, compliant/violating and partial
-inputs, severity gates, evidence, unsupported comparisons, required base/scope,
+inputs, severity gates, evidence, required comparison base/scope,
 trust/input errors, oversized diagnostic output and pre-cancelled calls.
 `ToolRegistrationTests` also cancels both analysis tools during policy loading
 through an explicit protocol notification.
@@ -592,3 +610,9 @@ parity, reference-only and semantic evidence, configured contracts, fresh stale-
 errors, incomplete coverage, bounds and cancellation. Core `ViolationContextTests`
 checks evaluator provenance for all six rules, directed cycle order, immutable
 snapshots and preservation of v1 identities.
+
+`Changes/ChangeAnalysisTests` compares shared/CLI/MCP results against independent
+full scans, including imported references between unchanged projects, staged,
+unstaged and untracked source, policy-only changes, removed/renamed projects,
+existing debt, missing refs/shallow history, invalid base policy, failed restore,
+missing inputs and incomplete base/candidate compilation.

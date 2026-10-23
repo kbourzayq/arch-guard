@@ -330,8 +330,8 @@ workspace orchestration outside that surface; see the F12 decision below.
 - Analysis owns workspace/MSBuild packages, Analyzers owns compiler-only Roslyn
   packages and Configuration owns the YAML package;
   Core remains independent of external packages. MCP transport is implemented in F17;
-  MCP architecture tools are implemented in F18; F19 adds solution analysis and an unsupported
-  change-comparison interface. Graph comparison and reporting remain planned.
+  MCP architecture tools are implemented in F18; F19 adds solution analysis; F23 implements full-context Git comparison.
+  Reporting remains planned.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
 - Extra adapters and concrete port APIs are deferred until required, avoiding unused
@@ -450,12 +450,9 @@ severity, deterministic diagnostic identities and coverage retain their existing
 contracts. MCP adds bounded result projections with counts, evidence and an explicit
 gate outcome; noncompleted analysis has no gate decision.
 
-`analyze_changes` requires an explicit base reference and `solution` scope. Its
-shared entry point currently returns incomplete coverage with an unsupported issue,
-mapped to MCP `status: "unsupported"`, null counts and `gateOutcome: "not-evaluated"`.
-It performs no Git or workspace execution. F23 will implement full base/candidate
-graph comparison, including policy/project changes and dirty-tree semantics; a
-changed-line filter or full-scan fallback would not satisfy that contract.
+`analyze_changes` requires an explicit base reference and `solution` scope. F23
+implements this entry point with full base/candidate snapshots; see the decision
+below and the [change guide](../../changes.md).
 
 
 ## F20: deterministic violation explanations
@@ -491,3 +488,22 @@ scans are read-only. Partial findings remain visible and operational failures
 cannot become accepted debt or resolved-entry claims. No new package, production
 project, YAML schema change or dependency boundary is introduced. See the
 [baseline guide](../../baselines.md) for the v1 wire shape and matching fixtures.
+
+## F23: full-context Git change analysis
+
+Analysis owns Git capture, private temporary snapshot/index lifecycle and bounded
+SDK processes. The base is the exact locally resolved commit; the candidate is
+the on-disk tree including tracked and non-ignored untracked inputs. A private
+Git index materializes base files without `git archive` export-attribute omissions
+or mutation of the operator's index. Snapshot preparation uses cache-only locked
+restore; neither Git history nor NuGet packages are downloaded. Both trees require
+explicit operator trust. Configuration stays independent: hosts supply a policy
+loader, applied independently to each tree (including MCP policy limits).
+
+Both complete contexts run through `SolutionAnalysisService.AnalyzeAsync`. F22
+fingerprints classify existing/new/resolved findings and the candidate policy gates
+new findings only. Combined coverage blocks success if either tree is unavailable;
+missing findings are never declared resolved from an incomplete candidate. Project
+removal/rename is reflected in each tree's complete inventory and policy. CLI and
+MCP render this result without implementing rule semantics. No project or package
+dependency boundary changes are needed.

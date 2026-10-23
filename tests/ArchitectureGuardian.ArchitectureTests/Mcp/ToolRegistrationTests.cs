@@ -46,6 +46,8 @@ public sealed class ToolRegistrationTests
     public async Task Sdk_cancellation_reaches_the_injected_service(string toolName)
     {
         var loader = new BlockingPolicyLoader();
+        using var comparisonFiles = toolName == "analyze_changes" ? new ChangeInputFiles() : null;
+        if (comparisonFiles is not null) { await comparisonFiles.Initialize(); }
         await WithServer(async (client, token) =>
         {
             var requestId = new RequestId("cancel-policy");
@@ -54,7 +56,9 @@ public sealed class ToolRegistrationTests
             if (toolName is "analyze_solution" or "analyze_changes") { arguments["inputPath"] = "ArchitectureGuardian.slnx"; }
             if (toolName == "analyze_changes")
             {
-                arguments["baseReference"] = "HEAD~1";
+                arguments["inputPath"] = "Input.slnx";
+                arguments["policyPath"] = "policy.yaml";
+                arguments["baseReference"] = "HEAD";
                 arguments["scope"] = "solution";
             }
             var call = client.SendRequestAsync(new JsonRpcRequest
@@ -68,7 +72,7 @@ public sealed class ToolRegistrationTests
                 new CancelledNotificationParams { RequestId = requestId }, cancellationToken: token);
             await loader.Cancelled.Task.WaitAsync(token);
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
-        }, loader);
+        }, loader, root: comparisonFiles?.Root, trusted: comparisonFiles is not null);
     }
 
     /// <summary>Application failures use the SDK's tool-error result without exposing internal exception messages.</summary>

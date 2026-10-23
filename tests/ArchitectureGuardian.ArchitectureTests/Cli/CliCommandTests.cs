@@ -32,6 +32,10 @@ public sealed class CliCommandTests
     /// <param name="arguments">Invalid command arguments.</param>
     [Theory]
     [InlineData("scan")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--base", "")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--base", "HEAD", "--baseline", "a.json")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--base", "HEAD", "--base", "main")]
+    [InlineData("baseline", "update", "input.csproj", "--policy", "policy.yaml", "--baseline", "a.json", "--base", "HEAD")]
     [InlineData("baseline", "update", "input.csproj", "--policy", "policy.yaml")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--baseline", "")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--baseline", "a.json", "--baseline", "b.json")]

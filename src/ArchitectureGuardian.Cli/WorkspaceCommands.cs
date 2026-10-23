@@ -12,9 +12,20 @@ namespace ArchitectureGuardian.Cli;
 internal static class WorkspaceCommands
 {
     internal static async Task<int> RunAsync(string command, WorkspaceLoadRequest request, string? policyPath,
-        string? baselinePath, ConsoleRenderer renderer, CancellationToken cancellationToken)
+        string? baselinePath, ConsoleRenderer renderer, CancellationToken cancellationToken, string? baseReference = null)
     {
         var fullPolicyPath = policyPath is null ? null : Path.GetFullPath(policyPath);
+        if (command == "scan" && baseReference is not null)
+        {
+            var changes = await new SolutionAnalysisService().AnalyzeChangesAsync(request, fullPolicyPath!, baseReference,
+                new YamlPolicyLoader(), cancellationToken: cancellationToken);
+            renderer.Diagnostics(changes.Analysis.Diagnostics);
+            if (!changes.Analysis.IsComplete) { return renderer.Coverage("Change analysis", changes.Analysis.Status, changes.Analysis.Issues); }
+            renderer.Baseline(changes.Comparison!);
+            renderer.Gate(changes.GatePassed, changes.Analysis.Diagnostics.Count);
+            return changes.GatePassed ? 0 : 1;
+        }
+
         var policy = fullPolicyPath is null ? null : await new YamlPolicyLoader().LoadAsync(fullPolicyPath, cancellationToken);
         if (baselinePath is not null) { ArgumentException.ThrowIfNullOrWhiteSpace(baselinePath); }
         if (command is "scan" or "update")
