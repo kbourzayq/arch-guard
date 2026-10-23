@@ -80,6 +80,54 @@ public sealed class StdioServerTests
         }
     }
 
+    /// <summary>Git probes complete while the server keeps reading its open protocol pipe, including on Windows.</summary>
+    [Fact]
+    public async Task Git_children_do_not_inherit_the_live_protocol_input_pipe()
+    {
+        using var fixture = new ChangeInputFiles();
+        await fixture.Initialize();
+        using var process = Start("--Workspace:Root", fixture.Root, "--Workspace:Trusted", "true");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        var error = process.StandardError.ReadToEndAsync(timeout.Token);
+        try
+        {
+            await Send(process, new { jsonrpc = "2.0", id = 1, method = "initialize", @params = new { protocolVersion = "2025-11-25", capabilities = new { }, clientInfo = new { name = "guardian-git-test", version = "1.0" } } });
+            using var initialized = await Read(process, timeout.Token);
+            Assert.True(initialized.RootElement.TryGetProperty("result", out _));
+            await Send(process, new { jsonrpc = "2.0", method = "notifications/initialized" });
+            for (var id = 2; id <= 4; id++)
+            {
+                await Send(process, new
+                {
+                    jsonrpc = "2.0",
+                    id,
+                    method = "tools/call",
+                    @params = new { name = "analyze_changes", arguments = new { inputPath = "Input.slnx", policyPath = "policy.yaml", baseReference = "archguard-missing-ref", scope = "solution" } }
+                });
+                using var response = await Read(process, timeout.Token);
+                var result = response.RootElement.GetProperty("result").GetProperty("structuredContent");
+                Assert.Equal("incomplete", result.GetProperty("status").GetString());
+                Assert.Equal("not-evaluated", result.GetProperty("gateOutcome").GetString());
+                Assert.Equal("change-snapshot-unavailable", Assert.Single(result.GetProperty("issues").EnumerateArray()).GetProperty("code").GetString());
+                Assert.DoesNotContain("deadline", result.GetRawText());
+            }
+
+            // Keep stdin open until all probes and another protocol request have completed.
+            await Send(process, new { jsonrpc = "2.0", id = 5, method = "ping" });
+            using var ping = await Read(process, timeout.Token);
+            Assert.True(ping.RootElement.TryGetProperty("result", out _));
+            process.StandardInput.Close();
+            await process.WaitForExitAsync(timeout.Token);
+            Assert.Equal(0, process.ExitCode);
+            Assert.Contains("Application started", await error);
+        }
+        finally
+        {
+            if (!process.HasExited) { process.Kill(entireProcessTree: true); }
+        }
+    }
+
     private static Process Start(params string[] args)
     {
         var start = new ProcessStartInfo("dotnet")

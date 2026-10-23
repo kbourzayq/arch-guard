@@ -130,7 +130,7 @@ public sealed class CorrectionWorkflowTests
 
     private static void AssertComplete(JsonElement result)
     {
-        Assert.Equal("completed", result.GetProperty("status").GetString());
+        Assert.True(result.GetProperty("status").GetString() == "completed", result.GetRawText());
         Assert.Empty(result.GetProperty("issues").EnumerateArray());
     }
 

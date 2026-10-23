@@ -11,6 +11,7 @@ internal static class SnapshotProcess
         var start = new ProcessStartInfo(command)
         {
             WorkingDirectory = directory,
+            RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -34,11 +35,16 @@ internal static class SnapshotProcess
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromMinutes(2));
         using var process = Process.Start(start) ?? throw new IOException($"Could not start {command}.");
+        // Child tools must not inherit the live MCP input pipe. Git for Windows inspects
+        // inherited pipes during startup and can block behind the server's pending read.
+        process.StandardInput.Close();
         var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
         var error = process.StandardError.ReadToEndAsync(timeout.Token);
+        var waitingFor = "process exit";
         try
         {
             await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+            waitingFor = "stdout/stderr EOF";
             await Task.WhenAll(output, error).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -57,7 +63,7 @@ internal static class SnapshotProcess
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            throw new IOException($"{command} exceeded the two-minute snapshot-operation deadline.");
+            throw new IOException($"{command} {string.Join(' ', start.ArgumentList)} exceeded the two-minute snapshot-operation deadline while waiting for {waitingFor}.");
         }
 
         if (process.ExitCode != 0)

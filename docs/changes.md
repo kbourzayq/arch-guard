@@ -68,6 +68,10 @@ preparation; temporary directories are removed on completion or cancellation.
 Each Git/restore operation has a two-minute deadline and captures stdout/stderr;
 cancellation terminates its process tree. Trusted repository tasks can still have
 side effects: read-only MCP annotations and temporary copies are not a sandbox.
+Git/SDK child stdin is redirected and closed so it cannot share the MCP protocol
+pipe. This also avoids Git for Windows startup probes blocking on a pipe with a
+pending server read. Deadline errors identify the command and whether it was
+waiting for process exit or stdout/stderr EOF.
 
 Symbolic links, reparse points, submodules and unresolved merges in snapshot inputs
 are rejected. Ignored source or required prebuilt generators/binaries, inputs outside

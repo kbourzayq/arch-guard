@@ -197,7 +197,10 @@ The standard .NET host reads command-line configuration, environment variables
 and configuration files. Environment keys are `Workspace__Root` and
 `Workspace__Trusted`. `Workspace:Root` must be an existing absolute directory.
 Invalid settings fail startup with a nonzero exit code and stderr diagnostics.
-The SDK owns stdin/stdout; console logging goes to stderr.
+The SDK owns stdin/stdout; console logging goes to stderr. Git/SDK subprocesses
+receive closed, isolated stdin rather than inheriting the live protocol pipe.
+The stdio Git regression keeps that pipe open across repeated requests, including
+on Windows, where native Git startup inspects inherited pipe handles.
 
 The server uses ModelContextProtocol C# SDK 2.3.0 with standard .NET hosting and
 stdio transport. It negotiates protocol versions, including the `2025-11-25`
