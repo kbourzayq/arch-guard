@@ -1,0 +1,12 @@
+<Project>
+  <ItemGroup>
+    <FixtureConfiguration Include="Compliant;AG001;AG002;AG003" />
+  </ItemGroup>
+  <Target Name="Restore">
+    <!-- Restore each distinct graph serially, sharing one bounded MSBuild process. -->
+    <MSBuild Projects="$(MSBuildThisFileDirectory)Preparation.slnx"
+             Targets="Restore"
+             Properties="Configuration=%(FixtureConfiguration.Identity);RestoreDisableParallel=true"
+             BuildInParallel="false" />
+  </Target>
+</Project>

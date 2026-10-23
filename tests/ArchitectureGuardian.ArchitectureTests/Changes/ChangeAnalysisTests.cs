@@ -14,6 +14,7 @@ namespace ArchitectureGuardian.ArchitectureTests.Changes;
 
 /// <summary>Verifies full-context Git comparisons and agreement with independent full-scan fixtures.</summary>
 [Trait("Category", "Integration")]
+[Collection(nameof(ChangeAnalysisTests))]
 public sealed class ChangeAnalysisTests
 {
     /// <summary>An imported reference adds an edge between unchanged project files; all dirty-tree source states participate.</summary>

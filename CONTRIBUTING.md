@@ -87,6 +87,14 @@ helper disables build-worker reuse and applies its deadline through output drain
 Integration fixtures use isolated copies and prepare their required contexts
 through the fixture preparation solutions. Deliberately broken inputs are excluded
 from preparation; do not fix those intentional failures.
+The reference fixtures restore their four configuration graphs serially in one
+MSBuild process through `tests/Fixtures/ReferenceSolutions/Preparation.proj`.
+CLI scenarios combine compatible rule assertions to reduce repeated workspace
+loads while retaining process parity, mutation and incomplete-coverage checks.
+The architecture suite starts its measured longest collections first to keep both
+bounded workers busy; update `WorkspaceCollectionOrderer` if profiling changes those priorities.
+CI caches NuGet's global packages using the committed lock files as its cache key;
+locked restore still runs on every build.
 
 For compiler package changes, also build and verify a consumer package:
 

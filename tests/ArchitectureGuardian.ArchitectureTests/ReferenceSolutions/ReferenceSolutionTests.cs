@@ -15,6 +15,7 @@ namespace ArchitectureGuardian.ArchitectureTests.ReferenceSolutions;
 /// <summary>Uses labeled positive and negative cases as an end-to-end precision/recall regression set.</summary>
 /// <param name="fixture">Isolated checked-in solutions and restored contexts.</param>
 [Trait("Category", "Integration")]
+[Collection(nameof(ReferenceSolutionTests))]
 public sealed class ReferenceSolutionTests(ReferenceSolutionFixture fixture) : IClassFixture<ReferenceSolutionFixture>
 {
     /// <summary>Asserts the entire finding set, evidence, stable identities and public CLI gate for each labeled case.</summary>

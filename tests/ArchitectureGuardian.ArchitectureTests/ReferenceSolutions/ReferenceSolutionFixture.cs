@@ -27,12 +27,9 @@ public sealed class ReferenceSolutionFixture : IAsyncLifetime
         }
 
         File.Copy(Path.Combine(Repository.Root, "global.json"), Path.Combine(Root, "global.json"));
-        foreach (var configuration in new[] { "Compliant", "AG001", "AG002", "AG003" })
-        {
-            var restore = await Repository.Dotnet(TimeSpan.FromSeconds(60), "restore", Path.Combine(Root, "Preparation.slnx"),
-                "-p:Configuration=" + configuration, "--disable-parallel", "--disable-build-servers");
-            Assert.True(restore.ExitCode == 0, restore.Output + restore.Error);
-        }
+        var restore = await Repository.Dotnet(TimeSpan.FromSeconds(60), "msbuild", Path.Combine(Root, "Preparation.proj"),
+            "-target:Restore", "-maxcpucount:1", "-nodeReuse:false");
+        Assert.True(restore.ExitCode == 0, restore.Output + restore.Error);
         // Incomplete deliberately references an absent assembly and contains unresolved types.
     }
 

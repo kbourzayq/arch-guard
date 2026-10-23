@@ -27,6 +27,8 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
       - name: Restore locked dependencies
         run: dotnet restore ArchitectureGuardian.slnx --locked-mode
       - name: Build
