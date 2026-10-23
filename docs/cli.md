@@ -22,11 +22,12 @@ uses the same commands.
 | Command | Required arguments | Purpose |
 | --- | --- | --- |
 | `scan` | `<input> --policy <path>` | Evaluate selected rules and the severity gate |
+| `baseline update` | `<input> --policy <path> --baseline <path>` | Explicitly replace accepted debt after completed analysis |
 | `inspect` | `<input> --policy <path>` | List resolved ownership and policy constraints |
 | `load` | `<input>` | Validate workspace coverage without rule evaluation |
 | `explain` | `<rule-id>` | Print local rule metadata without loading a workspace |
 
-`scan`, `inspect` and `load` also accept `--trusted`, `--configuration` (default
+`scan`, `baseline update`, `inspect` and `load` also accept `--trusted`, `--configuration` (default
 `Debug`) and `--framework`. There is no automatic restore or policy discovery.
 
 ## Scan a solution or project
@@ -73,6 +74,15 @@ still returns 2. Missing assets/SDKs, compiler failures and policy mapping error
 include actionable context on stderr. Ctrl+C requests cooperative cancellation
 through policy loading, workspace integration, extraction and evaluation; cancellation
 returns 2 and never claims a completed gate result.
+
+## Baselines and new-violation gates
+
+`scan --baseline <path>` reads an explicit JSON inventory, reports existing/new/resolved
+findings and gates only new findings. `baseline update <input> --policy <path>
+--baseline <path> --trusted` explicitly replaces that inventory after completed
+analysis, returning `0` for a successful write. Scans never update it. Coverage
+failures still return `2`. See [baselines](baselines.md) for versioning, movement,
+rename and ambiguous-match behavior, and review requirements.
 
 ## Inspect resolved boundaries
 

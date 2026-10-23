@@ -19,7 +19,7 @@ records the decisions and constraints behind them.
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
 | MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and explicit unsupported `analyze_changes` | Change comparison implementation |
 | Other adapters | None | Reports |
-| Quality gates | Inclusive severity threshold; noncompleted coverage always fails | Baselines |
+| Quality gates | Inclusive severity threshold, explicit baselines and new-violation gates; noncompleted coverage always fails | — |
 
 The [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
 features. Diagrams marked **planned** show intended integration, not commands or
@@ -162,7 +162,7 @@ flowchart TD
     Rules["Core rule implementations<br/>AG001–AG006"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
     Output["CLI console output / MCP structured responses<br/>Report export — planned"]
-    Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Baselines — planned"]
+    Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Explicit baselines and new findings"]
 
     Host --> Configuration
     Host --> Workspace

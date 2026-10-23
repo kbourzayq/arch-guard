@@ -41,7 +41,7 @@ custom findings may omit it. See [MCP explanations](mcp.md#explain_violation).
 configured otherwise). The supported severities are `Info`, `Warning` and `Error`.
 Rule IDs use ordinal, case-sensitive matching. Changing severity does not rerun or
 change a rule finding's identity. Policy files explicitly select rule IDs and
-their severities. Suppression/baseline behavior belongs to later features.
+their severities. Baseline classification is separate from severity assignment; see [baselines](baselines.md).
 
 A completed run may contain error diagnostics. A consumer must check coverage
 status before applying quality-gate policy. `GatePolicy.Passes` fails
@@ -219,5 +219,8 @@ process hash seeds do not enter the identity.
 
 The same snapshot, finding content and configuration reproduce the same diagnostics
 and identities. Changes to source locations, wording, guidance or evidence may change
-an ID. These are snapshot identities. Baseline matching, including schema-versioned
-fingerprints and movement/rename handling, is planned separately.
+an ID. These are snapshot identities. F22 adds separate versioned semantic
+fingerprints in `BaselineEntry`, immutable accepted inventories in `BaselineSnapshot`,
+and conservative classification in `BaselineComparison`. `GatePolicy.PassesNewFindings`
+requires completed coverage and checks only new severities; the original `Passes`
+continues checking all findings. See [baselines](baselines.md) for matching and persistence.

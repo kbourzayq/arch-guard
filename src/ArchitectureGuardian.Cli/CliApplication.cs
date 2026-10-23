@@ -14,6 +14,9 @@ internal static class CliApplication
         var renderer = new ConsoleRenderer(output, error);
         var root = new RootCommand("Architecture Guardian for .NET — archguard\nRestore inputs before loading; MSBuild may execute repository tasks.");
         root.Add(WorkspaceCommand("scan", "Evaluate selected architecture rules and the severity gate.", renderer));
+        var baseline = new Command("baseline", "Manage explicitly accepted architecture findings.");
+        baseline.Add(WorkspaceCommand("update", "Replace a baseline with findings from completed analysis.", renderer));
+        root.Add(baseline);
         root.Add(WorkspaceCommand("inspect", "List resolved modules, contracts, layers and policy constraints.", renderer));
         root.Add(WorkspaceCommand("load", "Validate workspace coverage without evaluating architecture rules.", renderer));
         var ruleId = new Argument<string>("rule-id") { Description = "Canonical, case-sensitive rule ID (AG001–AG006)." };
@@ -83,10 +86,20 @@ internal static class CliApplication
         };
         var framework = new Option<string?>("--framework") { Description = "Target framework; required for multi-targeted projects." };
         var policy = new Option<string>("--policy") { Description = "Explicit YAML policy path; identities are relative to its directory.", Required = true };
+        var baselinePath = new Option<string?>("--baseline")
+        {
+            Description = "Explicit baseline JSON path; scan reads it, baseline update replaces it.",
+            Required = name == "update",
+        };
         var command = new Command(name, description) { input, trusted, configuration, framework };
         if (name != "load")
         {
             command.Add(policy);
+        }
+
+        if (name is "scan" or "update")
+        {
+            command.Add(baselinePath);
         }
 
         // Reject repeated flags as well as repeated value options instead of silently accepting a typo.
@@ -104,7 +117,8 @@ internal static class CliApplication
         {
             var request = new WorkspaceLoadRequest(result.GetValue(input)!, result.GetValue(trusted),
                 result.GetValue(configuration)!, result.GetValue(framework));
-            return await WorkspaceCommands.RunAsync(name, request, name == "load" ? null : result.GetValue(policy), renderer, token);
+            return await WorkspaceCommands.RunAsync(name, request, name == "load" ? null : result.GetValue(policy),
+                name is "scan" or "update" ? result.GetValue(baselinePath) : null, renderer, token);
         });
         return command;
     }
