@@ -198,7 +198,10 @@ public sealed class ReportTests
             Assert.StartsWith("{", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
             var directory = Path.Combine(root, "destination");
             Directory.CreateDirectory(directory);
-            await Assert.ThrowsAnyAsync<IOException>(() => ReportWriter.WriteAsync(directory, "new", TestContext.Current.CancellationToken));
+            // Replacing a directory reports access denied on Windows and an I/O error on Unix.
+            var failure = await Record.ExceptionAsync(() => ReportWriter.WriteAsync(directory, "new", TestContext.Current.CancellationToken));
+            Assert.True(failure is IOException or UnauthorizedAccessException, failure?.ToString());
+            Assert.True(Directory.Exists(directory));
             await Assert.ThrowsAnyAsync<IOException>(() => ReportWriter.WriteAsync(Path.Combine(root, "missing", "report"), "new", TestContext.Current.CancellationToken));
             Assert.Empty(Directory.GetFiles(root, "*.tmp"));
             Assert.Single(Directory.GetFiles(root));

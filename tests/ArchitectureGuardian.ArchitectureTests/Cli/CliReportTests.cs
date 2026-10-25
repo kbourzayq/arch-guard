@@ -36,11 +36,18 @@ public sealed class CliReportTests
         using var written = JsonDocument.Parse(await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
         Assert.Equal(document.RootElement.GetRawText(), written.RootElement.GetRawText());
 
-        error.GetStringBuilder().Clear();
-        Assert.Equal(2, await CliApplication.RunAsync([.. arguments, "--output", Path.Combine(files.Root, "missing", "report")], output, error, TestContext.Current.CancellationToken));
-        Assert.Empty(output.ToString());
-        Assert.Contains("Invalid command input", error.ToString());
-        Assert.Empty(Directory.GetFiles(files.Root, "*.tmp"));
+        var directory = Path.Combine(files.Root, "destination");
+        Directory.CreateDirectory(directory);
+        foreach (var destination in new[] { Path.Combine(files.Root, "missing", "report"), directory })
+        {
+            error.GetStringBuilder().Clear();
+            Assert.Equal(2, await CliApplication.RunAsync([.. arguments, "--output", destination], output, error, TestContext.Current.CancellationToken));
+            Assert.Empty(output.ToString());
+            Assert.Contains("Invalid command input", error.ToString());
+            Assert.Empty(Directory.GetFiles(files.Root, "*.tmp"));
+        }
+        Assert.True(Directory.Exists(directory));
+        Assert.Equal(document.RootElement.GetRawText(), (await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken)).Trim());
     }
 
     /// <summary>Both snapshots' coverage and baseline classifications survive machine output through the Git CLI path.</summary>
