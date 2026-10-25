@@ -7,7 +7,7 @@ contracts, dependency permissions, rule selection, severities and the quality ga
 New users can start with the [policy walkthrough](getting-started.md#2-write-a-policy).
 This reference covers YAML version `1`; the
 [JSON Schema](schema/architecture.guardian.v1.schema.json) supports editor validation.
-The [repository policy](../architecture.guardian.yaml) maps this solution's nine
+The [repository policy](../architecture.guardian.yaml) maps this solution's ten
 projects, and the [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
 demonstrates public contracts. Both are loaded and resolved by tests.
 
@@ -18,23 +18,52 @@ coverage nor compliance. Compiler integration uses a separate
 
 ## Document shape
 
+For a repository with the following four projects, place the policy beside `src/`:
+
+```text
+architecture.guardian.yaml
+src/Orders/Orders.Application.csproj
+src/Orders/Orders.Domain.csproj
+src/Billing/Billing.Contracts.csproj
+src/Billing/Billing.Infrastructure.csproj
+```
+
+This complete example selects all six rules. Project references and C# uses still
+come from the loaded workspace; the YAML declares ownership and constraints only.
+
 ```yaml
 version: 1
 modules:
   - id: Orders
     projects: ["src/Orders/**/*.csproj"]
     allowedDependencies: ["contract:Billing/api"]
+    forbiddenNamespaces: [System.Net]
   - id: Billing
     projects: ["src/Billing/**/*.csproj"]
     contracts:
       - id: api
         projects: ["src/Billing/Billing.Contracts.csproj"]
 layers:
-  - id: All
-    projects: ["src/**/*.csproj"]
+  - id: Domain
+    projects: ["src/Orders/Orders.Domain.csproj"]
+    domainInfrastructure:
+      forbiddenNamespaces: [System.Data]
+      allowedNamespaces: [System.Data.SqlTypes]
+  - id: Contracts
+    projects: ["src/Billing/Billing.Contracts.csproj"]
+  - id: Application
+    projects: ["src/Orders/Orders.Application.csproj"]
+    allowedDependencies: [Domain, Contracts]
+  - id: Infrastructure
+    projects: ["src/Billing/Billing.Infrastructure.csproj"]
+    allowedDependencies: [Contracts]
 rules:
   AG001: error
+  AG002: error
   AG003: warning
+  AG004: error
+  AG005: error
+  AG006: error
 gate:
   failOn: error
 ```
@@ -99,6 +128,13 @@ resolution or filesystem enumeration. Selectors in one declaration form a union;
 matching two selectors within the same declaration does not create two owners.
 
 ## Module, layer and contract resolution
+
+Module identity is the explicit `modules[].id`, such as `Billing`. It is not inferred
+from a directory, assembly name, `RootNamespace`, namespace or solution folder. Two
+projects with different names can belong to one module; renaming an assembly does
+not change module membership when the project path and policy stay the same.
+Changing a module ID changes diagnostic targets and can make baseline findings new.
+Project moves require updating selectors and references together.
 
 Every inventory project must map to **exactly one module and exactly one layer**.
 Modules and layers are independent dimensions: one module may span several layers,
@@ -241,6 +277,45 @@ gate, regardless of threshold or diagnostic count. An empty completed result pas
 CLI `scan --baseline <path>` applies the same threshold only to new findings.
 Baseline files are explicit command inputs; YAML v1 has no baseline setting.
 See [diagnostic baselines](baselines.md).
+
+## Baselines and CLI exit codes
+
+Accepted debt is a separate, explicitly reviewed JSON inventory. Choose the gate
+mode at the command line; none of these modes permits missing coverage:
+
+| Command mode | Findings that can fail the severity gate |
+| --- | --- |
+| `scan` | All current findings |
+| `scan --baseline <file>` | New findings after stable fingerprint matching against the explicit file |
+| `scan --base <commit-or-ref>` | New findings compared with a complete scan of the local Git base |
+| `baseline update ... --baseline <file>` | Saves all current findings after completed analysis; success accepts the inventory rather than proving a clean architecture |
+
+`--base` and `--baseline` cannot be combined. Scans never update accepted debt.
+Review changes to rule selection, ownership and baseline entries together; use
+separate baseline files for independently analyzed configurations/frameworks.
+See [baseline matching and updates](baselines.md) and [Git comparison](changes.md).
+
+| CLI exit | Meaning |
+| --- | --- |
+| `0` | The command completed successfully; a scan passed its configured gate, or an explicit baseline update saved its inventory |
+| `1` | The scan completed and a finding failed the applicable severity gate |
+| `2` | Invalid arguments/policy/baseline, unavailable context or rule, incomplete/failed analysis, cancellation or output failure |
+
+An `error` threshold can pass warnings, and accepted existing errors can pass a
+new-finding gate. Neither result means there are no findings. Incomplete analysis
+with zero findings exits `2`. MCP exposes completion and gate outcome separately;
+compiler severity comes from editorconfig instead of this CLI exit contract.
+
+## Execution and reproducibility
+
+Policy loading and Core evaluation do not fetch rules, schemas or help pages.
+The workspace must already have the SDK, reference packs, restored assets and
+generator inputs for the selected configuration/framework. See
+[offline and deterministic operation](workspace-loading.md#offline-and-deterministic-operation)
+for preparation and the limits of reproducibility, and
+[trust and isolation](workspace-loading.md#trust-and-isolation) before loading an
+untrusted repository. YAML restrictions constrain analyzed dependencies; they do
+not sandbox MSBuild tasks or source generators.
 
 ## Host composition
 

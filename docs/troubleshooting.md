@@ -20,22 +20,82 @@ For desktop MCP clients, the process environment can differ from your terminal.
 
 ## Restore and workspace problems
 
+### Incomplete restore or missing context
+
 **`restore-required`, unavailable references or compiler errors.** Restore the
 target input explicitly, using the configuration/framework you intend to analyze.
 Resolve failed restores and compilation problems before expecting full coverage.
 The loader does not run restore and does not guarantee assets remain fresh after edits.
+
+For a trusted input, check restore and build in the same context before rescanning
+(replace the paths/framework with those declared by your repository):
+
+```sh
+dotnet restore path/to/Application.slnx -p:Configuration=Release -p:TargetFramework=net10.0
+dotnet build path/to/Application.slnx --configuration Release --framework net10.0 --no-restore
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll load path/to/Application.slnx --trusted --configuration Release --framework net10.0
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release --framework net10.0
+```
+
+Resolve unavailable package feeds, credentials, SDK/reference packs and broken
+project/assembly references first. Check that referenced projects are included in
+the intended input and mapped by the policy. An unused missing reference can still
+prevent completion. Existing `obj/project.assets.json` alone does not prove that
+restore succeeded for the current project and context. Keep workspace warnings and
+compiler errors visible; partial findings plus exit `2` are not a gate pass.
 
 **`workspace-untrusted`.** CLI workspace commands require `--trusted`. MCP builds
 require the operator to enable `Workspace:Trusted`; tool arguments cannot grant it.
 Restore and MSBuild evaluation can execute repository build logic. Trust and
 [isolation](workspace-loading.md#trust-and-isolation) are separate decisions.
 
+### Multi-targeting and configurations
+
 **`framework-required` or `framework-unavailable`.** Specify `--framework` in CLI
 or `targetFramework` in MCP. Every loaded project must declare that framework.
 Use separate inputs/runs when frameworks differ across projects.
 
+For `<TargetFrameworks>net10.0;netstandard2.1</TargetFrameworks>`, restore and scan
+each declared framework explicitly. Repeat for relevant Debug/Release configurations:
+conditional references, source files and preprocessor branches can change findings.
+A successful run covers only its selected context. Use a separate baseline per
+independently gated context; sharing one inventory can misclassify context-specific
+findings as resolved. See [framework selection](workspace-loading.md#configuration-frameworks-and-sdks).
+
+If direct multi-target `.csproj` loading reports unmatched project/metadata reference
+warnings, try the explicit solution containing its referenced projects, still with
+`--framework` selected and complete policy mappings. This is a documented workspace
+limitation, not permission to suppress warnings; see the
+[validated context matrix](semantic-accuracy.md#shared-cases-and-intentional-differences).
+
 **A later MCP request needs another SDK.** MSBuild registration is process-wide.
 Start another server process for a repository that requires a different SDK.
+
+### Generated code and source generators
+
+**A finding points into `.g.cs` or `generated/...`.** Both engines include generated
+source supplied by Roslyn. Generated-code attributes and file naming do not exempt
+bound references from the rules. Solution evidence uses portable logical paths
+such as `generated/PROJECT/GENERATED_FILE_ID/HINT`; these are identities, not promises
+that a file exists there. Compiler locations use the host's paths. Find the generator
+and hint through the project/IDE, then change the generator, its templates/options
+or input model and regenerate. Hand edits to generated output will be overwritten.
+See [evidence paths](dependency-graph.md#stable-identities-and-ordering).
+
+**`source-generator-error`, `source-generator-failed` or missing generated types.**
+Inspect the named project, generator and underlying diagnostics. Restore generator
+dependencies, supply its AdditionalFiles/options, and check SDK/compiler compatibility
+in the selected context. Generators can run during workspace compilation and again
+in its validation pass; make their inputs deterministic. Generator errors/exceptions
+prevent completed coverage even when some other symbols bind. Ordinary generator
+warnings alone do not block completion. See
+[generator validation](workspace-loading.md#roslyn-and-msbuild-responsibilities).
+
+**Compiler and CLI counts differ.** Solution rules aggregate evidence; compiler
+diagnostics locate bound explicit names and cover a narrower semantic surface.
+Compare the rule, ownership, restriction and bound use rather than raw counts or
+diagnostic IDs. Check the XML ownership snapshot as well as YAML; there is no
+automatic exporter. See [engine parity](semantic-accuracy.md).
 
 ## Policy and gate problems
 
@@ -50,6 +110,29 @@ rules run. See [policy selection and gates](policy.md#rule-selection-severity-an
 
 **Exit code `2` with zero findings.** Analysis did not complete reliably. Resolve
 the operational issues and rerun. Do not suppress the exit code to make CI pass.
+
+**A baseline hides errors or fails to match moved code.** Baseline mode gates only
+new findings, while retaining existing errors in output. Project/module/symbol or
+constraint changes can create new identities; line movement alone can preserve
+semantic fingerprints. Review the [matching contract](baselines.md#version-one-identity-and-matching).
+Use `baseline update` only to accept reviewed debt after completed analysis, never
+to bypass a loading problem. `--base` and `--baseline` cannot be combined.
+
+## Offline operation and repeatability
+
+**A scan attempts network access or changes between runs.** The tool does not fetch
+rules or help pages and full scans do not restore. Repository-controlled MSBuild
+tasks, SDK resolvers and source generators can still access the network, read local
+state or change files. Preinstall SDKs/packs, explicitly restore dependencies, fix
+the build context and generated inputs, then enforce network isolation outside the
+tool. Deterministic rule evaluation cannot make nondeterministic build logic stable.
+See [offline preparation](workspace-loading.md#offline-and-deterministic-operation).
+
+**Can `--trusted` safely inspect an unfamiliar repository?** It authorizes execution
+of that repository's build logic. Run restore and analysis in a disposable environment
+without credentials or privileged host mounts/services, with resource and time limits.
+MCP's workspace root and read-only annotations do not sandbox that execution.
+Follow [trust and isolation](workspace-loading.md#trust-and-isolation).
 
 ## MCP connection and path problems
 

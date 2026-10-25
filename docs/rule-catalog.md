@@ -25,7 +25,7 @@ provides an ID, a title and a documentation URL. The catalog does not fetch a re
 rule list, read this Markdown file, or contain the executable checking logic.
 
 AG001–AG006 use this evaluation flow, rendered by CLI `scan` and MCP
-`analyze_solution`; additional reporting adapters remain planned:
+`analyze_solution`, and exported by CLI [JSON/SARIF reports](reports.md):
 
 ```mermaid
 flowchart TD
@@ -67,10 +67,38 @@ value, not the content served at that URL.
 
 Current catalog URLs point to this repository's `main` branch. Release packaging
 should pin them to documentation matching the released rule implementation.
+The six rule headings below are the published help anchors used by CLI, MCP,
+compiler diagnostics and reports; preserve them when editing the catalog.
+Each example describes that rule's decision only. A passing example can still
+violate another selected rule; full compliance requires completed coverage and
+the configured gate to pass.
 
 ## AG001: Module dependencies
 
 Detect dependencies forbidden between logical modules by policy.
+
+### AG001 examples and remediation
+
+Given the [complete policy example](policy.md#document-shape), Orders permits only
+`contract:Billing/api`, whose project is `src/Billing/Billing.Contracts.csproj`:
+
+```text
+Valid:   Orders.Application -> Billing.Contracts      (declared api contract)
+Valid:   Orders.Application -> Orders.Domain          (same module)
+Invalid: Orders.Application -> Billing.Infrastructure (no permission)
+Invalid: Billing.Infrastructure -> Orders.Domain      (no reverse permission)
+```
+
+These arrows represent observed project references or bound uses, not YAML syntax.
+Even an unused evaluated project reference can supply AG001 evidence. Inspect the
+source/target project paths in the finding before changing permissions.
+
+Remove the dependency or depend on the target's declared contract instead. Add a
+precise `contract:Billing/api` permission only if that direction is intended.
+`module:Billing` grants AG001 access to every Billing project, but AG004 can still
+reject implementation uses. Permissions are not inherited through another module.
+
+### AG001 evidence and limitations
 
 `ModuleDependenciesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
 It evaluates the supplied graph and repository ownership without loading files or
@@ -111,6 +139,28 @@ Detect dependencies forbidden between architectural layers by policy. AG002 deno
 the layer rule. Earlier illustrative CQRS use of AG002 is superseded by this
 canonical layer rule; AG002 does not enforce CQRS conventions.
 
+### AG002 examples and remediation
+
+In the [complete policy example](policy.md#document-shape), Application permits
+Domain and Contracts; Domain has no outgoing layer permissions:
+
+```text
+Valid:   Orders.Application -> Orders.Domain     (Application allows Domain)
+Valid:   Orders.Application -> Billing.Contracts (Application allows Contracts)
+Invalid: Orders.Domain -> Orders.Application     (Domain denies Application)
+```
+
+A same-module relationship does not make the last edge valid. AG002 can report it
+even when the project reference has no C# use. Evidence names the original project
+pair and layers, with source spans when semantic uses are available.
+
+Remove or invert the edge: define an interface in Domain and implement it in
+Application, so Domain no longer references Application. Change `allowedDependencies`
+only when the intended layer direction actually changes. A module/contract grant
+cannot repair a layer violation.
+
+### AG002 evidence and limitations
+
 `LayerDependenciesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
 It checks each observed source/target project pair through
 `ResolvedPolicy.AllowsLayerDependency`. Layer names and the outgoing
@@ -146,6 +196,33 @@ Severity and gates apply separately after discovery. See the
 ## AG003: Module cycles
 
 Detect cycles across logical modules using the solution-wide dependency graph.
+
+### AG003 examples and remediation
+
+Consider Billing.Application and Billing.Contracts owned by Billing, and
+Orders.Application and Orders.Contracts owned by Orders. Contracts are declared
+in their owning modules, and every cross-module edge has a contract permission:
+
+```text
+Valid:   Orders.Application -> Billing.Contracts
+         Billing.Application -> Billing.Contracts
+         Module graph: Orders -> Billing
+
+Invalid: Orders.Application -> Billing.Contracts
+         Billing.Application -> Orders.Contracts
+         Module graph: Billing -> Orders -> Billing
+```
+
+The invalid project graph can build without a project-reference cycle. Both edges
+can pass AG001 and AG004 while their logical modules form an AG003 cycle. A finding
+shows a closed representative module path and reference/symbol evidence for its hops.
+
+Remove or invert one cross-module edge, or extract the shared contract into an
+independent module whose dependencies do not recreate the cycle. Adding permissions
+or marking more projects as contracts does not remove a module edge. The runnable
+[modular-monolith example](m1-demo.md#run-the-demo) includes a cycle scenario.
+
+### AG003 evidence and limitations
 
 `ModuleCyclesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
 It rebuilds direct module edges from each fact's original project ownership, so
@@ -191,6 +268,31 @@ invocation cannot establish it. CLI `scan` and MCP `analyze_solution` compose th
 
 Detect access to another module's internal implementation across declared boundaries.
 
+### AG004 examples and remediation
+
+Assume `IInvoiceReader` is defined in Billing's declared `api` contract project and
+`InvoiceStore` in its non-contract infrastructure project. These illustrative C#
+uses occur inside Orders.Application:
+
+```csharp
+// Valid for AG004: the type belongs to a declared public-contract project.
+public sealed class ReadInvoices(Billing.Contracts.IInvoiceReader reader) { }
+
+// Invalid for AG004: C# public accessibility does not make a project a contract.
+public sealed class ReadInvoicesDirectly(Billing.Infrastructure.InvoiceStore store) { }
+```
+
+A module permission for all of Billing does not authorize the second use. The
+finding identifies the source/target projects, bound implementation symbol and use
+spans. An unused project reference alone does not establish an AG004 violation.
+
+Depend on the contract interface and keep implementation selection in an appropriate
+composition layer. Move deliberately shared abstractions into a declared contract
+project; do not expose the whole implementation project just to silence a finding.
+Recheck AG001 permissions and AG002 layers after changing the dependency.
+
+### AG004 evidence and limitations
+
 `ImplementationBoundariesRule` evaluates semantic evidence in `DependencyBuildResult`.
 A bound type/member owned by another module must belong to a declared public-contract
 project. Types in non-contract projects remain implementation even when C# declares
@@ -227,6 +329,31 @@ Neither engine discovers runtime reflection or dynamic dispatch targets.
 
 Detect assembly or namespace references forbidden by policy.
 
+### AG005 examples and remediation
+
+For a module with `forbiddenNamespaces: [System.Net]`, the following illustrative
+members show bound uses; a containing type is omitted:
+
+```csharp
+// Invalid: System.Net.Http is a descendant of the forbidden namespace.
+public System.Net.Http.HttpClient CreateClient() => new();
+
+// Valid for this restriction: text is not a bound System.Net symbol use.
+public string EndpointName => "System.Net.Http.HttpClient";
+```
+
+`System.NetLike` would not match `System.Net`; an unused `using System.Net.Http;`
+also supplies no finding. For `forbiddenAssemblies`, use the bound assembly's exact
+simple name, not a package ID or source alias. A type can match both an assembly
+ban and a namespace ban, producing separate findings with each restriction named.
+
+Replace the use with an allowed abstraction and put networking in an appropriate
+adapter, or review the exact module/layer restriction if the dependency is intended.
+Changing spelling through an alias or granting a module dependency does not change
+the bound identity. Evidence retains that identity and the configured restriction.
+
+### AG005 evidence and limitations
+
 `ForbiddenReferencesRule` checks bound semantic evidence in `DependencyBuildResult`
 against the source module's and layer's `forbiddenAssemblies` and
 `forbiddenNamespaces` lists. [Policy configuration](policy.md#forbidden-references-ag005)
@@ -258,6 +385,35 @@ discovery. No runtime reflection or dynamic target is inferred.
 ## AG006: Domain infrastructure
 
 Detect domain code referencing infrastructure technology forbidden by policy.
+
+### AG006 examples and remediation
+
+The [complete policy example](policy.md#document-shape) configures Domain with
+`forbiddenNamespaces: [System.Data]` and `allowedNamespaces: [System.Data.SqlTypes]`
+inside `domainInfrastructure`. In an Orders.Domain type:
+
+```csharp
+// Invalid: a bound technology use forbidden in this source layer.
+public System.Data.DataTable CreateTable() => new();
+
+// Valid for AG006: an explicit namespace exception in this source layer.
+public System.Data.SqlTypes.SqlInt32 EmptyValue => System.Data.SqlTypes.SqlInt32.Null;
+
+// Valid for AG006: an ordinary domain value outside the configured bans.
+public decimal Total => 0m;
+```
+
+An exception includes descendants at namespace-segment boundaries and also waives
+AG006 assembly bans for that namespace. It does not waive AG005 or AG002. The
+finding records the source project/layer, target symbol and exact technology ban.
+
+Keep data access behind domain abstractions and implement it in an adapter. When
+a dependency is an intentional domain value, review a narrowly scoped exception;
+allowing a namespace authorizes every type/member in that subtree. Renaming the
+layer to `Domain` alone enforces nothing: the configuration and AG006 selection
+are both required.
+
+### AG006 evidence and limitations
 
 `DomainInfrastructureRule` combines resolved source layer membership with bound
 assembly and namespace identities in `DependencyBuildResult`. A layer opts in through

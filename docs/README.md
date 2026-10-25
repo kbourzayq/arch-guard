@@ -17,15 +17,17 @@ features are identified explicitly.
 | [CI quality gates](ci.md) | Independent GitHub Actions and Azure Pipelines gates, failure artifacts and optional code scanning |
 | [MCP](mcp.md) | Codex, Claude Code and Copilot CLI setup, correction workflow, workspace trust and tool responses |
 | [Compiler analyzer](compiler-analyzer.md) | Local NuGet installation, XML policy, severity and host compatibility |
-| [Policy reference](policy.md) | YAML v1, project selectors, contracts, permissions and gates |
-| [Rule catalog](rule-catalog.md) | AG001–AG006 semantics and evidence |
+| [Policy reference](policy.md) | Complete YAML v1 example, module identity, project patterns, contracts, layers, baselines and exit codes |
+| [Rule catalog](rule-catalog.md) | Stable AG001–AG006 help links, valid/invalid examples, remediation, evidence and limits |
 | [Examples](m1-demo.md) | Clean Architecture and modular-monolith examples with expected outcomes |
-| [Troubleshooting](troubleshooting.md) | Installation, incomplete coverage and MCP errors |
+| [Troubleshooting](troubleshooting.md) | Incomplete restore, multi-targeting, generated code, offline operation and MCP errors |
 
 ## Understand the engines
 
 - [Semantic accuracy and engine parity](semantic-accuracy.md): what each engine checks and its limits.
-- [Workspace loading](workspace-loading.md): restore, trust, configurations, frameworks and SDK selection.
+- [Workspace loading](workspace-loading.md): restore, configurations, frameworks and SDK selection,
+  [offline determinism](workspace-loading.md#offline-and-deterministic-operation) and
+  [MSBuild trust and isolation](workspace-loading.md#trust-and-isolation).
 - [Architecture overview](architecture/overview.md): responsibilities, dependencies and execution flows.
 - [Shared contracts](shared-contracts.md): diagnostics, completion, cancellation and deterministic identities.
 - [Repository model](repository-model.md): normalized ownership and stable project/module identities.
