@@ -7,7 +7,8 @@ open or discuss an issue so the intended behavior and scope are clear before imp
 
 ## Set up a development checkout
 
-Install the SDK selected by [global.json](global.json), then run:
+Install the exact SDK selected by [global.json](global.json). SDK roll-forward is
+disabled; apply SDK patch updates manually by changing its version. Then run:
 
 ```sh
 git clone https://github.com/kbourzayq/arch-guard.git
@@ -130,7 +131,7 @@ python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.An
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
-CI separately checks compiler consumers across its configured SDK/OS matrix;
+CI separately checks compiler consumers with the same pinned SDK on each OS;
 see [host compatibility](docs/compiler-analyzer.md#host-compatibility-and-validation).
 
 For documentation-only changes, verify commands, local links, headings and fenced

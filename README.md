@@ -44,8 +44,7 @@ before adopting a scan as a required gate.
 
 ## Install and run your first scan
 
-Install the **.NET SDK 10.0.402** or a later stable patch in the `10.0.4xx` feature
-band, then run:
+Install the exact **.NET SDK 10.0.402** selected by [global.json](global.json), then run:
 
 ```sh
 git clone https://github.com/kbourzayq/arch-guard.git

@@ -211,7 +211,7 @@ it does not extend vendor support for older SDKs or IDEs.
 | Host | Validation |
 | --- | --- |
 | Roslyn 4.8 in-process analyzer driver / IDE-style workspace | Microsoft.CodeAnalysis.Testing semantic tests, multi-project and AdditionalFiles/editorconfig cases |
-| SDK 8.0.100, 9.0.100, 10.0.402 command-line compiler | Packaged consumer test in CI on Linux, Windows and macOS |
+| Command-line compiler from the SDK pinned in `global.json` | Packaged consumer test in CI on Linux, Windows and macOS |
 | Visual Studio UI, Rider and other interactive IDEs | No UI-level validation in this repository; IDEs must supply Roslyn 4.8+ and AdditionalFiles |
 
 The semantic suite covers AG005/AG006 framework/external restrictions and lookalikes, invalid configuration, cancellation, concurrent reuse,

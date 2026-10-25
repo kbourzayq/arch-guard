@@ -126,13 +126,12 @@ jobs:
           path: artifacts/analyzers/*.nupkg
 
   compiler-hosts:
-    name: Compiler host (${{ matrix.os }}, SDK ${{ matrix.sdk }})
+    name: Compiler host (${{ matrix.os }})
     needs: pack-analyzer
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        sdk: ['8.0.100', '9.0.100', '10.0.402']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
@@ -140,8 +139,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
+        id: dotnet
         with:
-          dotnet-version: ${{ matrix.sdk }}
+          global-json-file: global.json
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
@@ -150,4 +150,4 @@ jobs:
           name: compiler-analyzer
           path: artifacts/analyzers
       - name: Verify packaged analyzer in an isolated SDK consumer
-        run: python eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk ${{ matrix.sdk }}
+        run: python eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk ${{ steps.dotnet.outputs.dotnet-version }}
