@@ -4,6 +4,7 @@ using ArchitectureGuardian.Core.Baselines;
 using ArchitectureGuardian.Core.Diagnostics;
 using ArchitectureGuardian.Core.Repositories;
 using ArchitectureGuardian.Core.Rules;
+using ArchitectureGuardian.Reporting;
 
 namespace ArchitectureGuardian.Cli;
 
@@ -12,6 +13,31 @@ namespace ArchitectureGuardian.Cli;
 /// <param name="error">The stream for errors and coverage gaps.</param>
 internal sealed class ConsoleRenderer(TextWriter output, TextWriter error)
 {
+    internal async Task<int> ScanAsync(AnalysisResult analysis, string root, string format, string? outputPath,
+        bool? passed, BaselineComparison? comparison, string? baseCommit, CancellationToken cancellationToken)
+    {
+        if (analysis.IsComplete) { cancellationToken.ThrowIfCancellationRequested(); }
+        if (format == "text")
+        {
+            Diagnostics(analysis.Diagnostics);
+            if (analysis.IsComplete)
+            {
+                if (comparison is not null) { Baseline(comparison); }
+                Gate(passed!.Value, analysis.Diagnostics.Count);
+            }
+        }
+        else
+        {
+            var report = ReportSerializer.Serialize(analysis, format == "json" ? ReportFormat.Json : ReportFormat.Sarif,
+                root, passed, comparison, baseCommit);
+            if (outputPath is null) { await output.WriteAsync(report); }
+            else { await ReportWriter.WriteAsync(outputPath, report, cancellationToken); }
+        }
+
+        if (!analysis.IsComplete) { return Coverage("Analysis", analysis.Status, analysis.Issues); }
+        return passed == true ? 0 : 1;
+    }
+
     internal void Explain(RuleDescriptor descriptor)
     {
         output.WriteLine($"{descriptor.Id}: {descriptor.Title}");

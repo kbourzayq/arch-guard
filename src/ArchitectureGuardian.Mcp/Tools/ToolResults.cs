@@ -16,11 +16,17 @@ internal static class ToolResults
         var bytes = JsonSerializer.SerializeToUtf8Bytes(response, JsonOptions);
         if (bytes.Length > MaxPayloadBytes)
         {
-            throw new McpException("Context exceeds 65536 UTF-8 bytes. Narrow the module/layer or ruleId filter, or use a smaller policy/input scope.");
+            throw new McpException(
+                "Context exceeds 65536 UTF-8 bytes. Narrow the module/layer or ruleId filter, or use a smaller policy/input scope.");
         }
 
         var content = JsonSerializer.Deserialize<JsonElement>(bytes);
         cancellationToken.ThrowIfCancellationRequested();
-        return new() { IsError = false, StructuredContent = content, Content = [new TextContentBlock { Text = content.GetRawText() }] };
+        return new()
+        {
+            IsError = false,
+            StructuredContent = content,
+            Content = [new TextContentBlock { Text = content.GetRawText() }]
+        };
     }
 }

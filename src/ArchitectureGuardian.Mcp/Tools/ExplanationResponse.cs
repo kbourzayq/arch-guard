@@ -19,8 +19,19 @@ namespace ArchitectureGuardian.Mcp.Tools;
 /// <param name="PublicContracts">Declared contract alternatives; no API suitability or permission is implied.</param>
 /// <param name="Remediation">Rule-specific guidance, including declared contracts when applicable.</param>
 /// <param name="Issues">Operational coverage issues from fresh analysis.</param>
-internal sealed record ExplanationResponse(int SchemaVersion, string Status, string Scope, string PolicyPath,
-    string? InputPath, string? Configuration, string? TargetFramework, RuleContext? Rule, string Explanation,
-    AnalysisDiagnostic? Diagnostic, IReadOnlyList<ViolationPathNode> DependencyPath,
-    IReadOnlyList<PolicyConstraint> PolicyConstraints, IReadOnlyList<string> PublicContracts,
-    string Remediation, IReadOnlyList<AnalysisIssue> Issues);
+internal sealed record ExplanationResponse(
+    int SchemaVersion,
+    string Status,
+    string Scope,
+    string PolicyPath,
+    string? InputPath,
+    string? Configuration,
+    string? TargetFramework,
+    RuleContext? Rule,
+    string Explanation,
+    AnalysisDiagnostic? Diagnostic,
+    IReadOnlyList<ViolationPathNode> DependencyPath,
+    IReadOnlyList<PolicyConstraint> PolicyConstraints,
+    IReadOnlyList<string> PublicContracts,
+    string Remediation,
+    IReadOnlyList<AnalysisIssue> Issues);

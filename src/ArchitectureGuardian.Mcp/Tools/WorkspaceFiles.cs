@@ -15,7 +15,8 @@ internal sealed class WorkspaceFiles(IOptions<WorkspaceOptions> options, IPolicy
         var root = Path.GetFullPath(options.Value.Root);
         var fullPath = Path.GetFullPath(path, root);
         var relative = Path.GetRelativePath(root, fullPath);
-        if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        if (Path.IsPathRooted(relative) || relative == ".." ||
+            relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         {
             throw new McpException("Input must be inside Workspace:Root.");
         }
@@ -26,25 +27,35 @@ internal sealed class WorkspaceFiles(IOptions<WorkspaceOptions> options, IPolicy
             current = Path.Combine(current, part);
             if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
             {
-                throw new McpException("Input paths cannot traverse symbolic links or reparse points under Workspace:Root.");
+                throw new McpException(
+                    "Input paths cannot traverse symbolic links or reparse points under Workspace:Root.");
             }
         }
 
-        if (!File.Exists(fullPath)) { throw new McpException("Input must name an existing file."); }
+        if (!File.Exists(fullPath))
+        {
+            throw new McpException("Input must name an existing file.");
+        }
+
         return fullPath;
     }
 
     internal async Task<ArchitecturePolicy> LoadPolicyAsync(string path, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (new FileInfo(path).Length > 262_144) { throw new McpException("Policy exceeds 262144 bytes."); }
+        if (new FileInfo(path).Length > 262_144)
+        {
+            throw new McpException("Policy exceeds 262144 bytes.");
+        }
+
         try
         {
             return await loader.LoadAsync(path, cancellationToken);
         }
         catch (PolicyConfigurationException)
         {
-            throw new McpException("Invalid or unsupported YAML policy. Validate it with the CLI and the v1 policy schema; no context was returned.");
+            throw new McpException(
+                "Invalid or unsupported YAML policy. Validate it with the CLI and the v1 policy schema; no context was returned.");
         }
     }
 

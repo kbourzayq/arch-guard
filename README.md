@@ -36,15 +36,15 @@ The compiler analyzer targets `netstandard2.0` with a Roslyn 4.8 API floor.
 Full-solution scans, YAML policy, six architecture rules and the MCP server are
 implemented, including [explicit diagnostic baselines](docs/baselines.md) and new-violation gates.
 [Full-context Git change comparison](docs/changes.md) is available through CLI
-`scan --base` and MCP `analyze_changes`. Report export and packaged CLI installation
-are planned; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
+`scan --base` and MCP `analyze_changes`. [JSON v1 and SARIF 2.1.0 reports](docs/reports.md)
+are available through `scan --format json|sarif`. Packaged CLI installation
+is planned; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
 before adopting a scan as a required gate.
 
 ## Install and run your first scan
 
-Install the **.NET SDK 10.0.402** or a later stable patch in the `10.0.4xx` feature
-band, then run:
+Install the exact **.NET SDK 10.0.402** selected by [global.json](global.json), then run:
 
 ```sh
 git clone https://github.com/kbourzayq/arch-guard.git

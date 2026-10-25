@@ -15,9 +15,12 @@ layers:
   - id: Configuration
     projects: ["src/ArchitectureGuardian.Configuration/*.csproj"]
     allowedDependencies: [Core]
+  - id: Reporting
+    projects: ["src/ArchitectureGuardian.Reporting/*.csproj"]
+    allowedDependencies: [Core]
   - id: Cli
     projects: ["src/ArchitectureGuardian.Cli/*.csproj"]
-    allowedDependencies: [Core, Analysis, Configuration]
+    allowedDependencies: [Core, Analysis, Configuration, Reporting]
   - id: Mcp
     projects: ["src/ArchitectureGuardian.Mcp/*.csproj"]
     allowedDependencies: [Core, Analysis, Configuration]
@@ -25,7 +28,7 @@ layers:
     projects: ["src/ArchitectureGuardian.Analyzers/*.csproj"]
   - id: Tests
     projects: ["tests/**/*.csproj"]
-    allowedDependencies: [Core, Analysis, Configuration, Cli, Analyzers, Mcp]
+    allowedDependencies: [Core, Analysis, Configuration, Reporting, Cli, Analyzers, Mcp]
 rules:
   AG001: error
   AG002: error

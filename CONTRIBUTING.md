@@ -7,7 +7,8 @@ open or discuss an issue so the intended behavior and scope are clear before imp
 
 ## Set up a development checkout
 
-Install the SDK selected by [global.json](global.json), then run:
+Install the exact SDK selected by [global.json](global.json). SDK roll-forward is
+disabled; apply SDK patch updates manually by changing its version. Then run:
 
 ```sh
 git clone https://github.com/kbourzayq/arch-guard.git
@@ -16,7 +17,7 @@ dotnet restore ArchitectureGuardian.slnx --locked-mode
 dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
 ```
 
-The solution contains six production projects and three test projects. Source
+The solution contains seven production projects and three test projects. Source
 organization, dependency direction and the two analysis engines are described in
 the [architecture overview](docs/architecture/overview.md).
 [AGENT.md](AGENT.md) contains the repository's coding and validation conventions.
@@ -78,9 +79,13 @@ dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj -
 Use `--filter "Category=Integration"` for the unit-test project's MSBuild/Roslyn
 workspace integration tests. CLI process and evaluated dependency checks live in
 `ArchitectureGuardian.ArchitectureTests`; run the full solution suite before submitting
-code. CI runs test projects sequentially (`-m:1`), while the workspace-bearing test
-assemblies cap concurrent collections at two. This bounds simultaneous MSBuild and
-Roslyn work on shared runners without omitting tests. Fixture restore and individual
+code. On each OS, CI runs architecture/CLI checks and unit/compiler checks on
+independent runners. Each test host retains its two-collection limit and `-m:1`;
+this removes the wait between heavy suites without oversubscribing one runner.
+The unit runner executes both unit-test assemblies sequentially. The existing
+`Build and test (<os>)` check names are aggregate gates: both full test matrices
+must succeed, including schema validation, before any of those gates can pass.
+All tests still run on Linux, Windows and macOS. Fixture restore and individual
 workspace CLI checks retain bounded process deadlines; trusted MCP scenarios use a
 three-minute aggregate budget for their multiple full workspace calls. The process
 helper disables build-worker reuse and applies its deadline through output draining.
@@ -89,12 +94,34 @@ through the fixture preparation solutions. Deliberately broken inputs are exclud
 from preparation; do not fix those intentional failures.
 The reference fixtures restore their four configuration graphs serially in one
 MSBuild process through `tests/Fixtures/ReferenceSolutions/Preparation.proj`.
-CLI scenarios combine compatible rule assertions to reduce repeated workspace
-loads while retaining process parity, mutation and incomplete-coverage checks.
+Reference cases prepare one immutable graph, repeat rule evaluation against it,
+and compare IDs and operational issues with a fresh CLI process. CLI scenarios
+reuse their independently executed baseline update/scan for byte-repeatability
+checks and combine inspection assertions for the same policy settings. They retain
+cold-process parity, all mutation cases and incomplete-coverage checks.
 The architecture suite starts its measured longest collections first to keep both
 bounded workers busy; update `WorkspaceCollectionOrderer` if profiling changes those priorities.
 CI caches NuGet's global packages using the committed lock files as its cache key;
 locked restore still runs on every build.
+
+For reporting changes, also validate serializer samples and real exports against
+the JSON v1 and vendored OASIS SARIF 2.1.0 schemas (CI runs this on each OS):
+
+```sh
+python3 -m pip install jsonschema==4.26.0
+python3 eng/test-reports.py
+```
+
+Use a virtual environment when your Python installation requires one. The validator
+uses the build-only `tests/Fixtures/Reports` executable to generate 20 JSON/SARIF
+samples in one process, covering completion, severities, baseline states, failure,
+cancellation and located/unlocated evidence. It then restores isolated package-free
+inputs once and performs four real CLI scans for stdout/file equivalence and repeatability.
+The sample executable is built in the same configuration as the architecture tests;
+run the full Release solution build above before the script. File failures and
+baseline/coverage host behavior remain covered by the normal xUnit suite. No new
+runtime packages are needed. Report schemas and mappings are documented in
+[reports](docs/reports.md).
 
 For compiler package changes, also build and verify a consumer package:
 
@@ -104,7 +131,7 @@ python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.An
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
-CI separately checks compiler consumers across its configured SDK/OS matrix;
+CI separately checks compiler consumers with the same pinned SDK on each OS;
 see [host compatibility](docs/compiler-analyzer.md#host-compatibility-and-validation).
 
 For documentation-only changes, verify commands, local links, headings and fenced

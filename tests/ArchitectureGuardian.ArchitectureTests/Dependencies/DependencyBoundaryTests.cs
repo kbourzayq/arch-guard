@@ -14,8 +14,9 @@ public sealed class DependencyBoundaryTests
     {
         ["ArchitectureGuardian.Core"] = [],
         ["ArchitectureGuardian.Configuration"] = ["ArchitectureGuardian.Core"],
+        ["ArchitectureGuardian.Reporting"] = ["ArchitectureGuardian.Core"],
         ["ArchitectureGuardian.Analysis"] = ["ArchitectureGuardian.Core"],
-        ["ArchitectureGuardian.Cli"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration"],
+        ["ArchitectureGuardian.Cli"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration", "ArchitectureGuardian.Reporting"],
         ["ArchitectureGuardian.Analyzers"] = [],
         ["ArchitectureGuardian.Mcp"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration"],
     };
@@ -44,6 +45,8 @@ public sealed class DependencyBoundaryTests
     [InlineData("ArchitectureGuardian.Configuration", "Release")]
     [InlineData("ArchitectureGuardian.Analysis", "Debug")]
     [InlineData("ArchitectureGuardian.Analysis", "Release")]
+    [InlineData("ArchitectureGuardian.Reporting", "Debug")]
+    [InlineData("ArchitectureGuardian.Reporting", "Release")]
     [InlineData("ArchitectureGuardian.Cli", "Debug")]
     [InlineData("ArchitectureGuardian.Cli", "Release")]
     [InlineData("ArchitectureGuardian.Mcp", "Debug")]

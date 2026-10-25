@@ -18,7 +18,7 @@ records the decisions and constraints behind them.
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
 | MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and `analyze_changes` with full base/candidate comparison | Report export |
-| Other adapters | None | Reports |
+| Reporting | JSON v1 and SARIF 2.1.0 serialization, portable locations and atomic file output; depends only on Core | Additional formats |
 | Quality gates | Inclusive severity threshold, explicit baselines and new-violation gates; noncompleted coverage always fails | — |
 
 The [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
@@ -41,6 +41,8 @@ flowchart LR
     Mcp --> Analysis
     Cli --> Analysis
     Cli --> Configuration
+    Cli --> Reporting["ArchitectureGuardian.Reporting<br/>Versioned JSON and SARIF reports"]
+    Reporting --> Core
     Analysis --> Core
     Configuration --> Core
     Analyzers["ArchitectureGuardian.Analyzers<br/>Host compilation and AdditionalFiles<br/>Source-links pure Core semantics; no project references"]
@@ -49,7 +51,9 @@ flowchart LR
 Core uses only the .NET base library. It performs no file, network or process access
 and exposes no Roslyn, MSBuild, serializer or transport objects. Analysis converts
 technology-specific inputs into neutral facts before invoking rules. CLI can consume
-Core contracts through its transitive reference to Core.
+Core contracts through its transitive reference to Core. Reporting depends only on
+Core and uses System.Text.Json from the base library; CLI composes it after analysis
+and gate evaluation. Neither Core nor Analysis references Reporting.
 Configuration depends only on Core and keeps YamlDotNet outside the domain. CLI
 references Configuration and Analysis to compose policy-driven commands; its
 System.CommandLine package stays outside the shared services. MCP references
@@ -110,6 +114,7 @@ nested implementation helpers stay with their owner.
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | Analyzers | `Policies` / project root | Compiler snapshot validation / compilation-local semantic diagnostics |
 | MCP | `Hosting` / `Tools` / project root | SDK registration and workspace options / bounded architecture, rule and analysis schemas and tools / host bootstrap |
+| Reporting | Project root | JSON/SARIF serialization and atomic report-file publication |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
 Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories`, `Rules` and `Workspaces` folders and
@@ -164,7 +169,7 @@ flowchart TD
     Service["AnalysisService<br/>Run registered rules and apply severity policy"]
     Rules["Core rule implementations<br/>AG001–AG006"]
     Result["AnalysisResult<br/>Coverage, diagnostics and operational issues"]
-    Output["CLI console output / MCP structured responses<br/>Report export — planned"]
+    Output["CLI console output / MCP structured responses<br/>JSON v1 / SARIF 2.1.0 reporting adapter"]
     Gate["GatePolicy — implemented<br/>Coverage and severity threshold<br/>Explicit baselines and new findings"]
 
     Host --> Configuration

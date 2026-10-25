@@ -6,6 +6,7 @@
     <PackageReference Include="System.CommandLine" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../ArchitectureGuardian.Reporting/ArchitectureGuardian.Reporting.csproj" />
     <ProjectReference Include="../ArchitectureGuardian.Analysis/ArchitectureGuardian.Analysis.csproj" />
     <ProjectReference Include="../ArchitectureGuardian.Configuration/ArchitectureGuardian.Configuration.csproj" />
   </ItemGroup>
