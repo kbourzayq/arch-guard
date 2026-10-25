@@ -123,6 +123,12 @@ baseline/coverage host behavior remain covered by the normal xUnit suite. No new
 runtime packages are needed. Report schemas and mappings are documented in
 [reports](docs/reports.md).
 
+For CI gate changes, also run `python3 eng/test-quality-gate.py` after the Release
+build. It runs the shared CI runner against real CLI scans, covering blocking
+findings, accepted debt, operational failures and retained JSON/SARIF artifacts.
+CI runs this check on all three operating systems. The consumer pipeline templates
+and checkout/restore requirements are documented in [CI quality gates](docs/ci.md).
+
 For compiler package changes, also build and verify a consumer package:
 
 ```sh

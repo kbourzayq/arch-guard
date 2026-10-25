@@ -1,0 +1,82 @@
+# Copy to .github/workflows/architecture.yml in the repository being scanned.
+# Replace Application.slnx and pin guardian-ref to a reviewed tool commit/tag.
+name: Architecture quality gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GUARDIAN_REF: main
+  GATE_INPUT: Application.slnx
+  GATE_POLICY: architecture.guardian.yaml
+  GATE_CONFIGURATION: Release
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: repository
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: kbourzayq/arch-guard
+          ref: ${{ env.GUARDIAN_REF }}
+          path: guardian
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: guardian/global.json
+          # Install any additional SDK versions required by BOTH target trees here.
+          dotnet-version: '10.0.402'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Publish standalone CLI
+        working-directory: guardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet restore src/ArchitectureGuardian.Cli --locked-mode
+          dotnet publish src/ArchitectureGuardian.Cli --configuration Release --no-restore --output "$RUNNER_TEMP/guardian-cli"
+      - name: Prepare exact base and restore both contexts
+        working-directory: repository
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/architecture-gate"
+          git rev-parse --verify "${BASE_REF}^{commit}"
+          git worktree add --detach "$RUNNER_TEMP/guardian-base" "$BASE_REF"
+          (
+            cd "$RUNNER_TEMP/guardian-base"
+            dotnet restore "$GATE_INPUT" --locked-mode -p:Configuration="$GATE_CONFIGURATION"
+          ) 2>&1 | tee "$RUNNER_TEMP/architecture-gate/base-restore.log"
+          dotnet restore "$GATE_INPUT" --locked-mode -p:Configuration="$GATE_CONFIGURATION" 2>&1 | tee "$RUNNER_TEMP/architecture-gate/candidate-restore.log"
+      - name: Run independent architecture gate
+        working-directory: repository
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python ../guardian/eng/run-quality-gate.py \
+            --cli "$RUNNER_TEMP/guardian-cli/ArchitectureGuardian.Cli.dll" \
+            --input "$GATE_INPUT" --policy "$GATE_POLICY" \
+            --configuration "$GATE_CONFIGURATION" --base "$BASE_REF" --trusted \
+            --output-directory "$RUNNER_TEMP/architecture-gate/reports"
+      - name: Retain reports and preparation logs even when the gate fails
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: architecture-gate
+          path: ${{ runner.temp }}/architecture-gate/
+          if-no-files-found: warn
+
+# Optional code-scanning upload is described in docs/ci.md; it is not a gate dependency.

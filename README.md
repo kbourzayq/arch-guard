@@ -38,7 +38,8 @@ implemented, including [explicit diagnostic baselines](docs/baselines.md) and ne
 [Full-context Git change comparison](docs/changes.md) is available through CLI
 `scan --base` and MCP `analyze_changes`. [JSON v1 and SARIF 2.1.0 reports](docs/reports.md)
 are available through `scan --format json|sarif`. Packaged CLI installation
-is planned; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
+is planned. [GitHub Actions and Azure Pipelines examples](docs/ci.md) run independent
+CLI gates and retain reports on failure; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
 before adopting a scan as a required gate.
 
