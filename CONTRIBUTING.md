@@ -101,9 +101,7 @@ cold-process parity, all mutation cases and incomplete-coverage checks.
 The architecture suite starts its measured longest collections first to keep both
 bounded workers busy; update `WorkspaceCollectionOrderer` if profiling changes those priorities.
 CI caches NuGet's global packages using the committed lock files as its cache key;
-locked restore still runs on every build. SDK setup reads the exact `sdk.version`
-from `global.json` and installs it explicitly, avoiding a setup-time floating
-release-channel lookup. The repository's normal SDK roll-forward policy is unchanged.
+locked restore still runs on every build.
 
 For reporting changes, also validate serializer samples and real exports against
 the JSON v1 and vendored OASIS SARIF 2.1.0 schemas (CI runs this on each OS):
