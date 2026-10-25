@@ -149,6 +149,12 @@
       "architectureguardian.core": {
         "type": "Project"
       },
+      "architectureguardian.reporting": {
+        "type": "Project",
+        "dependencies": {
+          "ArchitectureGuardian.Core": "[0.1.0, )"
+        }
+      },
       "Microsoft.Build.Locator": {
         "type": "CentralTransitive",
         "requested": "[1.11.2, )",

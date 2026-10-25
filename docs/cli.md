@@ -76,6 +76,25 @@ include actionable context on stderr. Ctrl+C requests cooperative cancellation
 through policy loading, workspace integration, extraction and evaluation; cancellation
 returns 2 and never claims a completed gate result.
 
+## Export JSON or SARIF reports
+
+`scan --format json` emits the version-one JSON report; `--format sarif` emits
+SARIF 2.1.0. Both write one complete document to stdout. Add `--output <path>` to
+write a UTF-8 file instead; its parent directory must exist. `--output` requires
+one of these machine formats. The default `--format text` preserves console output.
+These options apply only to `scan`, including `--baseline` and `--base` scans.
+
+```sh
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --format json
+dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --format sarif --output architecture.sarif
+```
+
+Machine output includes available findings and explicit completion and gate status,
+including partial analysis. Operational explanations remain on stderr. File-write
+failures return `2`, including when analysis completed successfully. See the
+[report guide](reports.md) for schemas, baseline state, URI normalization and
+cancellation behavior.
+
 ## Baselines and new-violation gates
 
 `scan --baseline <path>` reads an explicit JSON inventory, reports existing/new/resolved

@@ -12,18 +12,16 @@ namespace ArchitectureGuardian.Cli;
 internal static class WorkspaceCommands
 {
     internal static async Task<int> RunAsync(string command, WorkspaceLoadRequest request, string? policyPath,
-        string? baselinePath, ConsoleRenderer renderer, CancellationToken cancellationToken, string? baseReference = null)
+        string? baselinePath, ConsoleRenderer renderer, CancellationToken cancellationToken, string? baseReference = null,
+        string format = "text", string? outputPath = null)
     {
         var fullPolicyPath = policyPath is null ? null : Path.GetFullPath(policyPath);
         if (command == "scan" && baseReference is not null)
         {
             var changes = await new SolutionAnalysisService().AnalyzeChangesAsync(request, fullPolicyPath!, baseReference,
                 new YamlPolicyLoader(), cancellationToken: cancellationToken);
-            renderer.Diagnostics(changes.Analysis.Diagnostics);
-            if (!changes.Analysis.IsComplete) { return renderer.Coverage("Change analysis", changes.Analysis.Status, changes.Analysis.Issues); }
-            renderer.Baseline(changes.Comparison!);
-            renderer.Gate(changes.GatePassed, changes.Analysis.Diagnostics.Count);
-            return changes.GatePassed ? 0 : 1;
+            return await renderer.ScanAsync(changes.Analysis, Path.GetDirectoryName(fullPolicyPath!)!, format, outputPath,
+                changes.Analysis.IsComplete ? changes.GatePassed : null, changes.Comparison, changes.BaseCommit, cancellationToken);
         }
 
         var policy = fullPolicyPath is null ? null : await new YamlPolicyLoader().LoadAsync(fullPolicyPath, cancellationToken);
@@ -34,6 +32,15 @@ internal static class WorkspaceCommands
             var baseline = command == "scan" && baselinePath is not null
                 ? await store.LoadAsync(baselinePath, cancellationToken) : null;
             var analysis = await new SolutionAnalysisService().AnalyzeAsync(request, Path.GetDirectoryName(fullPolicyPath!)!, policy!, cancellationToken);
+            if (command == "scan")
+            {
+                var comparison = baseline is null ? null : new BaselineComparison(analysis, baseline);
+                bool? passed = !analysis.IsComplete ? null : comparison is null
+                    ? policy!.Gate.Passes(analysis) : policy!.Gate.PassesNewFindings(comparison);
+                return await renderer.ScanAsync(analysis, Path.GetDirectoryName(fullPolicyPath!)!, format, outputPath,
+                    passed, comparison, null, cancellationToken);
+            }
+
             renderer.Diagnostics(analysis.Diagnostics);
             if (!analysis.IsComplete)
             {
@@ -41,19 +48,10 @@ internal static class WorkspaceCommands
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            if (command == "update")
-            {
-                var snapshot = BaselineSnapshot.Capture(analysis);
-                await store.SaveAsync(baselinePath!, snapshot, cancellationToken);
-                renderer.BaselineUpdated(snapshot.Entries.Count);
-                return 0;
-            }
-
-            var comparison = baseline is null ? null : new BaselineComparison(analysis, baseline);
-            if (comparison is not null) { renderer.Baseline(comparison); }
-            var passed = comparison is null ? policy!.Gate.Passes(analysis) : policy!.Gate.PassesNewFindings(comparison);
-            renderer.Gate(passed, analysis.Diagnostics.Count);
-            return passed ? 0 : 1;
+            var snapshot = BaselineSnapshot.Capture(analysis);
+            await store.SaveAsync(baselinePath!, snapshot, cancellationToken);
+            renderer.BaselineUpdated(snapshot.Entries.Count);
+            return 0;
         }
 
         using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(request, cancellationToken);

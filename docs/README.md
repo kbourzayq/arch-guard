@@ -11,6 +11,7 @@ features are identified explicitly.
 | [Installation](installation.md) | SDK requirements, source installation, CLI/MCP executables and local analyzer packages |
 | [Getting started](getting-started.md) | A runnable example, a first policy for your repository and CI exit codes |
 | [CLI](cli.md) | Commands, options, output and gate behavior |
+| [Reports](reports.md) | JSON v1 schema, SARIF 2.1.0 mappings, file output and validation |
 | [Baselines](baselines.md) | Explicit accepted-debt updates, stable matching and new-violation gates |
 | [Change analysis](changes.md) | Full Git comparison, working-tree semantics and new-finding gates |
 | [MCP](mcp.md) | Codex, Claude Code and Copilot CLI setup, correction workflow, workspace trust and tool responses |

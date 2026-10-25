@@ -139,7 +139,7 @@ sequenceDiagram
 
 Rules receive the context and cancellation token, without access to the request's
 severity settings through this interface. Severity is applied after evaluation.
-The returned `AnalysisResult` carries data. Later reporting adapters render it, while
+The returned `AnalysisResult` carries data. The Reporting adapter renders JSON v1 and SARIF 2.1.0 from it, while
 hosts apply the separate quality-gate policy.
 
 Rule descriptors and their help URLs travel with the findings. The

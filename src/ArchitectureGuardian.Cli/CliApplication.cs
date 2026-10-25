@@ -95,6 +95,15 @@ internal static class CliApplication
         {
             Description = "Compare the full working tree with this exact Git commit/ref; gate new findings. Cannot combine with --baseline.",
         };
+        var format = new Option<string>("--format")
+        {
+            Description = "Scan output: text (default), json (schema v1), or sarif (2.1.0).",
+            DefaultValueFactory = _ => "text",
+        };
+        var outputPath = new Option<string?>("--output")
+        {
+            Description = "Write a JSON/SARIF report atomically to this path instead of stdout; parent must exist.",
+        };
         var command = new Command(name, description) { input, trusted, configuration, framework };
         if (name != "load")
         {
@@ -105,7 +114,12 @@ internal static class CliApplication
         {
             command.Add(baselinePath);
         }
-        if (name == "scan") { command.Add(baseReference); }
+        if (name == "scan")
+        {
+            command.Add(baseReference);
+            command.Add(format);
+            command.Add(outputPath);
+        }
 
         // Reject repeated flags as well as repeated value options instead of silently accepting a typo.
         command.Validators.Add(result =>
@@ -113,6 +127,22 @@ internal static class CliApplication
             if (name == "scan" && result.GetResult(baseReference) is not null && result.GetResult(baselinePath) is not null)
             {
                 result.AddError("--base and --baseline cannot be combined.");
+            }
+            if (name == "scan")
+            {
+                // Command validators run before default values are materialized. Inspect supplied tokens
+                // so omitted defaults and duplicate/missing arguments do not throw during parsing.
+                var formatTokens = result.GetResult(format)?.Tokens;
+                var selectedFormat = formatTokens?.Count == 1 ? formatTokens[0].Value : "text";
+                if (selectedFormat is not ("text" or "json" or "sarif"))
+                {
+                    result.AddError("--format must be text, json or sarif (case-sensitive).");
+                }
+                if (result.GetResult(outputPath) is { } destination
+                    && (selectedFormat == "text" || destination.Tokens.Count == 1 && string.IsNullOrWhiteSpace(destination.Tokens[0].Value)))
+                {
+                    result.AddError("--output requires a nonblank path and --format json or sarif.");
+                }
             }
             foreach (var option in command.Options)
             {
@@ -128,7 +158,8 @@ internal static class CliApplication
                 result.GetValue(configuration)!, result.GetValue(framework));
             return await WorkspaceCommands.RunAsync(name, request, name == "load" ? null : result.GetValue(policy),
                 name is "scan" or "update" ? result.GetValue(baselinePath) : null, renderer, token,
-                name == "scan" ? result.GetValue(baseReference) : null);
+                name == "scan" ? result.GetValue(baseReference) : null,
+                name == "scan" ? result.GetValue(format)! : "text", name == "scan" ? result.GetValue(outputPath) : null);
         });
         return command;
     }

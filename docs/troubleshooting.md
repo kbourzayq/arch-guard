@@ -93,7 +93,8 @@ both trees and that MCP `Workspace:Root` contains the Git root. See [change anal
 - Compiler analysis checks a narrower bound-name surface and requires an explicit
   XML ownership snapshot. It does not discover missing referenced-assembly mappings
   or check whole-solution cycles. IDE UI behavior is not validated by this repository.
-- Report export is planned. Git comparison uses isolated full snapshots; see
+- JSON v1 and SARIF 2.1.0 exports are available for CLI scans; see [reports](reports.md).
+  Git comparison uses isolated full snapshots; see
   [change analysis](changes.md) for supported inputs and offline preparation. CLI
   [baselines](baselines.md) require explicit files and never relax coverage failures.
 

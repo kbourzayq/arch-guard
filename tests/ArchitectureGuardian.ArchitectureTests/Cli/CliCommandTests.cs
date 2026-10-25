@@ -31,6 +31,13 @@ public sealed class CliCommandTests
     /// <summary>Rejects missing, unknown, repeated or blank values before evaluating a workspace.</summary>
     /// <param name="arguments">Invalid command arguments.</param>
     [Theory]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "yaml")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "JSON")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "json", "--format", "sarif")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--output", "a.json")]
+    [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "json", "--output", "")]
+    [InlineData("inspect", "input.csproj", "--policy", "policy.yaml", "--format", "json")]
     [InlineData("scan")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--base", "")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--base", "HEAD", "--baseline", "a.json")]

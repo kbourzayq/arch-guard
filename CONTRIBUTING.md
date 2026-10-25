@@ -16,7 +16,7 @@ dotnet restore ArchitectureGuardian.slnx --locked-mode
 dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
 ```
 
-The solution contains six production projects and three test projects. Source
+The solution contains seven production projects and three test projects. Source
 organization, dependency direction and the two analysis engines are described in
 the [architecture overview](docs/architecture/overview.md).
 [AGENT.md](AGENT.md) contains the repository's coding and validation conventions.
@@ -95,6 +95,19 @@ The architecture suite starts its measured longest collections first to keep bot
 bounded workers busy; update `WorkspaceCollectionOrderer` if profiling changes those priorities.
 CI caches NuGet's global packages using the committed lock files as its cache key;
 locked restore still runs on every build.
+
+For reporting changes, also validate real exports against the JSON v1 and vendored
+OASIS SARIF 2.1.0 schemas (CI runs this on each OS):
+
+```sh
+python3 -m pip install jsonschema==4.26.0
+python3 eng/test-reports.py
+```
+
+Use a virtual environment when your Python installation requires one. The validator
+uses isolated package-free inputs and checks completed, gate-failing, baseline,
+resolved, partial and file-output cases. Report schemas and mappings are documented
+in [reports](docs/reports.md).
 
 For compiler package changes, also build and verify a consumer package:
 

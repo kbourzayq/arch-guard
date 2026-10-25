@@ -325,13 +325,29 @@ compatible analyzer. F12 source-links the small portable permission surface into
 adapter and validates its Roslyn API floor and packaged SDK consumers. Keep .NET 10
 workspace orchestration outside that surface; see the F12 decision below.
 
+## F24 reporting adapter
+
+`ArchitectureGuardian.Reporting` references only Core. It maps `AnalysisResult`
+and optional `BaselineComparison` to versioned JSON and SARIF 2.1.0, preserving
+rule metadata, effective severities, evidence, semantic fingerprints, coverage and
+baseline classification. The host supplies the separately evaluated gate outcome.
+Serialization and report-file I/O use only the .NET base library; no new runtime
+packages are required. CLI references Reporting directly. Core, Analysis,
+Configuration, MCP and Analyzers gain no references to it.
+
+The adapter publishes files through a sibling temporary file and atomic replacement;
+write failures map to CLI operational exit `2`. Schemas and mappings are documented
+in [reports](../../reports.md); CI validates real exports against JSON v1 and the
+vendored OASIS SARIF schema on each OS. Dependency-boundary tests enforce the new
+project's solution membership and Core-only direction in Debug and Release.
+
 ## Consequences
 
 - Analysis owns workspace/MSBuild packages, Analyzers owns compiler-only Roslyn
   packages and Configuration owns the YAML package;
   Core remains independent of external packages. MCP transport is implemented in F17;
   MCP architecture tools are implemented in F18; F19 adds solution analysis; F23 implements full-context Git comparison.
-  Reporting remains planned.
+  F24 adds the Reporting adapter for JSON v1 and SARIF 2.1.0 exports.
 - The solution engine can evolve without coupling Core to workspace or console APIs.
 - Compiler diagnostics cannot claim whole-solution coverage merely by reusing a rule ID.
 - Extra adapters and concrete port APIs are deferred until required, avoiding unused
