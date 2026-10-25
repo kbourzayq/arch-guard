@@ -2,7 +2,6 @@ using ArchitectureGuardian.Analysis.Repositories;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Core.Analysis;
 using ArchitectureGuardian.Core.Dependencies;
-using ArchitectureGuardian.Core.Diagnostics;
 using ArchitectureGuardian.Core.Policies;
 using ArchitectureGuardian.Core.Repositories;
 using Microsoft.CodeAnalysis;
@@ -26,20 +25,25 @@ public sealed class DependencyGraphBuilder
     public async Task<DependencyBuildResult> BuildAsync(WorkspaceLoadResult workspace, string policyDirectory,
         ArchitecturePolicy policy, CancellationToken cancellationToken = default)
     {
-        var normalized = await new RepositoryModelBuilder().BuildAsync(workspace, policyDirectory, policy, cancellationToken)
+        var normalized = await new RepositoryModelBuilder()
+            .BuildAsync(workspace, policyDirectory, policy, cancellationToken)
             .ConfigureAwait(false);
         if (normalized.Model is not { } repository || workspace.Solution is not { } solution)
         {
             return new(normalized.Model, null, normalized.Status, normalized.Issues);
         }
 
-        var extraction = new Extraction(solution, repository, Path.GetFullPath(policyDirectory), normalized.Issues, cancellationToken);
+        var extraction = new Extraction(solution, repository, Path.GetFullPath(policyDirectory), normalized.Issues,
+            cancellationToken);
         try
         {
             await extraction.RunAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            return new(repository, extraction.Graph(), normalized.Status == AnalysisStatus.Failed ? AnalysisStatus.Failed
-                : extraction.Issues.Count == 0 ? AnalysisStatus.Completed : AnalysisStatus.Incomplete, extraction.Issues);
+            return new(repository, extraction.Graph(), normalized.Status == AnalysisStatus.Failed
+                ? AnalysisStatus.Failed
+                : extraction.Issues.Count == 0
+                    ? AnalysisStatus.Completed
+                    : AnalysisStatus.Incomplete, extraction.Issues);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -47,7 +51,8 @@ public sealed class DependencyGraphBuilder
         }
         catch (Exception exception)
         {
-            extraction.Issues.Add(new("dependency-extraction-failed", $"{exception.GetType().Name}: {exception.Message}"));
+            extraction.Issues.Add(new("dependency-extraction-failed",
+                $"{exception.GetType().Name}: {exception.Message}"));
             return new(repository, extraction.Graph(), AnalysisStatus.Failed, extraction.Issues);
         }
     }
@@ -63,7 +68,8 @@ public sealed class DependencyGraphBuilder
         private readonly List<DependencyEdge> _edges = [];
         private readonly Dictionary<ProjectId, Context> _contexts = [];
 
-        internal Extraction(Solution solution, RepositoryModel repository, string root, IEnumerable<AnalysisIssue> issues,
+        internal Extraction(Solution solution, RepositoryModel repository, string root,
+            IEnumerable<AnalysisIssue> issues,
             CancellationToken cancellationToken)
         {
             _solution = solution;
@@ -93,16 +99,20 @@ public sealed class DependencyGraphBuilder
             {
                 _cancellationToken.ThrowIfCancellationRequested();
                 var model = _repository.Projects.SingleOrDefault(item => project.FilePath is not null
-                    && item.Id == RepositoryModelBuilder.RelativePath(_root, project.FilePath));
+                                                                         && item.Id ==
+                                                                         RepositoryModelBuilder.RelativePath(_root,
+                                                                             project.FilePath));
                 var compilation = await project.GetCompilationAsync(_cancellationToken).ConfigureAwait(false);
                 if (model is null || compilation is null)
                 {
-                    Issues.Add(new("dependency-project-unavailable", $"Project '{project.Name}' has no normalized semantic context."));
+                    Issues.Add(new("dependency-project-unavailable",
+                        $"Project '{project.Name}' has no normalized semantic context."));
                     continue;
                 }
 
                 _contexts.Add(project.Id, new(project, model, compilation,
-                    await RepositoryModelBuilder.GeneratedFilesAsync(project, _cancellationToken).ConfigureAwait(false)));
+                    await RepositoryModelBuilder.GeneratedFilesAsync(project, _cancellationToken)
+                        .ConfigureAwait(false)));
             }
 
             foreach (var context in _contexts.Values.OrderBy(context => context.Model.Id, StringComparer.Ordinal))
@@ -110,13 +120,16 @@ public sealed class DependencyGraphBuilder
                 _cancellationToken.ThrowIfCancellationRequested();
                 AddReferences(context);
                 foreach (var diagnostic in context.Compilation.GetDiagnostics(_cancellationToken)
-                    .Where(diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error))
+                             .Where(diagnostic =>
+                                 diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error))
                 {
-                    Issues.Add(new("dependency-semantic-error", $"{context.Model.Id}: {diagnostic.Id}: {diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}",
+                    Issues.Add(new("dependency-semantic-error",
+                        $"{context.Model.Id}: {diagnostic.Id}: {diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}",
                         location: diagnostic.Location.IsInSource ? Location(context, diagnostic.Location) : null));
                 }
 
-                foreach (var tree in context.Compilation.SyntaxTrees.OrderBy(tree => tree.FilePath, StringComparer.Ordinal))
+                foreach (var tree in context.Compilation.SyntaxTrees.OrderBy(tree => tree.FilePath,
+                             StringComparer.Ordinal))
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
                     var root = await tree.GetRootAsync(_cancellationToken).ConfigureAwait(false);
@@ -132,12 +145,14 @@ public sealed class DependencyGraphBuilder
                 _cancellationToken.ThrowIfCancellationRequested();
                 if (!_contexts.TryGetValue(reference.ProjectId, out var target))
                 {
-                    Issues.Add(new("dependency-project-reference-unresolved", $"Project '{context.Model.Id}' has an unavailable project reference."));
+                    Issues.Add(new("dependency-project-reference-unresolved",
+                        $"Project '{context.Model.Id}' has an unavailable project reference."));
                     continue;
                 }
 
                 var evidence = new DependencyEvidence(context.Model.Id, target.Model.Id,
-                    new($"Project '{context.Model.Id}' references '{target.Model.Id}'."), projectReference: target.Model.Id);
+                    new($"Project '{context.Model.Id}' references '{target.Model.Id}'."),
+                    projectReference: target.Model.Id);
                 Add(ProjectNode(context.Model), ProjectNode(target.Model), evidence);
                 Add(AssemblyNode(context.Model), AssemblyNode(target.Model), evidence);
             }
@@ -149,13 +164,16 @@ public sealed class DependencyGraphBuilder
                 var assembly = symbol as IAssemblySymbol ?? (symbol as IModuleSymbol)?.ContainingAssembly;
                 if (assembly is null)
                 {
-                    Issues.Add(new("dependency-assembly-unresolved", $"Project '{context.Model.Id}' has an unresolved assembly reference."));
+                    Issues.Add(new("dependency-assembly-unresolved",
+                        $"Project '{context.Model.Id}' has an unresolved assembly reference."));
                     continue;
                 }
 
                 var target = AssemblyOwner(context, assembly);
-                Add(AssemblyNode(context.Model), target is null ? ExternalAssemblyNode(assembly) : AssemblyNode(target.Model),
-                    new(context.Model.Id, target?.Model.Id, new($"Assembly '{context.Model.Assembly.Name}' references '{assembly.Identity}'.")));
+                Add(AssemblyNode(context.Model),
+                    target is null ? ExternalAssemblyNode(assembly) : AssemblyNode(target.Model),
+                    new(context.Model.Id, target?.Model.Id,
+                        new($"Assembly '{context.Model.Assembly.Name}' references '{assembly.Identity}'.")));
             }
         }
 
@@ -172,8 +190,12 @@ public sealed class DependencyGraphBuilder
 
                 // nameof is represented as invocation syntax, but its intrinsic callee has an error-type
                 // sentinel rather than a referenced type. Keep scanning the bound argument normally.
-                if (node is IdentifierNameSyntax { Identifier.ValueText: "nameof", Parent: InvocationExpressionSyntax nameOf }
-                    && nameOf.Expression == node && semantic.GetOperation(nameOf, _cancellationToken) is INameOfOperation)
+                if (node is IdentifierNameSyntax
+                    {
+                        Identifier.ValueText: "nameof", Parent: InvocationExpressionSyntax nameOf
+                    }
+                    && nameOf.Expression == node &&
+                    semantic.GetOperation(nameOf, _cancellationToken) is INameOfOperation)
                 {
                     continue;
                 }
@@ -192,20 +214,25 @@ public sealed class DependencyGraphBuilder
                         var types = semantic.GetTypeInfo(expression, _cancellationToken);
                         AddType(context, origin, types.Type, node.GetLocation());
                         AddType(context, origin, types.ConvertedType, node.GetLocation());
-                        AddSymbol(context, origin, semantic.GetConversion(expression, _cancellationToken).MethodSymbol, node.GetLocation());
+                        AddSymbol(context, origin, semantic.GetConversion(expression, _cancellationToken).MethodSymbol,
+                            node.GetLocation());
                     }
                 }
 
                 if (node is AssignmentExpressionSyntax assignment)
                 {
-                    AddDeconstruction(context, Origin(semantic, node), semantic.GetDeconstructionInfo(assignment), node.GetLocation());
+                    AddDeconstruction(context, Origin(semantic, node), semantic.GetDeconstructionInfo(assignment),
+                        node.GetLocation());
                 }
 
                 if (node is CommonForEachStatementSyntax loop)
                 {
                     var info = semantic.GetForEachStatementInfo(loop);
                     var origin = Origin(semantic, node);
-                    foreach (var symbol in new ISymbol?[] { info.GetEnumeratorMethod, info.MoveNextMethod, info.CurrentProperty, info.DisposeMethod })
+                    foreach (var symbol in new ISymbol?[]
+                             {
+                                 info.GetEnumeratorMethod, info.MoveNextMethod, info.CurrentProperty, info.DisposeMethod
+                             })
                     {
                         AddSymbol(context, origin, symbol, node.GetLocation());
                     }
@@ -213,7 +240,8 @@ public sealed class DependencyGraphBuilder
                     AddType(context, origin, info.ElementType, node.GetLocation());
                     if (loop is ForEachVariableStatementSyntax variableLoop)
                     {
-                        AddDeconstruction(context, origin, semantic.GetDeconstructionInfo(variableLoop), node.GetLocation());
+                        AddDeconstruction(context, origin, semantic.GetDeconstructionInfo(variableLoop),
+                            node.GetLocation());
                     }
                 }
 
@@ -221,13 +249,15 @@ public sealed class DependencyGraphBuilder
                 {
                     var info = semantic.GetAwaitExpressionInfo(awaitExpression);
                     var origin = Origin(semantic, node);
-                    foreach (var symbol in new ISymbol?[] { info.GetAwaiterMethod, info.IsCompletedProperty, info.GetResultMethod })
+                    foreach (var symbol in new ISymbol?[]
+                                 { info.GetAwaiterMethod, info.IsCompletedProperty, info.GetResultMethod })
                     {
                         AddSymbol(context, origin, symbol, node.GetLocation());
                     }
                 }
 
-                if (node is StatementSyntax or MemberDeclarationSyntax or AttributeSyntax or ConstructorInitializerSyntax
+                if (node is StatementSyntax or MemberDeclarationSyntax or AttributeSyntax
+                    or ConstructorInitializerSyntax
                     or EqualsValueClauseSyntax or ArrowExpressionClauseSyntax)
                 {
                     if (semantic.GetOperation(node, _cancellationToken) is { Parent: null } operation)
@@ -258,7 +288,8 @@ public sealed class DependencyGraphBuilder
             }
         }
 
-        private void ScanOperations(Context context, SemanticModel semantic, IOperation root, HashSet<IOperation> visited)
+        private void ScanOperations(Context context, SemanticModel semantic, IOperation root,
+            HashSet<IOperation> visited)
         {
             var pending = new Stack<IOperation>();
             pending.Push(root);
@@ -289,7 +320,8 @@ public sealed class DependencyGraphBuilder
                 AddSymbol(context, origin, symbol, location);
                 if (HasDynamicBinding(operation))
                 {
-                    Issues.Add(new("dependency-dynamic-unresolved", $"Project '{context.Model.Id}' contains a dynamic operation whose target cannot be established statically.",
+                    Issues.Add(new("dependency-dynamic-unresolved",
+                        $"Project '{context.Model.Id}' contains a dynamic operation whose target cannot be established statically.",
                         location: Location(context, location)));
                 }
 
@@ -305,26 +337,29 @@ public sealed class DependencyGraphBuilder
             IDynamicInvocationOperation or IDynamicMemberReferenceOperation or IDynamicObjectCreationOperation
                 or IDynamicIndexerAccessOperation => true,
             IBinaryOperation binary => binary.LeftOperand.Type?.TypeKind == TypeKind.Dynamic
-                || binary.RightOperand.Type?.TypeKind == TypeKind.Dynamic,
+                                       || binary.RightOperand.Type?.TypeKind == TypeKind.Dynamic,
             IUnaryOperation unary => unary.Operand.Type?.TypeKind == TypeKind.Dynamic,
             IIncrementOrDecrementOperation increment => increment.Target.Type?.TypeKind == TypeKind.Dynamic,
             ICompoundAssignmentOperation assignment => assignment.Target.Type?.TypeKind == TypeKind.Dynamic
-                || assignment.Value.Type?.TypeKind == TypeKind.Dynamic,
+                                                       || assignment.Value.Type?.TypeKind == TypeKind.Dynamic,
             IAwaitOperation awaited => awaited.Operation.Type?.TypeKind == TypeKind.Dynamic,
             IConversionOperation conversion => conversion.Operand.Type?.TypeKind == TypeKind.Dynamic
-                && conversion.Type?.TypeKind != TypeKind.Dynamic && conversion.Type?.SpecialType != SpecialType.System_Object,
+                                               && conversion.Type?.TypeKind != TypeKind.Dynamic &&
+                                               conversion.Type?.SpecialType != SpecialType.System_Object,
             _ => false,
         };
 
         private static ISymbol? Origin(SemanticModel semantic, SyntaxNode node)
         {
             // Attributes and base lists can precede the position at which GetEnclosingSymbol enters the type.
-            var declaration = node.AncestorsAndSelf().FirstOrDefault(ancestor => ancestor is BaseTypeDeclarationSyntax or DelegateDeclarationSyntax);
+            var declaration = node.AncestorsAndSelf().FirstOrDefault(ancestor =>
+                ancestor is BaseTypeDeclarationSyntax or DelegateDeclarationSyntax);
             var enclosing = semantic.GetEnclosingSymbol(node.SpanStart);
             var declared = declaration is null ? null : semantic.GetDeclaredSymbol(declaration);
             var enclosingType = enclosing as INamedTypeSymbol ?? enclosing?.ContainingType;
             return declared is not null && !SymbolEqualityComparer.Default.Equals(enclosingType, declared)
-                ? declared : enclosing ?? declared;
+                ? declared
+                : enclosing ?? declared;
         }
 
         private void AddSymbol(Context context, ISymbol? origin, ISymbol? symbol, Location location)
@@ -351,7 +386,8 @@ public sealed class DependencyGraphBuilder
             }
         }
 
-        private void AddType(Context context, ISymbol? origin, ITypeSymbol? symbol, Location location, string? targetSymbol = null)
+        private void AddType(Context context, ISymbol? origin, ITypeSymbol? symbol, Location location,
+            string? targetSymbol = null)
         {
             var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
             var pending = new Stack<ITypeSymbol>();
@@ -371,7 +407,8 @@ public sealed class DependencyGraphBuilder
                 switch (type)
                 {
                     case IErrorTypeSymbol:
-                        Issues.Add(new("dependency-type-unresolved", $"Project '{context.Model.Id}' cannot resolve type '{type.Name}'.",
+                        Issues.Add(new("dependency-type-unresolved",
+                            $"Project '{context.Model.Id}' cannot resolve type '{type.Name}'.",
                             location: Location(context, location)));
                         break;
                     case IArrayTypeSymbol array:
@@ -409,19 +446,23 @@ public sealed class DependencyGraphBuilder
             }
         }
 
-        private void AddNamedType(Context context, ISymbol? origin, INamedTypeSymbol type, Location location, string targetSymbol)
+        private void AddNamedType(Context context, ISymbol? origin, INamedTypeSymbol type, Location location,
+            string targetSymbol)
         {
             var owner = AssemblyOwner(context, type.ContainingAssembly);
-            var targetAssembly = owner is null ? ExternalAssemblyNode(type.ContainingAssembly) : AssemblyNode(owner.Model);
+            var targetAssembly =
+                owner is null ? ExternalAssemblyNode(type.ContainingAssembly) : AssemblyNode(owner.Model);
             var namespaceName = RepositoryModelBuilder.NamespaceName(type.ContainingNamespace);
             DependencyNode targetType;
             DependencyNode targetNamespace;
             if (owner is not null)
             {
-                var normalized = RepositoryModelBuilder.NormalizeType(type, owner.Model.Id, _root, owner.GeneratedFiles);
+                var normalized =
+                    RepositoryModelBuilder.NormalizeType(type, owner.Model.Id, _root, owner.GeneratedFiles);
                 if (!owner.Types.ContainsKey(normalized.Id))
                 {
-                    Issues.Add(new("dependency-type-unmapped", $"Type '{normalized.MetadataName}' has no normalized declaration in '{owner.Model.Id}'.",
+                    Issues.Add(new("dependency-type-unmapped",
+                        $"Type '{normalized.MetadataName}' has no normalized declaration in '{owner.Model.Id}'.",
                         location: Location(context, location)));
                     return;
                 }
@@ -444,22 +485,28 @@ public sealed class DependencyGraphBuilder
 
             var sourceType = origin as INamedTypeSymbol ?? origin?.ContainingType;
             var sourceNamespace = RepositoryModelBuilder.NamespaceName(sourceType?.ContainingNamespace
-                ?? origin?.ContainingNamespace ?? context.Compilation.Assembly.GlobalNamespace);
+                                                                       ?? origin?.ContainingNamespace ??
+                                                                       context.Compilation.Assembly.GlobalNamespace);
             var evidence = new DependencyEvidence(context.Model.Id, owner?.Model.Id,
-                new($"'{origin?.ToDisplayString() ?? context.Model.Assembly.Name}' uses '{targetSymbol}'.", Location(context, location)),
-                origin?.ToDisplayString(), targetSymbol, targetAssembly: type.ContainingAssembly.Name, targetNamespace: namespaceName);
+                new($"'{origin?.ToDisplayString() ?? context.Model.Assembly.Name}' uses '{targetSymbol}'.",
+                    Location(context, location)),
+                origin?.ToDisplayString(), targetSymbol, targetAssembly: type.ContainingAssembly.Name,
+                targetNamespace: namespaceName);
             Add(AssemblyNode(context.Model), targetAssembly, evidence);
-            Add(NamespaceNode(context.Model.Assembly.Namespaces.Single(ns => ns.Name == sourceNamespace)), targetNamespace, evidence);
+            Add(NamespaceNode(context.Model.Assembly.Namespaces.Single(ns => ns.Name == sourceNamespace)),
+                targetNamespace, evidence);
             if (sourceType is { IsImplicitlyDeclared: false })
             {
-                var normalized = RepositoryModelBuilder.NormalizeType(sourceType, context.Model.Id, _root, context.GeneratedFiles);
+                var normalized =
+                    RepositoryModelBuilder.NormalizeType(sourceType, context.Model.Id, _root, context.GeneratedFiles);
                 if (context.Types.ContainsKey(normalized.Id))
                 {
                     Add(TypeNode(normalized), targetType, evidence);
                 }
                 else
                 {
-                    Issues.Add(new("dependency-origin-unmapped", $"Source type '{normalized.MetadataName}' has no normalized declaration.",
+                    Issues.Add(new("dependency-origin-unmapped",
+                        $"Source type '{normalized.MetadataName}' has no normalized declaration.",
                         location: evidence.Fact.Location));
                 }
             }
@@ -472,10 +519,12 @@ public sealed class DependencyGraphBuilder
                 return source;
             }
 
-            var matches = _contexts.Values.Where(context => context.Compilation.Assembly.Identity.Equals(assembly.Identity)).ToArray();
+            var matches = _contexts.Values
+                .Where(context => context.Compilation.Assembly.Identity.Equals(assembly.Identity)).ToArray();
             if (matches.Length > 1)
             {
-                Issues.Add(new("dependency-assembly-ambiguous", $"Assembly '{assembly.Identity}' matches multiple source projects."));
+                Issues.Add(new("dependency-assembly-ambiguous",
+                    $"Assembly '{assembly.Identity}' matches multiple source projects."));
             }
 
             return matches.Length == 1 ? matches[0] : null;
@@ -493,27 +542,42 @@ public sealed class DependencyGraphBuilder
 
         private void Add(DependencyNode source, DependencyNode target, DependencyEvidence evidence)
         {
-            if (source.Id != target.Id || evidence.TargetSymbol is not null && source.Kind is DependencyKind.Assembly or DependencyKind.Namespace)
+            if (source.Id != target.Id || evidence.TargetSymbol is not null &&
+                source.Kind is DependencyKind.Assembly or DependencyKind.Namespace)
             {
                 _edges.Add(new(source, target, [evidence]));
             }
         }
 
-        private static DependencyNode ProjectNode(RepositoryProject project) => new(DependencyKind.Project, project.Id, project.Name, project.Id);
-        private static DependencyNode AssemblyNode(RepositoryProject project) => new(DependencyKind.Assembly, project.Assembly.Id, project.Assembly.Name, project.Id);
-        private static DependencyNode NamespaceNode(RepositoryNamespace ns) => new(DependencyKind.Namespace, ns.Id, ns.Name, ns.ProjectPath);
-        private static DependencyNode TypeNode(RepositoryType type) => new(DependencyKind.Type, type.Id, type.MetadataName, type.ProjectPath);
-        private static DependencyNode ExternalAssemblyNode(IAssemblySymbol assembly) => new(DependencyKind.Assembly, "external:" + assembly.Identity, assembly.Identity.ToString());
+        private static DependencyNode ProjectNode(RepositoryProject project) =>
+            new(DependencyKind.Project, project.Id, project.Name, project.Id);
+
+        private static DependencyNode AssemblyNode(RepositoryProject project) => new(DependencyKind.Assembly,
+            project.Assembly.Id, project.Assembly.Name, project.Id);
+
+        private static DependencyNode NamespaceNode(RepositoryNamespace ns) =>
+            new(DependencyKind.Namespace, ns.Id, ns.Name, ns.ProjectPath);
+
+        private static DependencyNode TypeNode(RepositoryType type) =>
+            new(DependencyKind.Type, type.Id, type.MetadataName, type.ProjectPath);
+
+        private static DependencyNode ExternalAssemblyNode(IAssemblySymbol assembly) => new(DependencyKind.Assembly,
+            "external:" + assembly.Identity, assembly.Identity.ToString());
 
         /// <summary>Pairs one compiler snapshot with its normalized declaration identities.</summary>
-        private sealed class Context(Project project, RepositoryProject model, Compilation compilation,
+        private sealed class Context(
+            Project project,
+            RepositoryProject model,
+            Compilation compilation,
             IReadOnlyDictionary<SyntaxTree, RepositoryGeneratedFile> generatedFiles)
         {
             internal Project Project { get; } = project;
             internal RepositoryProject Model { get; } = model;
             internal Compilation Compilation { get; } = compilation;
             internal IReadOnlyDictionary<SyntaxTree, RepositoryGeneratedFile> GeneratedFiles { get; } = generatedFiles;
-            internal Dictionary<string, RepositoryType> Types { get; } = model.Assembly.Namespaces.SelectMany(ns => ns.Types)
+
+            internal Dictionary<string, RepositoryType> Types { get; } = model.Assembly.Namespaces
+                .SelectMany(ns => ns.Types)
                 .ToDictionary(type => type.Id, StringComparer.Ordinal);
         }
     }

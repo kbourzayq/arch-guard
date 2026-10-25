@@ -33,7 +33,8 @@ public sealed class YamlPolicyLoader : IPolicyLoader
     /// <returns>The immutable, validated v1 policy.</returns>
     /// <exception cref="PolicyConfigurationException">The document does not conform to the supported v1 policy.</exception>
     /// <exception cref="OperationCanceledException">Cancellation was requested.</exception>
-    public ArchitecturePolicy Parse(string yaml, string sourcePath = "architecture.guardian.yaml", CancellationToken cancellationToken = default)
+    public ArchitecturePolicy Parse(string yaml, string sourcePath = "architecture.guardian.yaml",
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(yaml);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
@@ -52,13 +53,15 @@ public sealed class YamlPolicyLoader : IPolicyLoader
                 depth += current.NestingIncrease;
                 if (++events > 100_000 || depth > 32)
                 {
-                    throw reader.Error(current.Start, "$", "Policy exceeds the supported 32 nesting levels or 100000 YAML events.");
+                    throw reader.Error(current.Start, "$",
+                        "Policy exceeds the supported 32 nesting levels or 100000 YAML events.");
                 }
 
                 if (current is AnchorAlias || current is NodeEvent node && (!node.Anchor.IsEmpty || !node.Tag.IsEmpty)
-                    || current is DocumentStart { Version: not null })
+                                           || current is DocumentStart { Version: not null })
                 {
-                    throw reader.Error(current.Start, "$", "YAML aliases, anchors, explicit tags and version directives are unsupported. Use a single plain data document.");
+                    throw reader.Error(current.Start, "$",
+                        "YAML aliases, anchors, explicit tags and version directives are unsupported. Use a single plain data document.");
                 }
             }
 
@@ -87,11 +90,14 @@ public sealed class YamlPolicyLoader : IPolicyLoader
             var fields = Map(root, "$", ["version", "modules", "layers", "rules"], ["gate"]);
             if (fields["version"] is not YamlScalarNode { Value: "1", Style: ScalarStyle.Plain })
             {
-                throw Error(fields["version"].Start, "$.version", "Unsupported schema version. Use the integer version: 1.");
+                throw Error(fields["version"].Start, "$.version",
+                    "Unsupported schema version. Use the integer version: 1.");
             }
 
-            var modules = Sequence(fields["modules"], "$.modules").Select((node, index) => Module(node, $"$.modules[{index}]")).ToArray();
-            var layers = Sequence(fields["layers"], "$.layers").Select((node, index) => Layer(node, $"$.layers[{index}]")).ToArray();
+            var modules = Sequence(fields["modules"], "$.modules")
+                .Select((node, index) => Module(node, $"$.modules[{index}]")).ToArray();
+            var layers = Sequence(fields["layers"], "$.layers")
+                .Select((node, index) => Layer(node, $"$.layers[{index}]")).ToArray();
             var rulesNode = fields["rules"];
             var rules = Map(rulesNode, "$.rules", [], RuleCatalog.All.Select(rule => rule.Id).ToArray());
             if (rules.Count == 0)
@@ -99,7 +105,8 @@ public sealed class YamlPolicyLoader : IPolicyLoader
                 throw Error(rulesNode.Start, "$.rules", "Select at least one canonical rule (AG001–AG006).");
             }
 
-            var severities = rules.ToDictionary(pair => pair.Key, pair => Severity(pair.Value, "$.rules." + pair.Key), StringComparer.Ordinal);
+            var severities = rules.ToDictionary(pair => pair.Key, pair => Severity(pair.Value, "$.rules." + pair.Key),
+                StringComparer.Ordinal);
             var gate = new GatePolicy();
             if (fields.TryGetValue("gate", out var gateNode))
             {
@@ -112,36 +119,45 @@ public sealed class YamlPolicyLoader : IPolicyLoader
 
         private ModulePolicy Module(YamlNode node, string path)
         {
-            var fields = Map(node, path, ["id", "projects"], ["contracts", "allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces"]);
+            var fields = Map(node, path, ["id", "projects"],
+                ["contracts", "allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces"]);
             var contracts = fields.TryGetValue("contracts", out var value)
                 ? Sequence(value, path + ".contracts", allowEmpty: true).Select((contract, index) =>
                 {
                     var contractPath = $"{path}.contracts[{index}]";
                     var contractFields = Map(contract, contractPath, ["id", "projects"], []);
-                    return Construct(contract, contractPath, () => new ContractPolicy(Text(contractFields["id"], contractPath + ".id"),
+                    return Construct(contract, contractPath, () => new ContractPolicy(
+                        Text(contractFields["id"], contractPath + ".id"),
                         Strings(contractFields["projects"], contractPath + ".projects")));
-                }).ToArray() : [];
+                }).ToArray()
+                : [];
             return Construct(node, path, () => new ModulePolicy(Text(fields["id"], path + ".id"),
-                Strings(fields["projects"], path + ".projects"), contracts, OptionalStrings(fields, "allowedDependencies", path),
-                OptionalStrings(fields, "forbiddenAssemblies", path), OptionalStrings(fields, "forbiddenNamespaces", path)));
+                Strings(fields["projects"], path + ".projects"), contracts,
+                OptionalStrings(fields, "allowedDependencies", path),
+                OptionalStrings(fields, "forbiddenAssemblies", path),
+                OptionalStrings(fields, "forbiddenNamespaces", path)));
         }
 
         private LayerPolicy Layer(YamlNode node, string path)
         {
-            var fields = Map(node, path, ["id", "projects"], ["allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces", "domainInfrastructure"]);
+            var fields = Map(node, path, ["id", "projects"],
+                ["allowedDependencies", "forbiddenAssemblies", "forbiddenNamespaces", "domainInfrastructure"]);
             DomainInfrastructurePolicy? infrastructure = null;
             if (fields.TryGetValue("domainInfrastructure", out var value))
             {
                 var scope = path + ".domainInfrastructure";
-                var restrictions = Map(value, scope, [], ["forbiddenAssemblies", "forbiddenNamespaces", "allowedNamespaces"]);
+                var restrictions = Map(value, scope, [],
+                    ["forbiddenAssemblies", "forbiddenNamespaces", "allowedNamespaces"]);
                 infrastructure = Construct(value, scope, () => new DomainInfrastructurePolicy(
-                    OptionalStrings(restrictions, "forbiddenAssemblies", scope), OptionalStrings(restrictions, "forbiddenNamespaces", scope),
+                    OptionalStrings(restrictions, "forbiddenAssemblies", scope),
+                    OptionalStrings(restrictions, "forbiddenNamespaces", scope),
                     OptionalStrings(restrictions, "allowedNamespaces", scope)));
             }
 
             return Construct(node, path, () => new LayerPolicy(Text(fields["id"], path + ".id"),
                 Strings(fields["projects"], path + ".projects"), OptionalStrings(fields, "allowedDependencies", path),
-                OptionalStrings(fields, "forbiddenAssemblies", path), OptionalStrings(fields, "forbiddenNamespaces", path), infrastructure));
+                OptionalStrings(fields, "forbiddenAssemblies", path),
+                OptionalStrings(fields, "forbiddenNamespaces", path), infrastructure));
         }
 
         private Dictionary<string, YamlNode> Map(YamlNode node, string path, string[] required, string[] optional)
@@ -157,7 +173,8 @@ public sealed class YamlPolicyLoader : IPolicyLoader
                 var key = Text(keyNode, path);
                 if (!required.Contains(key, StringComparer.Ordinal) && !optional.Contains(key, StringComparer.Ordinal))
                 {
-                    throw Error(keyNode.Start, path + "." + key, $"Unknown or unsupported field '{key}'. Supported fields: {string.Join(", ", required.Concat(optional))}.");
+                    throw Error(keyNode.Start, path + "." + key,
+                        $"Unknown or unsupported field '{key}'. Supported fields: {string.Join(", ", required.Concat(optional))}.");
                 }
 
                 if (!fields.TryAdd(key, value))
@@ -187,8 +204,9 @@ public sealed class YamlPolicyLoader : IPolicyLoader
             return sequence.Children;
         }
 
-        private string[] Strings(YamlNode node, string path, bool allowEmpty = false) => Sequence(node, path, allowEmpty)
-            .Select((child, index) => Text(child, $"{path}[{index}]")).ToArray();
+        private string[] Strings(YamlNode node, string path, bool allowEmpty = false) =>
+            Sequence(node, path, allowEmpty)
+                .Select((child, index) => Text(child, $"{path}[{index}]")).ToArray();
 
         private string[] OptionalStrings(Dictionary<string, YamlNode> fields, string key, string path) =>
             fields.TryGetValue(key, out var value) ? Strings(value, path + "." + key, allowEmpty: true) : [];
@@ -196,12 +214,14 @@ public sealed class YamlPolicyLoader : IPolicyLoader
         private string Text(YamlNode node, string path)
         {
             if (node is not YamlScalarNode scalar || string.IsNullOrWhiteSpace(scalar.Value)
-                || scalar.Style == ScalarStyle.Plain && (scalar.Value is "~"
-                    || scalar.Value.Equals("null", StringComparison.OrdinalIgnoreCase)
-                    || bool.TryParse(scalar.Value, out _)
-                    || double.TryParse(scalar.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out _)))
+                                                  || scalar.Style == ScalarStyle.Plain && (scalar.Value is "~"
+                                                      || scalar.Value.Equals("null", StringComparison.OrdinalIgnoreCase)
+                                                      || bool.TryParse(scalar.Value, out _)
+                                                      || double.TryParse(scalar.Value, NumberStyles.Float,
+                                                          CultureInfo.InvariantCulture, out _)))
             {
-                throw Error(node.Start, path, "Expected a nonblank string. Quote strings that look like null, booleans or numbers.");
+                throw Error(node.Start, path,
+                    "Expected a nonblank string. Quote strings that look like null, booleans or numbers.");
             }
 
             return scalar.Value;
@@ -212,7 +232,8 @@ public sealed class YamlPolicyLoader : IPolicyLoader
             "info" => DiagnosticSeverity.Info,
             "warning" => DiagnosticSeverity.Warning,
             "error" => DiagnosticSeverity.Error,
-            _ => throw Error(node.Start, path, "Supported severities are info, warning and error (case-sensitive); off/none is unsupported. Omit a rule ID to deselect it."),
+            _ => throw Error(node.Start, path,
+                "Supported severities are info, warning and error (case-sensitive); off/none is unsupported. Omit a rule ID to deselect it."),
         };
 
         private T Construct<T>(YamlNode node, string path, Func<T> create)
@@ -227,7 +248,8 @@ public sealed class YamlPolicyLoader : IPolicyLoader
             }
         }
 
-        internal PolicyConfigurationException Error(Mark mark, string path, string message, Exception? exception = null) =>
+        internal PolicyConfigurationException
+            Error(Mark mark, string path, string message, Exception? exception = null) =>
             new(message, path, new SourceLocation(sourcePath, (int)Math.Clamp(mark.Line, 1, int.MaxValue),
                 (int)Math.Clamp(mark.Column, 1, int.MaxValue)), exception);
     }

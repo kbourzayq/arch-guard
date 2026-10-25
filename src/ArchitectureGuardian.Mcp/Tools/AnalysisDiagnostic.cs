@@ -12,6 +12,13 @@ namespace ArchitectureGuardian.Mcp.Tools;
 /// <param name="Evidence">All supporting facts and source spans.</param>
 /// <param name="Remediation">Correction guidance.</param>
 /// <param name="DocumentationUrl">Canonical rule documentation URL.</param>
-internal sealed record AnalysisDiagnostic(string Id, string RuleId, string Severity, string Message,
-    SourceLocation? Location, DiagnosticTarget Target, IReadOnlyList<DiagnosticEvidence> Evidence,
-    string Remediation, string DocumentationUrl);
+internal sealed record AnalysisDiagnostic(
+    string Id,
+    string RuleId,
+    string Severity,
+    string Message,
+    SourceLocation? Location,
+    DiagnosticTarget Target,
+    IReadOnlyList<DiagnosticEvidence> Evidence,
+    string Remediation,
+    string DocumentationUrl);
