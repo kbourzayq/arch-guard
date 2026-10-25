@@ -14,6 +14,7 @@ features are identified explicitly.
 | [Reports](reports.md) | JSON v1 schema, SARIF 2.1.0 mappings, file output and validation |
 | [Baselines](baselines.md) | Explicit accepted-debt updates, stable matching and new-violation gates |
 | [Change analysis](changes.md) | Full Git comparison, working-tree semantics and new-finding gates |
+| [CI quality gates](ci.md) | Independent GitHub Actions and Azure Pipelines gates, failure artifacts and optional code scanning |
 | [MCP](mcp.md) | Codex, Claude Code and Copilot CLI setup, correction workflow, workspace trust and tool responses |
 | [Compiler analyzer](compiler-analyzer.md) | Local NuGet installation, XML policy, severity and host compatibility |
 | [Policy reference](policy.md) | YAML v1, project selectors, contracts, permissions and gates |

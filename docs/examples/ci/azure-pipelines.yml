@@ -1,0 +1,94 @@
+# Copy to azure-pipelines.yml in the repository being scanned.
+# Azure Repos: enable this pipeline as a required build-validation branch policy.
+# Replace Application.slnx and pin guardianRef to a reviewed tool commit/tag.
+trigger: none
+pr:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  guardianRef: main
+  gateInput: Application.slnx
+  gatePolicy: architecture.guardian.yaml
+  gateConfiguration: Release
+  # Used for manual runs; PR validation selects the actual target branch instead.
+  gateBaseRef: refs/heads/main
+
+jobs:
+  - job: Architecture
+    timeoutInMinutes: 20
+    steps:
+      - checkout: self
+        path: s/repository
+        fetchDepth: 0
+        # The read-scoped job token is needed for the explicit private-base fetch.
+        persistCredentials: true
+      - task: UseDotNet@2
+        inputs:
+          packageType: sdk
+          version: '10.0.402'
+        # Add SDK tasks for any other versions required by the tool and BOTH target trees.
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: '3.x'
+      - bash: |
+          set -euo pipefail
+          mkdir -p "$AGENT_TEMPDIRECTORY/guardian-tool"
+          git -C "$AGENT_TEMPDIRECTORY/guardian-tool" init
+          git -C "$AGENT_TEMPDIRECTORY/guardian-tool" remote add origin https://github.com/kbourzayq/arch-guard.git
+          git -C "$AGENT_TEMPDIRECTORY/guardian-tool" fetch --depth 1 origin "$GUARDIAN_REF"
+          git -C "$AGENT_TEMPDIRECTORY/guardian-tool" checkout --detach FETCH_HEAD
+          cd "$AGENT_TEMPDIRECTORY/guardian-tool"
+          dotnet restore src/ArchitectureGuardian.Cli --locked-mode
+          dotnet publish src/ArchitectureGuardian.Cli --configuration Release --no-restore --output "$AGENT_TEMPDIRECTORY/guardian-cli"
+        displayName: Publish standalone CLI
+        env:
+          GUARDIAN_REF: $(guardianRef)
+      - bash: |
+          set -euo pipefail
+          mkdir -p "$BUILD_ARTIFACTSTAGINGDIRECTORY/architecture-gate"
+          base_ref="$GATE_BASE_REF"
+          if [[ "$BUILD_REASON" == PullRequest ]]; then
+            base_ref="$PR_TARGET_REF"
+            # GitHub-backed pipelines supply a short target branch name.
+            if [[ "$base_ref" != refs/heads/* ]]; then base_ref="refs/heads/$base_ref"; fi
+          fi
+          git fetch --no-tags origin "$base_ref"
+          base_commit="$(git rev-parse --verify 'FETCH_HEAD^{commit}')"
+          printf '%s\n' "$base_commit" > "$AGENT_TEMPDIRECTORY/guardian-base-commit"
+          git worktree add --detach "$AGENT_TEMPDIRECTORY/guardian-base" "$base_commit"
+          (
+            cd "$AGENT_TEMPDIRECTORY/guardian-base"
+            dotnet restore "$GATE_INPUT" --locked-mode -p:Configuration="$GATE_CONFIGURATION"
+          ) 2>&1 | tee "$BUILD_ARTIFACTSTAGINGDIRECTORY/architecture-gate/base-restore.log"
+          dotnet restore "$GATE_INPUT" --locked-mode -p:Configuration="$GATE_CONFIGURATION" 2>&1 | tee "$BUILD_ARTIFACTSTAGINGDIRECTORY/architecture-gate/candidate-restore.log"
+        workingDirectory: $(Pipeline.Workspace)/s/repository
+        displayName: Prepare explicit base and restore both contexts
+        env:
+          GATE_BASE_REF: $(gateBaseRef)
+          PR_TARGET_REF: $(System.PullRequest.TargetBranch)
+          GATE_INPUT: $(gateInput)
+          GATE_CONFIGURATION: $(gateConfiguration)
+      - bash: |
+          set -euo pipefail
+          base_commit="$(cat "$AGENT_TEMPDIRECTORY/guardian-base-commit")"
+          python "$AGENT_TEMPDIRECTORY/guardian-tool/eng/run-quality-gate.py" \
+            --cli "$AGENT_TEMPDIRECTORY/guardian-cli/ArchitectureGuardian.Cli.dll" \
+            --input "$GATE_INPUT" --policy "$GATE_POLICY" \
+            --configuration "$GATE_CONFIGURATION" --base "$base_commit" --trusted \
+            --output-directory "$BUILD_ARTIFACTSTAGINGDIRECTORY/architecture-gate/reports"
+        workingDirectory: $(Pipeline.Workspace)/s/repository
+        displayName: Run independent architecture gate
+        env:
+          GATE_INPUT: $(gateInput)
+          GATE_POLICY: $(gatePolicy)
+          GATE_CONFIGURATION: $(gateConfiguration)
+      - task: PublishPipelineArtifact@1
+        condition: always()
+        displayName: Retain reports and preparation logs even when the gate fails
+        inputs:
+          targetPath: $(Build.ArtifactStagingDirectory)/architecture-gate
+          artifact: architecture-gate
