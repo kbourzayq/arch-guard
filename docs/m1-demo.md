@@ -77,8 +77,10 @@ dotnet test tests/ArchitectureGuardian.ArchitectureTests/ArchitectureGuardian.Ar
 ```
 
 `ReferenceSolutionTests` copies the committed fixtures to an isolated directory,
-restores the four valid contexts through `Preparation.slnx`, then checks every row
-through the reusable API and the real CLI process. The exact diagnostic cardinality
+restores the four valid contexts through `Preparation.proj`, then checks every row
+through the reusable API and the real CLI process. Rule repeatability reuses the
+immutable extracted graph; the CLI independently reloads the workspace and must
+produce the same diagnostic IDs and operational issue codes/messages. The exact diagnostic cardinality
 and rule identity reject both false positives and missed violations. Each clean row
 is a negative control for all three rules; the three complete violating rows are
 known positives for AG001–AG003. This is a small labeled regression corpus, not an

@@ -108,10 +108,6 @@ public sealed class CliWorkspaceTests
             Assert.Contains("Consumer.cs(1,", implementationScan.Output);
             Assert.DoesNotContain("AG001:", implementationScan.Output);
             Assert.DoesNotContain("AG002:", implementationScan.Output);
-            var implementationInspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
-            Assert.Equal(0, implementationInspect.ExitCode);
-            Assert.Contains("Forbidden assemblies: Library", implementationInspect.Output);
-            Assert.Contains("AG006 infrastructure namespaces (including descendants): Library", implementationInspect.Output);
 
             // Both AG005 bans override an allowed contract, while AG006's namespace exception remains effective.
             var domainPolicy = contractPolicy
@@ -132,6 +128,7 @@ public sealed class CliWorkspaceTests
             Assert.Equal(0, restrictions.ExitCode);
             Assert.Contains("Forbidden assemblies: Library", restrictions.Output);
             Assert.Contains("Forbidden namespaces (including descendants): Library", restrictions.Output);
+            Assert.Contains("AG006 infrastructure namespaces (including descendants): Library", restrictions.Output);
 
             // Project input also includes its reference and preserves contract/exception acceptance.
             await File.WriteAllTextAsync(policyPath, exemptedPolicy, TestContext.Current.CancellationToken);
@@ -140,22 +137,24 @@ public sealed class CliWorkspaceTests
             Assert.Contains("0 diagnostic(s)", exempted.Output);
 
             await File.WriteAllTextAsync(policyPath, Policy("error", "error", false), TestContext.Current.CancellationToken);
-            var first = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
-            var second = await RunCli("scan", solution, "--policy", policyPath, "--trusted");
-            Assert.Equal(1, first.ExitCode);
-            Assert.Equal(first.Output, second.Output);
 
             // Baseline writes are explicit; source movement preserves debt while a newly selected restriction blocks.
             var baselinePath = Path.Combine(directory, "baseline.json");
             var update = await RunCli("baseline", "update", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
             Assert.True(update.ExitCode == 0, update.Output + update.Error);
             Assert.Contains("Baseline updated: 2 accepted", update.Output);
+            // These two baseline commands independently scan the same source and policy. Compare
+            // their entire findings block instead of doing two additional scans only for repeatability.
+            var summary = update.Output.IndexOf("Baseline updated:", StringComparison.Ordinal);
+            Assert.True(summary > 0);
+            var findings = update.Output[..summary];
             var baselineBytes = await File.ReadAllBytesAsync(baselinePath, TestContext.Current.CancellationToken);
             var accepted = await RunCli("scan", solution, "--policy", policyPath, "--baseline", baselinePath, "--trusted");
             Assert.True(accepted.ExitCode == 0, accepted.Output + accepted.Error);
             Assert.Contains("2 existing, 0 new, 0 resolved", accepted.Output);
             Assert.Contains("error AG001:", accepted.Output);
             Assert.Contains("Existing:", accepted.Output);
+            Assert.StartsWith(findings, accepted.Output);
 
             var moved = Path.Combine(directory, "App", "Renamed.cs");
             File.Move(source, moved);
@@ -215,7 +214,8 @@ public sealed class CliWorkspaceTests
             Assert.Contains("MissingType", incomplete.Error);
             Assert.DoesNotContain("Gate passed", incomplete.Output);
             Assert.DoesNotContain("Gate failed", incomplete.Output);
-            var incompleteInspect = await RunCliProcess("inspect", solution, "--policy", policyPath, "--trusted");
+            // Cold-process inspection is already compared above; exercise partial coverage in process.
+            var incompleteInspect = await RunCli("inspect", solution, "--policy", policyPath, "--trusted");
             Assert.Equal(2, incompleteInspect.ExitCode);
             Assert.Contains("incomplete", incompleteInspect.Error);
         }

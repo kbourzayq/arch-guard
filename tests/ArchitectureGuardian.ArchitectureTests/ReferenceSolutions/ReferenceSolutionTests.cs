@@ -42,21 +42,24 @@ public sealed class ReferenceSolutionTests(ReferenceSolutionFixture fixture) : I
             [new ModuleDependenciesRule(), new LayerDependenciesRule(), new ModuleCyclesRule()]);
         var service = new AnalysisService<DependencyBuildResult>(rules);
 
-        async Task<AnalysisResult> AnalyzeAsync()
+        async Task<DependencyBuildResult> PrepareAsync()
         {
-            using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(input, isTrusted: true, configuration: configuration));
+            using var workspace = await new MSBuildWorkspaceLoader().LoadAsync(new(input, isTrusted: true, configuration: configuration),
+                TestContext.Current.CancellationToken);
             if (solution == "ModularMonolith" && configuration == "Incomplete")
             {
                 Assert.Equal(AnalysisStatus.Incomplete, workspace.Status);
                 Assert.Contains(workspace.Issues, issue => issue.Message.Contains("Unavailable", StringComparison.Ordinal));
             }
 
-            var context = await new DependencyGraphBuilder().BuildAsync(workspace, root, policy);
-            return await service.AnalyzeAsync(new(context, policy.SeverityPolicy));
+            return await new DependencyGraphBuilder().BuildAsync(workspace, root, policy, TestContext.Current.CancellationToken);
         }
 
-        var first = await AnalyzeAsync();
-        var second = await AnalyzeAsync();
+        var context = await PrepareAsync();
+        // Rule repeatability needs only the immutable context. The CLI below independently reloads
+        // the workspace and verifies the same identities and operational issues across processes.
+        var first = await service.AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
+        var second = await service.AnalyzeAsync(new(context, policy.SeverityPolicy), TestContext.Current.CancellationToken);
         Assert.Equal(expectedExit == 2 ? AnalysisStatus.Incomplete : AnalysisStatus.Completed, first.Status);
         Assert.Equal(first.Status, second.Status);
         Assert.Equal(first.Diagnostics.Select(item => item.Id), second.Diagnostics.Select(item => item.Id));
@@ -130,6 +133,11 @@ public sealed class ReferenceSolutionTests(ReferenceSolutionFixture fixture) : I
         if (expectedExit == 2)
         {
             Assert.Contains("incomplete", scan.Error);
+            foreach (var issue in first.Issues)
+            {
+                Assert.Contains(issue.Code, scan.Error);
+                Assert.Contains(issue.Message, scan.Error);
+            }
             Assert.DoesNotContain("Gate passed", scan.Output);
             Assert.DoesNotContain("Gate failed", scan.Output);
         }

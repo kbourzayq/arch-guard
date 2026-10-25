@@ -78,9 +78,13 @@ dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj -
 Use `--filter "Category=Integration"` for the unit-test project's MSBuild/Roslyn
 workspace integration tests. CLI process and evaluated dependency checks live in
 `ArchitectureGuardian.ArchitectureTests`; run the full solution suite before submitting
-code. CI runs test projects sequentially (`-m:1`), while the workspace-bearing test
-assemblies cap concurrent collections at two. This bounds simultaneous MSBuild and
-Roslyn work on shared runners without omitting tests. Fixture restore and individual
+code. On each OS, CI runs architecture/CLI checks and unit/compiler checks on
+independent runners. Each test host retains its two-collection limit and `-m:1`;
+this removes the wait between heavy suites without oversubscribing one runner.
+The unit runner executes both unit-test assemblies sequentially. The existing
+`Build and test (<os>)` check names are aggregate gates: both full test matrices
+must succeed, including schema validation, before any of those gates can pass.
+All tests still run on Linux, Windows and macOS. Fixture restore and individual
 workspace CLI checks retain bounded process deadlines; trusted MCP scenarios use a
 three-minute aggregate budget for their multiple full workspace calls. The process
 helper disables build-worker reuse and applies its deadline through output draining.
@@ -89,15 +93,18 @@ through the fixture preparation solutions. Deliberately broken inputs are exclud
 from preparation; do not fix those intentional failures.
 The reference fixtures restore their four configuration graphs serially in one
 MSBuild process through `tests/Fixtures/ReferenceSolutions/Preparation.proj`.
-CLI scenarios combine compatible rule assertions to reduce repeated workspace
-loads while retaining process parity, mutation and incomplete-coverage checks.
+Reference cases prepare one immutable graph, repeat rule evaluation against it,
+and compare IDs and operational issues with a fresh CLI process. CLI scenarios
+reuse their independently executed baseline update/scan for byte-repeatability
+checks and combine inspection assertions for the same policy settings. They retain
+cold-process parity, all mutation cases and incomplete-coverage checks.
 The architecture suite starts its measured longest collections first to keep both
 bounded workers busy; update `WorkspaceCollectionOrderer` if profiling changes those priorities.
 CI caches NuGet's global packages using the committed lock files as its cache key;
 locked restore still runs on every build.
 
-For reporting changes, also validate real exports against the JSON v1 and vendored
-OASIS SARIF 2.1.0 schemas (CI runs this on each OS):
+For reporting changes, also validate serializer samples and real exports against
+the JSON v1 and vendored OASIS SARIF 2.1.0 schemas (CI runs this on each OS):
 
 ```sh
 python3 -m pip install jsonschema==4.26.0
@@ -105,9 +112,15 @@ python3 eng/test-reports.py
 ```
 
 Use a virtual environment when your Python installation requires one. The validator
-uses isolated package-free inputs and checks completed, gate-failing, baseline,
-resolved, partial and file-output cases. Report schemas and mappings are documented
-in [reports](docs/reports.md).
+uses the build-only `tests/Fixtures/Reports` executable to generate 20 JSON/SARIF
+samples in one process, covering completion, severities, baseline states, failure,
+cancellation and located/unlocated evidence. It then restores isolated package-free
+inputs once and performs four real CLI scans for stdout/file equivalence and repeatability.
+The sample executable is built in the same configuration as the architecture tests;
+run the full Release solution build above before the script. File failures and
+baseline/coverage host behavior remain covered by the normal xUnit suite. No new
+runtime packages are needed. Report schemas and mappings are documented in
+[reports](docs/reports.md).
 
 For compiler package changes, also build and verify a consumer package:
 

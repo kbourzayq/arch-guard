@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
-    name: Build and test (${{ matrix.os }})
+  architecture-tests:
+    name: Architecture and CLI (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -37,8 +37,9 @@ jobs:
         run: dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
       - name: Test contracts, analysis, architecture boundaries and CLI
         # xUnit v3 uses the VSTest adapter; retain VSTest filtering and TRX reporting.
-        # Each assembly already runs bounded parallel scenarios; avoid multiplying workspace builds across test hosts.
-        run: dotnet test ArchitectureGuardian.slnx --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
+        # Separate runners keep both heavy suites off each other's critical path without
+        # increasing the two-workspace collection limit within either test host.
+        run: dotnet test tests/ArchitectureGuardian.ArchitectureTests/ArchitectureGuardian.ArchitectureTests.csproj --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
@@ -49,8 +50,60 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-${{ matrix.os }}
+          name: test-results-architecture-${{ matrix.os }}
           path: TestResults/*.trx
+
+  unit-tests:
+    name: Unit and compiler tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Restore locked dependencies
+        run: dotnet restore ArchitectureGuardian.slnx --locked-mode
+      - name: Build
+        run: dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
+      - name: Test compiler analyzer
+        run: dotnet test tests/ArchitectureGuardian.Analyzers.Tests/ArchitectureGuardian.Analyzers.Tests.csproj --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
+      - name: Test contracts and workspace analysis
+        run: dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-unit-${{ matrix.os }}
+          path: TestResults/*.trx
+
+  build-and-test:
+    # Preserve the existing required check names. These cannot pass if either
+    # test matrix failed, was cancelled, or was skipped on any supported OS.
+    name: Build and test (${{ matrix.os }})
+    if: ${{ always() }}
+    needs: [architecture-tests, unit-tests]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require both complete test matrices
+        env:
+          ARCHITECTURE_RESULT: ${{ needs.architecture-tests.result }}
+          UNIT_RESULT: ${{ needs.unit-tests.result }}
+        run: test "$ARCHITECTURE_RESULT" = success && test "$UNIT_RESULT" = success
 
   pack-analyzer:
     name: Pack compiler analyzer
