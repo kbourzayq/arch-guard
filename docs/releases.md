@@ -13,7 +13,7 @@ separately supported NuGet library API. They are not packable.
 | `ArchitectureGuardian.Mcp` | `archguard-mcp`, .NET 10 stdio | Same solution engine and SDK requirements as CLI; stdout is reserved for MCP |
 | `ArchitectureGuardian.Analyzers` | C# compiler, .NET Standard 2.0 / Roslyn 4.8+ | Only its analyzer DLL under `analyzers/dotnet/cs`; no standalone runtime, Workspaces or NuGet dependencies |
 
-See [installation](installation.md), [compiler-host validation](compiler-analyzer.md#host-compatibility-and-validation)
+See [published installation](../README.md), [source development](installation.md), [compiler-host validation](compiler-analyzer.md#host-compatibility-and-validation)
 and [workspace SDK selection](workspace-loading.md). Local builds and CI use the
 exact SDK in `global.json`. Consumer repositories must install the SDK required by
 their inputs; a runtime alone cannot evaluate MSBuild projects. Linux, Windows and
@@ -46,7 +46,7 @@ obsolete hosts. Pin the same package version when comparing engines.
 
 ## Build and verify packages
 
-Run from a clean checkout with Git, Python 3.10+, the pinned SDK and the Python
+Run from the checkout root with Git, Python 3.10+, the pinned SDK and the Python
 [Commitizen](https://commitizen-tools.github.io/commitizen/) tool on PATH. The
 tooling version is pinned in `eng/requirements-release.txt`; an existing matching
 installation can be reused. In an activated Python virtual environment, install it
@@ -57,6 +57,10 @@ python3 eng/packages.py pack
 python3 eng/packages.py verify
 python3 eng/packages.py smoke
 ```
+
+Use an empty output directory for packing. If `artifacts/packages` already holds
+a previous build, choose another directory with `--directory` and pass that same
+directory to `pack`, `verify` and `smoke`.
 
 The package scripts read `cz version --project` and verify that the .NET build
 version agrees. They validate artifacts and consumer execution; version increments,
@@ -120,18 +124,21 @@ the configured .NET/example files, regenerates `CHANGELOG.md`, creates the relea
 commit and tags it as `v<Version>`. Review the resulting changes and run the required
 release checks, then publish that commit and tag through the maintainer's process.
 The tag starts the verified NuGet workflow. No automatic bump, tag creation or tag
-push runs during PR validation. The dry run may propose a new minor version before
-the first release because the existing feature history has no release tag yet.
+push runs during PR validation. Review the proposed increment before creating a
+release; ensure prior release tags are available in the local history.
 
-`CHANGELOG.md` is generated; do not maintain entries manually. Use `cz changelog`
-to regenerate development notes. Before the first release, history is under
-`Unreleased`; Commitizen bump creates the versioned heading required by release
-verification. This also lets Commitizen initialize its first release without an
-invented previous tag. See Commitizen's [bump](https://commitizen-tools.github.io/commitizen/commands/bump/)
-and [configuration](https://commitizen-tools.github.io/commitizen/config/bump/)
+`CHANGELOG.md` is generated; do not maintain entries manually. Commitizen bump
+creates the versioned heading required by release verification. Use `cz changelog`
+only when intentionally regenerating notes, and review its output. See Commitizen's
+[bump](https://commitizen-tools.github.io/commitizen/commands/bump/) and
+[configuration](https://commitizen-tools.github.io/commitizen/config/bump/)
 documentation for prereleases and version-file synchronization.
 
-Before the first release, a maintainer must:
+The repository-hosted agent skill is distributed separately from NuGet. Review
+skill instructions and client examples when interfaces change; package version
+alignment does not install or update a copied skill.
+
+Before publishing, a maintainer must verify the release setup:
 
 1. Own/reserve all three package IDs on nuget.org and set the GitHub repository
    variable `NUGET_USER` to the publishing account's profile name.
@@ -147,5 +154,6 @@ Before the first release, a maintainer must:
    the change and tag that exact revision after approval through the maintainer's
    process. Tagging or publishing packages is separate from opening an implementation PR.
 
-The generated notes describe a prepared version; neither those notes nor a
-successful package build claims publication to nuget.org.
+Generated notes and successful local builds do not establish public availability.
+Verify the tagged workflow and each package feed after publication; the
+[README](../README.md) documents the published installation path.

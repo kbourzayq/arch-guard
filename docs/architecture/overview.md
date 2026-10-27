@@ -10,20 +10,21 @@ records the decisions and constraints behind them.
 
 ## What exists today
 
-| Area | Current implementation | Planned work |
+| Area | Current implementation | Extension point |
 | --- | --- | --- |
 | Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG006 module/layer/cycle/implementation/reference evaluation | Extended rules |
-| Analysis | `AnalysisService<TContext>` over prepared contexts; shared CLI/MCP `SolutionAnalysisService`; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization and dependency extraction | Base/candidate graph comparison |
-| CLI | System.CommandLine help/version, `scan`, `inspect`, `explain` and trusted `load`; explicit coverage and gate exit codes | Tool packaging |
+| Analysis | `AnalysisService<TContext>` over prepared contexts; shared CLI/MCP `SolutionAnalysisService`; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization, dependency extraction and full-context Git comparison | Additional input adapters |
+| CLI | System.CommandLine help/version, `scan`, `baseline update`, `inspect`, `explain` and trusted `load`; JSON/SARIF output; installable `archguard` tool | Additional commands |
 | Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
 | MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and `analyze_changes` with full base/candidate comparison | Report export |
 | Reporting | JSON v1 and SARIF 2.1.0 serialization, portable locations and atomic file output; depends only on Core | Additional formats |
 | Quality gates | Inclusive severity threshold, explicit baselines and new-violation gates; noncompleted coverage always fails | — |
 
-The [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks the remaining
-features. Diagrams marked **planned** show intended integration, not commands or
-adapters that can already be used.
+The [roadmap](https://github.com/kbourzayq/arch-guard/issues/44) tracks future work.
+CLI, MCP and compiler analyzer are [installable NuGet packages](../../README.md).
+The optional [agent skill](../agent-workflow.md) composes existing interfaces and
+adds no production project dependency.
 
 ## Project dependencies and responsibilities
 

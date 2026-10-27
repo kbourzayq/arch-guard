@@ -1,9 +1,9 @@
-# Installation
+# Local development and source installation
 
-Architecture Guardian distributes the `archguard` CLI, `archguard-mcp` stdio server
-and compiler analyzer as three NuGet packages. Build and install packages locally
-using the steps below, or select a version already published to your package feed.
-These instructions do not assume that a version is available on nuget.org.
+For published CLI/MCP tools and compiler analyzer installation, start with the
+[root README](../README.md). This guide is for building and running Architecture
+Guardian locally, publishing development executables and testing local packages.
+Commands assume the Architecture Guardian checkout root unless stated otherwise.
 
 ## Requirements
 
@@ -64,7 +64,9 @@ expecting a web dashboard or standalone command prompt.
 ## Install the .NET tools from local packages
 
 From this checkout, with Python 3.10+, the pinned SDK and Python Commitizen installed
-on PATH (see [release tooling](releases.md#build-and-verify-packages)):
+on PATH (see [release tooling](releases.md#build-and-verify-packages)). Start with
+an empty `artifacts/packages` directory; use `--directory` with a new output
+directory and adjust package-source paths below for subsequent runs:
 
 ```sh
 python3 eng/packages.py pack
@@ -92,17 +94,8 @@ directories or in MCP client configuration. For the installed MCP tool, use
 `command` set to that full `archguard-mcp` path and pass only workspace options;
 see the [packaged server example](mcp.md#install-the-packaged-server).
 
-To install a version available on nuget.org globally instead:
-
-```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
-archguard --help
-```
-
-Ensure the .NET global tool directory is on your terminal/client's PATH. Pin the
-same version for CLI, MCP and analyzers when comparing results. Package versions,
-compiler hosts and release prerequisites are defined in the [release policy](releases.md).
+For published global or repository-local tools, follow the
+[README installation instructions](../README.md#install-the-cli).
 
 ## Use the source checkout directly
 
@@ -150,3 +143,13 @@ package ID; use `--global` for a global installation. Remove the MCP client entr
 when uninstalling its server.
 
 See [troubleshooting](troubleshooting.md) if SDK selection, restore or startup fails.
+
+## Run and verify the checkout
+
+Follow [getting started](getting-started.md#run-the-included-example) to scan the
+reference solution, using the installed CLI or substituting
+`dotnet artifacts/cli/ArchitectureGuardian.Cli.dll` after publishing above.
+Use [reference examples](m1-demo.md) for passing, violating and incomplete inputs.
+[CONTRIBUTING.md](../CONTRIBUTING.md#run-the-required-checks) lists the full build,
+format, test and package checks. [Release tooling](releases.md) covers Commitizen
+and reproducible distribution; local builds do not publish packages.

@@ -7,10 +7,16 @@ analysis still exits `2`, regardless of the baseline or available findings.
 
 ## Create or update accepted debt
 
-Restore the input first, then run an explicit update:
+Install the [CLI](../README.md#install-the-cli). From your target repository root,
+replace `path/to/...` with the real input, policy and baseline paths. Authorize
+build execution, restore the same configuration, then run an explicit update:
 
 ```sh
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll baseline update path/to/Application.slnx --policy path/to/architecture.guardian.yaml --baseline path/to/architecture.baseline.json --trusted --configuration Release
+dotnet restore path/to/Application.slnx -p:Configuration=Release
+```
+
+```sh
+archguard baseline update path/to/Application.slnx --policy path/to/architecture.guardian.yaml --baseline path/to/architecture.baseline.json --trusted --configuration Release
 ```
 
 The command replaces the complete inventory with the current findings, including
@@ -28,7 +34,7 @@ absolute paths added by the writer.
 ## Scan against a baseline
 
 ```sh
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --baseline path/to/architecture.baseline.json --trusted --configuration Release
+archguard scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --baseline path/to/architecture.baseline.json --trusted --configuration Release
 ```
 
 All current diagnostics retain their full evidence, severity and snapshot IDs.
@@ -39,10 +45,12 @@ remain visible but can pass. Resolved entries stay in the file until an explicit
 update. Missing, malformed, inconsistent or unsupported baseline files fail with
 exit `2`; a missing file never means an empty accepted inventory.
 
-Without `--baseline`, scans retain the regular gate over **all** findings.
-The YAML policy schema is unchanged. MCP and compiler-hosted analysis retain their
-existing full severity gates; baseline persistence is currently exposed by CLI and
-the reusable Analysis store/Core matching contracts.
+Without `--baseline` or `--base`, CLI scans gate **all** findings. The YAML policy
+schema is unchanged. MCP `analyze_solution` applies the full severity gate;
+`analyze_changes` gates new findings against an explicit Git base. Neither reads
+an accepted-debt JSON file. Compiler diagnostics use `.editorconfig` and the host
+build result rather than a solution severity gate or baseline. Baseline persistence
+is exposed by CLI and the reusable Analysis store/Core matching contracts.
 
 ## Version-one identity and matching
 

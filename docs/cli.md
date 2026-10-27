@@ -1,20 +1,19 @@
 # CLI commands
 
 Use the CLI to scan architecture, inspect resolved ownership, explain rules and
-validate workspace coverage. Follow [installation](installation.md) first.
-Examples below run from the Architecture Guardian checkout root and use the
-published CLI in `artifacts/cli`. When scanning another repository, replace
-`path/to/...` with your input and policy paths; quote paths containing spaces.
+validate workspace coverage. Install the [CLI package](../README.md#install-the-cli) first. Examples use the
+installed `archguard` command from your target repository root. Replace
+`path/to/...` with your actual input and policy paths; quote paths containing spaces.
 
 ```sh
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll --help
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan --help
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll --version
+archguard --help
+archguard scan --help
+archguard --version
 ```
 
-No arguments also prints help. The intended tool name is `archguard`; packaged
-tool installation is planned, so generated help currently uses the assembly name.
-For development, `dotnet run --project src/ArchitectureGuardian.Cli -- <arguments>`
+No arguments also prints help. For a source build, substitute
+`dotnet artifacts/cli/ArchitectureGuardian.Cli.dll` after
+[publishing locally](installation.md#install-from-source). For development, `dotnet run --project src/ArchitectureGuardian.Cli -- <arguments>`
 uses the same commands.
 
 ## Command reference
@@ -40,7 +39,7 @@ untrusted repositories before authorizing them, as described in
 
 ```sh
 dotnet restore path/to/Application.slnx -p:Configuration=Release
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release
+archguard scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release
 ```
 
 Inputs may be `.sln`, `.slnx` or `.csproj`. Project input includes the referenced
@@ -85,8 +84,8 @@ one of these machine formats. The default `--format text` preserves console outp
 These options apply only to `scan`, including `--baseline` and `--base` scans.
 
 ```sh
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --format json
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --format sarif --output architecture.sarif
+archguard scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --format json
+archguard scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --format sarif --output architecture.sarif
 ```
 
 Machine output includes available findings and explicit completion and gate status,
@@ -116,7 +115,7 @@ for exact Git, policy, rename, offline preparation and trust semantics.
 ## Inspect resolved boundaries
 
 ```sh
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll inspect path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
+archguard inspect path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted
 ```
 
 `inspect` accepts the same input, trust, configuration and framework options. It
@@ -134,7 +133,7 @@ future rules: inspection reports declarations rather than implementation availab
 ## Explain a canonical rule
 
 ```sh
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll explain AG001
+archguard explain AG001
 ```
 
 `explain` resolves AG001–AG006 case-sensitively from the local catalog, prints the

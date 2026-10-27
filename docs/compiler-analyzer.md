@@ -15,20 +15,16 @@ Keep CLI or MCP solution scans as the full architecture gate. See
 
 ## Install and distribute policy
 
-### 1. Build a local package
+### 1. Choose the package
 
-From the Architecture Guardian checkout, after the locked restore in
-[installation](installation.md):
+Use published `ArchitectureGuardian.Analyzers` version `0.2.0` from NuGet. No
+Architecture Guardian checkout or source build is required. All three integration
+packages share a [version and compatibility policy](releases.md).
 
-```sh
-dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
-```
-
-The current version produces `ArchitectureGuardian.Analyzers.0.2.0.nupkg`.
-These instructions use a local package source and do not assume nuget.org publication.
-The complete [distribution build](releases.md#build-and-verify-packages) produces
-the same analyzer package alongside the CLI/MCP tools in `artifacts/packages`.
-All three packages share the root version and [compatibility policy](releases.md).
+For development builds, [create a local package](installation.md#build-a-local-compiler-analyzer-package)
+and add its output directory as a source in your consuming repository's NuGet
+configuration. Retain its normal public/private feeds. Do not commit a developer's
+absolute package-directory path to shared configuration.
 
 ### 2. Reference the analyzer and policy
 
@@ -45,21 +41,25 @@ participating projects; every such assembly needs a mapping in the snapshot.
 </Project>
 ```
 
+If the consuming repository uses central package management, declare
+`<PackageVersion Include="ArchitectureGuardian.Analyzers" Version="0.2.0" />` in
+`Directory.Packages.props` and omit `Version` from `PackageReference` above.
+
 Create `architecture.guardian.compiler.xml` alongside that props file using the
-[snapshot format below](#compiler-policy-snapshot). Then restore the consuming
-solution with the local source and your normal package feeds. Replace both
-`MyApp.slnx` and the absolute `<LOCAL_PACKAGE_DIRECTORY>` placeholder:
+[snapshot format below](#compiler-policy-snapshot). Authorize the consuming
+repository's build logic and run from its root, replacing `MyApp.slnx`:
 
 ```sh
-dotnet restore MyApp.slnx --source "<LOCAL_PACKAGE_DIRECTORY>" --source https://api.nuget.org/v3/index.json
+dotnet restore MyApp.slnx
 dotnet build MyApp.slnx --no-restore
 ```
 
-`<LOCAL_PACKAGE_DIRECTORY>` is the directory containing the `.nupkg`, normally
-`artifacts/analyzers` in your Architecture Guardian checkout. `--source` overrides
-configured feeds for this restore; also supply any private feeds required by your
-solution, or add the local source to your existing NuGet configuration instead.
-Do not commit a developer's absolute package-directory path to shared configuration.
+Restore uses your configured package feeds. For a locally built package, add its
+source first; the [local package guide](installation.md) explains output paths.
+A successful configured build has no AG000 or analyzer-load errors; architecture
+findings follow the severities you select. Package installation alone is not a
+configured check.
+
 Set [reporting severity](#reporting-and-scope) in the consuming repository's
 `.editorconfig`; CLI YAML severity settings do not configure compiler diagnostics.
 

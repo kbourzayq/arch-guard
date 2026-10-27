@@ -1,33 +1,8 @@
 # Getting started
 
-This guide takes you from a [source installation](installation.md) to a first
-architecture gate. Commands assume the terminal is at the Architecture Guardian
-checkout root and the CLI is published to `artifacts/cli`.
-
-## Run the included example
-
-The Clean Architecture example contains Domain, Application, Infrastructure and
-Host projects with a committed policy. Restore the same configuration you will scan:
-
-```sh
-dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=Compliant
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration Compliant --trusted
-```
-
-Expect a completed scan with zero diagnostics, `Gate passed` and exit code `0`.
-The `--trusted` flag authorizes MSBuild execution for this repository-owned example.
-For other inputs, make that trust decision before restoring or loading their projects.
-
-Now select a committed configuration that makes Application depend on Infrastructure:
-
-```sh
-dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=AG002
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration AG002 --trusted
-```
-
-Expect one AG002 finding, source evidence, remediation, `Gate failed` and exit
-code `1`. The input still compiles; the architecture policy rejects its dependency.
-For module permissions and cycles, see the [modular-monolith examples](m1-demo.md).
+Install the [published CLI](../README.md#install-the-cli), then use this guide from
+**your repository root** to define policy and run your first architecture gate.
+A source checkout is needed only for the optional reference example below.
 
 ## Check your own repository
 
@@ -89,13 +64,13 @@ and enable the corresponding [rules](rule-catalog.md). The
 
 ### 3. Restore, inspect and scan
 
-From **your repository root**, replace the CLI placeholder below with its published
-DLL path. `<CLI_DLL>` is a documentation placeholder, not a shell variable:
+From **your repository root**, authorize its build logic before restoring or
+loading projects. Replace `Shop.slnx` with your solution name:
 
 ```sh
 dotnet restore Shop.slnx -p:Configuration=Release
-dotnet "<CLI_DLL>" inspect Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
-dotnet "<CLI_DLL>" scan Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
+archguard inspect Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
+archguard scan Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
 ```
 
 `inspect` lets you verify ownership and permissions before evaluating rules.
@@ -121,19 +96,49 @@ produce a passing scan. See [troubleshooting](troubleshooting.md).
 
 ## Add a CI gate
 
-Provision the SDKs required by both the tool and your target repository. Restore
-the target with the configuration you intend to scan, then invoke the published
-CLI as a normal pipeline step:
+Provision the SDKs required by both the tool and your target repository and
+install the [CLI package](../README.md#install-the-cli). Restore the target in
+the intended configuration, then invoke `archguard` as a normal pipeline step:
 
 ```sh
 dotnet restore Shop.slnx -p:Configuration=Release
-dotnet "<CLI_DLL>" scan Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
+archguard scan Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
 ```
 
-Run this in the target repository root, replace `<CLI_DLL>`, and let the pipeline
-fail on **either** nonzero exit code. Do not turn exit `2` into a successful gate.
+Run this in the target repository root and let the pipeline fail on **either**
+nonzero exit code. Do not turn exit `2` into a successful gate.
 Use an execution environment whose build logic you authorize; `--trusted` is not
 an isolation mechanism. Analysis does not restore packages for you.
 
 For coding-agent access, continue with [MCP setup](mcp.md). For per-compilation
 feedback, use the [compiler analyzer](compiler-analyzer.md) alongside the solution gate.
+
+## Run the included example
+
+For a local demonstration, obtain a [development checkout](installation.md#install-from-source)
+and run the commands below from its root with the installed `archguard`. A source
+build can substitute `dotnet artifacts/cli/ArchitectureGuardian.Cli.dll` for that
+command after publishing. This checkout requires its pinned SDK.
+
+The Clean Architecture example contains Domain, Application, Infrastructure and
+Host projects with a committed policy. Restore the same configuration you will scan:
+
+```sh
+dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=Compliant
+archguard scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration Compliant --trusted
+```
+
+Expect a completed scan with zero diagnostics, `Gate passed` and exit code `0`.
+The `--trusted` flag authorizes MSBuild execution for this repository-owned example.
+For other inputs, make that trust decision before restoring or loading their projects.
+
+Now select a committed configuration that makes Application depend on Infrastructure:
+
+```sh
+dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=AG002
+archguard scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration AG002 --trusted
+```
+
+Expect one AG002 finding, source evidence, remediation, `Gate failed` and exit
+code `1`. The input still compiles; the architecture policy rejects its dependency.
+For module permissions and cycles, see the [modular-monolith examples](m1-demo.md).

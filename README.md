@@ -1,137 +1,265 @@
 # Architecture Guardian for .NET
 
-**Keep architectural boundaries enforceable as your .NET codebase grows.**
+Keep architectural boundaries enforceable as your C# codebase grows. Define modules,
+layers and public contracts in repository-owned YAML, then check dependencies with
+source evidence and remediation guidance.
 
-Architecture Guardian checks C# solutions against architecture policy stored in
-your repository. Define modules, layers and public contracts in YAML, then find
-forbidden dependencies with source evidence and guidance for fixing them. Run
-checks from the command line, expose architecture context to coding agents through
-MCP, or add compiler diagnostics to participating projects.
+Install the CLI for local scans and CI, the MCP server for coding agents, or the
+compiler analyzer for feedback during builds. CLI and MCP share the solution engine;
+the analyzer complements them with checks in the host compilation.
 
-[Get started](docs/getting-started.md) · [Installation](docs/installation.md) ·
-[Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md)
+[Getting started](docs/getting-started.md) · [Documentation](docs/README.md) ·
+[Local development](docs/installation.md) · [Contributing](CONTRIBUTING.md)
 
-## What you can check
+## Requirements
 
-| Rule | What it enforces |
+| Integration | Requirements |
 | --- | --- |
-| AG001 — Module dependencies | Cross-module references follow explicit module and public-contract permissions. |
-| AG002 — Layer dependencies | Dependencies follow your configured layer directions. |
-| AG003 — Module cycles | Logical modules do not form dependency cycles, including cycles through contracts. |
-| AG004 — Implementation boundaries | Another module's implementation stays private to that module, even when its C# types are public. |
-| AG005 — Forbidden references | Modules and layers avoid configured assemblies and namespace trees. |
-| AG006 — Domain infrastructure | Selected layers avoid configured technology dependencies, with explicit namespace exceptions. |
+| CLI and MCP | Linux, macOS or Windows; .NET 10 runtime; an installed SDK compatible with the repository being analyzed |
+| Compiler analyzer | A Roslyn 4.8+ compiler host supporting .NET Standard 2.0; no standalone .NET 10 runtime requirement |
+| Agent skill | A compatible local agent with MCP access or permission to run the CLI |
 
-Findings include the rule, affected module or symbol, source location when available,
-supporting evidence, remediation and documentation. The same source snapshot and
-configuration produce deterministic diagnostic identities and ordering.
+Install the [.NET SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0),
+which includes the runtime, and any SDK selected by your target repository's
+`global.json`. A runtime alone cannot load MSBuild projects. Check installed SDKs
+with `dotnet --list-sdks` and runtimes with `dotnet --list-runtimes`.
+The exact SDK pinned in **this** repository is required only for
+[developing Architecture Guardian](docs/installation.md#requirements).
 
-## Project status
+Version `0.2.0` is available on NuGet:
 
-Architecture Guardian is in early development. Install the CLI and MCP as .NET
-tools from [locally built NuGet packages](docs/installation.md#install-the-net-tools-from-local-packages),
-or use a source installation with the SDK selected by [global.json](global.json).
-CLI and MCP run on .NET 10; development and CI cover Linux, macOS and Windows.
-The compiler analyzer targets `netstandard2.0` with a Roslyn 4.8 API floor.
+| Package | What you install |
+| --- | --- |
+| [ArchitectureGuardian.Cli](https://www.nuget.org/packages/ArchitectureGuardian.Cli) | `archguard` command |
+| [ArchitectureGuardian.Mcp](https://www.nuget.org/packages/ArchitectureGuardian.Mcp) | `archguard-mcp` stdio server |
+| [ArchitectureGuardian.Analyzers](https://www.nuget.org/packages/ArchitectureGuardian.Analyzers) | C# compiler analyzer |
 
-Full-solution scans, YAML policy, six architecture rules and the MCP server are
-implemented, including [explicit diagnostic baselines](docs/baselines.md) and new-violation gates.
-[Full-context Git change comparison](docs/changes.md) is available through CLI
-`scan --base` and MCP `analyze_changes`. [JSON v1 and SARIF 2.1.0 reports](docs/reports.md)
-are available through `scan --format json|sarif`. The three distribution packages
-share a [version and compatibility policy](docs/releases.md) and a verified release
-pipeline; see [release notes](CHANGELOG.md) for the prepared version.
-[GitHub Actions and Azure Pipelines examples](docs/ci.md) run independent
-CLI gates and retain reports on failure; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
-See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
-before adopting a scan as a required gate.
+Keep package versions aligned when comparing integrations. See
+[compatibility and releases](docs/releases.md).
 
-## Install and run your first scan
+## Install the CLI
 
-Install the exact **.NET SDK 10.0.402** selected by [global.json](global.json), then run:
+Run from a terminal with the .NET SDK available; no Architecture Guardian checkout
+is needed:
 
 ```sh
-git clone https://github.com/kbourzayq/arch-guard.git
-cd arch-guard
-dotnet restore ArchitectureGuardian.slnx --locked-mode
-dotnet publish src/ArchitectureGuardian.Cli --configuration Release --no-restore --output artifacts/cli
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
+archguard --version
+archguard --help
+archguard explain AG001
 ```
 
-Try the included Clean Architecture example from the checkout root:
+The version starts with `0.2.0`; help lists `scan`, `inspect`, `load`, `explain`
+and `baseline`. Ensure the global tool directory is on PATH: `$HOME/.dotnet/tools`
+on macOS/Linux or `%USERPROFILE%\.dotnet\tools` on Windows. Restart your terminal
+or agent after changing PATH. See [troubleshooting](docs/troubleshooting.md#installation-and-command-startup).
+
+### Scan your repository
+
+From **your repository root**, create `architecture.guardian.yaml` using the
+[getting-started policy](docs/getting-started.md#check-your-own-repository).
+Replace `Shop.slnx` below with your `.sln`, `.slnx` or C# `.csproj` input:
 
 ```sh
-dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=Compliant
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration Compliant --trusted
+dotnet restore Shop.slnx -p:Configuration=Release
+archguard inspect Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
+archguard scan Shop.slnx --policy architecture.guardian.yaml --configuration Release --trusted
 ```
 
-This configuration completes with zero findings, a passing gate and exit code `0`.
-The example has no external package dependencies. `--trusted` authorizes its
-repository-controlled MSBuild logic; restore and workspace evaluation can execute
-build tasks. Scans do not restore inputs automatically.
+Authorize the repository's build logic **before restoring or scanning**: MSBuild
+and generators can execute code. `--trusted` records that authorization for the
+scan; it does not provide isolation. Scans do not restore automatically.
+For multi-targeted projects, select `--framework <tfm>` and prepare that context.
 
-Next, follow [Check your own repository](docs/getting-started.md#check-your-own-repository)
-to create a policy and scan your solution. The [reference examples](docs/m1-demo.md)
-also demonstrate forbidden dependencies, module cycles and incomplete analysis.
-
-## Choose an integration
-
-| Integration | Use it for | Setup |
-| --- | --- | --- |
-| CLI | Local scans, CI gates, architecture inspection and rule explanations | [CLI guide](docs/cli.md) |
-| MCP server | Architecture context and solution analysis in an MCP-compatible coding agent | [MCP setup and tool reference](docs/mcp.md) |
-| Compiler analyzer | Feedback on bound symbol uses during C# compilation | [Analyzer installation and policy](docs/compiler-analyzer.md) |
-
-The CLI and MCP share the solution analysis engine. The compiler analyzer uses the
-host compilation and a separate XML ownership snapshot; it does not check module
-cycles or establish whole-solution coverage. See the [engine comparison](docs/semantic-accuracy.md).
-
-For MCP, install the tool or publish the server and configure its executable and workspace root using
-the [portable configuration templates](docs/mcp.md#configure-your-client). All five
-tools are read-only: `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and
-`analyze_changes`. Workspace execution requires operator trust.
-Follow the [coding-agent correction workflow](docs/mcp.md#coding-agent-correction-workflow)
-to inspect policy, explain a finding, edit through the client and verify a fresh scan.
-Agent validation complements the repository's normal CI gate.
-
-## Understand the result
-
-Completion and policy compliance are separate outcomes:
-
-| CLI exit code | Meaning |
+| Exit code | Result |
 | --- | --- |
 | `0` | Analysis completed and the configured severity gate passed. |
 | `1` | Analysis completed and the gate failed. |
-| `2` | The command could not establish reliable completion: invalid input, missing coverage, failure or cancellation. |
+| `2` | Invalid input, incomplete coverage, failure or cancellation; compliance is unresolved. |
 
-Warnings can pass a gate configured to fail only on errors. An incomplete scan
-with no findings still returns `2`. In MCP, check `status` and `gateOutcome` before
-using diagnostic counts as a compliance signal.
+A completed scan can pass with warnings below the configured threshold. Zero
+findings in an incomplete scan never mean success. See [CLI reference](docs/cli.md),
+[JSON/SARIF reports](docs/reports.md), [baselines](docs/baselines.md) and
+[Git change analysis](docs/changes.md).
 
-After explicit restore, the rule engine needs no network access. Repository-controlled
-MSBuild tasks and source generators run with the process's permissions and can have
-side effects. See [offline operation and reproducibility](docs/workspace-loading.md#offline-and-deterministic-operation)
-and [isolation for untrusted repositories](docs/workspace-loading.md#trust-and-isolation).
-Analysis does not infer runtime dependencies through reflection or dependency injection.
+## Install the MCP server
 
-## Documentation and support
+```sh
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
+```
 
-- [Installation](docs/installation.md): requirements, local executables and analyzer packaging.
-- [Getting started](docs/getting-started.md): first scan, policy setup and CI use.
-- [Policy reference](docs/policy.md): module identity, patterns, contracts, layers, baselines and exit codes.
-- [Rule catalog](docs/rule-catalog.md): examples, evidence, remediation and limitations for all six rules.
-- [Troubleshooting](docs/troubleshooting.md): SDK, restore, multi-targeting, generated code and MCP setup issues.
-- [Architecture overview](docs/architecture/overview.md): components, APIs and engine boundaries.
-- [Report a bug or request a feature](https://github.com/kbourzayq/arch-guard/issues/new).
+Find the installed executable with `command -v archguard-mcp` on macOS/Linux or
+`(Get-Command archguard-mcp).Source` in PowerShell. Configure your client with that
+**absolute path** and the absolute root of the repository to analyze. The server
+communicates over stdio and is launched by the client.
 
-Include the command, build context, relevant policy and diagnostic output when
-reporting a problem. Remove credentials and private source details before sharing.
+For Codex, merge this into your local `~/.codex/config.toml`, replacing both markers:
 
-## Contributing
+```toml
+[mcp_servers.architecture-guardian]
+command = '<FULL_PATH_TO_ARCHGUARD_MCP>'
+args = ["--Workspace:Root", '<FULL_PATH_TO_YOUR_REPOSITORY>', "--Workspace:Trusted", "false"]
+tool_timeout_sec = 180
+```
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for development
-setup, validation commands and pull request guidance. Repository coding conventions
-live in [AGENT.md](AGENT.md).
+Single-quoted TOML paths preserve Windows backslashes. If a path contains an
+apostrophe, use a double-quoted string with forward slashes instead.
 
-## License
+Start with trust disabled and call `list_rules` to read policy. After authorizing
+and restoring the target repository, set the final argument to `"true"` and reconnect
+for workspace analysis. Verify connection and tool discovery through your client;
+registration alone does not prove the server started.
 
-Architecture Guardian is available under the [MIT license](LICENSE).
+The server exposes five read-only tools: `list_rules`, `get_architecture`,
+`analyze_solution`, `explain_violation` and `analyze_changes`. Check `status` and
+`gateOutcome` in analysis responses. Read-only tools can still evaluate trusted
+MSBuild logic. See [MCP setup](docs/mcp.md#configure-your-client) for Codex,
+Claude Code and Copilot CLI configuration, requests and troubleshooting.
+
+## Install the compiler analyzer
+
+In your consuming repository, merge this into a root `Directory.Build.props`:
+
+```xml
+<Project>
+  <ItemGroup>
+    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.2.0" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />
+  </ItemGroup>
+</Project>
+```
+
+For central package management, put the version in `Directory.Packages.props` and
+omit `Version` on `PackageReference`. `PrivateAssets="all"` keeps the analyzer from
+flowing to consumers of your own packages.
+
+Create `architecture.guardian.compiler.xml` beside the props file. This minimal
+example maps two assemblies; replace them with your evaluated `AssemblyName`
+values and include **every participating assembly**:
+
+```xml
+<ArchitectureGuardian version="1">
+  <Module id="Shop" />
+  <Layer id="Domain" />
+  <Layer id="Application" allows="Domain" />
+  <Assembly name="Shop.Domain" module="Shop" layer="Domain" />
+  <Assembly name="Shop.Application" module="Shop" layer="Application" />
+</ArchitectureGuardian>
+```
+
+Set compiler diagnostic severities in the consuming repository's `.editorconfig`:
+
+```ini
+[*.cs]
+dotnet_diagnostic.AG001.severity = error
+dotnet_diagnostic.AG002.severity = error
+dotnet_diagnostic.AG004.severity = error
+dotnet_diagnostic.AG005.severity = error
+dotnet_diagnostic.AG006.severity = error
+```
+
+Then run `dotnet restore Shop.slnx` and `dotnet build Shop.slnx --no-restore`,
+substituting your solution. Missing or invalid snapshots produce AG000; installing
+the package alone does not configure architecture checks.
+
+The analyzer reads **XML**, not YAML. Maintain the snapshot from the authoritative
+YAML policy; automatic export is not available. It checks AG001, AG002 and
+AG004–AG006 in each compilation, without whole-solution coverage or AG003 cycle
+analysis. Keep a CLI solution scan in CI. See the
+[complete analyzer guide](docs/compiler-analyzer.md) for ownership, contracts,
+restrictions, configuration and host limits.
+
+## Install the optional agent skill
+
+The portable [architecture-guardian skill](skills/architecture-guardian/SKILL.md)
+guides inspect → implement → validate → correct → report using MCP or CLI. It keeps
+architecture constraints in YAML and requires fresh validation after corrections.
+
+Copy the complete `skills/architecture-guardian` folder from this repository into
+your target repository's supported skill directory:
+
+| Agent | Project destination |
+| --- | --- |
+| Codex | `.agents/skills/architecture-guardian/` |
+| Claude Code | `.claude/skills/architecture-guardian/` |
+| Copilot CLI | `.github/skills/architecture-guardian/` |
+
+The skill is distributed as repository files, separately from the NuGet packages.
+Use a repository revision containing `skills/architecture-guardian`; the original
+package release predates the skill. See [skill installation and invocation](docs/agent-workflow.md)
+for copy commands, discovery, `AGENTS.md` integration and an end-to-end example.
+The skill complements your normal build, tests and independent CI gate.
+
+## Install tools only for one repository
+
+Instead of `--global`, install into a private directory from your target repository
+root. Add `.tools/architecture-guardian/` to that repository's `.gitignore`:
+
+```sh
+dotnet tool install ArchitectureGuardian.Cli --tool-path .tools/architecture-guardian --version 0.2.0
+dotnet tool install ArchitectureGuardian.Mcp --tool-path .tools/architecture-guardian --version 0.2.0
+./.tools/architecture-guardian/archguard --help
+```
+
+Use `./.tools/architecture-guardian/archguard` in place of `archguard` in scan
+commands (`archguard.exe` on Windows). For MCP, resolve the full path to the
+`archguard-mcp` shim in that directory. Keep the complete tool directory, including
+its hidden package store. [Local development](docs/installation.md) covers source
+builds and installation from locally built packages.
+
+## Update or remove
+
+Stop connected MCP clients before updating or removing their server. To select a
+published version, replace the version below consistently across tools and analyzers:
+
+```sh
+dotnet tool update --global ArchitectureGuardian.Cli --version 0.2.0
+dotnet tool update --global ArchitectureGuardian.Mcp --version 0.2.0
+```
+
+Update the analyzer's package version in your project or central package file and
+restore. For repository-local tools, replace `--global` with
+`--tool-path .tools/architecture-guardian`. Reconnect MCP after an update.
+
+To uninstall global tools:
+
+```sh
+dotnet tool uninstall --global ArchitectureGuardian.Cli
+dotnet tool uninstall --global ArchitectureGuardian.Mcp
+```
+
+Use the same tool-path substitution for local tools. Remove the MCP client entry.
+To remove compiler integration, remove its package reference and AdditionalFiles
+entry, then restore; remove shared snapshot/severity settings only when no remaining
+project uses them. Remove an installed skill by deleting its copied folder and
+adjusting instructions that reference it.
+
+## What is checked
+
+| Rule | Constraint |
+| --- | --- |
+| AG001 | Cross-module dependencies follow explicit module/public-contract permissions. |
+| AG002 | Dependencies follow configured layer directions. |
+| AG003 | Logical modules do not form dependency cycles. |
+| AG004 | Another module's implementation stays private, including C# public types. |
+| AG005 | Modules and layers avoid configured assemblies and namespace trees. |
+| AG006 | Selected layers avoid configured technology dependencies, with namespace exceptions. |
+
+Findings retain evidence, locations when available, deterministic identities and
+remediation. Analysis does not infer runtime dependencies through reflection or
+injection. Read the [rule catalog](docs/rule-catalog.md),
+[engine comparison](docs/semantic-accuracy.md) and
+[known limitations](docs/troubleshooting.md#known-analysis-limitations) before making
+checks mandatory. [Independent CI gates](docs/ci.md) fail on both policy and
+operational failures and retain reports.
+
+## Development and support
+
+Build and run from source using [local development](docs/installation.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) covers verification and PRs;
+[AGENT.md](AGENT.md) contains repository coding conventions.
+See [release notes](CHANGELOG.md) and the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
+
+[Report an issue](https://github.com/kbourzayq/arch-guard/issues/new) with the command,
+build context, relevant policy and diagnostic output. Remove credentials and private
+source details before sharing. Available under the [MIT license](LICENSE).
