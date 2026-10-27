@@ -3,20 +3,35 @@
 Start with the command's stderr or the MCP response's `status` and `issues`.
 An empty diagnostic list alone does not establish complete analysis.
 
-## SDK or installation problems
+## Installation and command startup
+
+**The `archguard` command is missing.** Install the [published CLI](../README.md#install-the-cli).
+For global tools, add `$HOME/.dotnet/tools` (macOS/Linux) or
+`%USERPROFILE%\.dotnet\tools` (Windows) to PATH and restart the terminal/agent.
+Check `dotnet tool list --global`. For a private tool directory, invoke its full
+path or `./.tools/architecture-guardian/archguard` from the target repository root.
+A source-development publish is a separate option in [local development](installation.md).
+
+**The requested runtime is unavailable.** CLI/MCP target .NET 10. Check
+`dotnet --list-runtimes` and install .NET 10 for your CPU architecture. An installed
+older target SDK alone may not provide the runtime required by the tools.
 
 **The SDK requested by `global.json` is unavailable.** Check `dotnet --list-sdks`
-and install the exact selected version. This checkout pins SDK `10.0.402` with
-roll-forward disabled; a runtime-only installation is insufficient.
-Your target repository may select a different SDK through its own `global.json`.
+and install a version permitted by that file. This development checkout pins SDK
+`10.0.402` with roll-forward disabled. Consumer repositories may select a different
+SDK; they do not need this checkout's exact version just to use the packages.
+A runtime-only installation cannot evaluate MSBuild projects.
 
-**The `archguard` command is missing.** The CLI is currently installed from source.
-Invoke `dotnet artifacts/cli/ArchitectureGuardian.Cli.dll` after following
-[installation](installation.md). There is no global-tool installation step in this guide.
+**NuGet cannot find the package.** Check configured sources and package-source
+mapping; the three `ArchitectureGuardian.*` distribution packages are available
+on nuget.org at the version shown in the [README](../README.md). A private-only
+NuGet configuration may need the public feed enabled or an approved mirror.
+Do not replace existing private feeds with a public-only configuration.
 
-**A moved executable fails to start.** Copy the entire published directory, not just
-its main DLL. Check that `dotnet` is available to the process launching the tool.
-For desktop MCP clients, the process environment can differ from your terminal.
+**A moved executable fails to start.** Keep an entire published directory or
+installed tool directory, including dependencies and hidden tool-store files.
+For desktop MCP clients, PATH can differ from your terminal: configure the absolute
+installed executable path. See [MCP setup](mcp.md#configure-your-client).
 
 ## Restore and workspace problems
 
@@ -33,8 +48,8 @@ For a trusted input, check restore and build in the same context before rescanni
 ```sh
 dotnet restore path/to/Application.slnx -p:Configuration=Release -p:TargetFramework=net10.0
 dotnet build path/to/Application.slnx --configuration Release --framework net10.0 --no-restore
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll load path/to/Application.slnx --trusted --configuration Release --framework net10.0
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release --framework net10.0
+archguard load path/to/Application.slnx --trusted --configuration Release --framework net10.0
+archguard scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release --framework net10.0
 ```
 
 Resolve unavailable package feeds, credentials, SDK/reference packs and broken
@@ -136,15 +151,21 @@ Follow [trust and isolation](workspace-loading.md#trust-and-isolation).
 
 ## MCP connection and path problems
 
-**The client cannot start the server.** Publish the server first, point the client
-at `ArchitectureGuardian.Mcp.dll` in the published directory and provide an existing
-absolute `Workspace:Root`. Replace all template paths. Do not rely on shell variables,
-`~` expansion or the client's current directory unless that client documents support.
-Use `/` in Windows JSON paths or escape backslashes as `\\`.
+**The client cannot start the server.** Check that `ArchitectureGuardian.Mcp` is
+installed and configure the absolute `archguard-mcp` executable path
+(`archguard-mcp.exe` on Windows). Confirm .NET 10 and the required SDK are available
+to the client's process, whose PATH may differ from your terminal. Provide an
+existing absolute `Workspace:Root` and replace all template markers. Do not rely
+on shell expansion or the client's working directory. Use single-quoted TOML paths
+to preserve Windows backslashes; JSON needs forward slashes or escaped backslashes.
+For a source-development installation, publish first and configure `dotnet` plus
+the absolute published DLL path, keeping its complete directory.
 
-**The client reports invalid protocol output.** Launch the published DLL with
-`dotnet`, not `dotnet run`. The server reserves stdout for MCP; inspect stderr for
-startup diagnostics. See [client configuration](mcp.md#configure-your-client).
+**The client reports invalid protocol output.** Launch the installed server
+executable. For a source build, launch its published DLL with `dotnet` rather than
+`dotnet run`, which can write build output to stdout. The server reserves stdout
+for MCP; inspect stderr for startup diagnostics. See
+[client configuration](mcp.md#configure-your-client).
 
 **An explicit path is rejected.** Tool inputs must exist inside the configured root
 and must not traverse descendant symbolic links/reparse points. Widen the

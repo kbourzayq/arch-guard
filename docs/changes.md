@@ -6,8 +6,12 @@ architecture contexts**, using the same loader, dependency graph, rules and stab
 lines or restrict evaluation to edited projects. Changes to shared build inputs,
 ownership, policy, rules or references can introduce findings in unchanged projects.
 
+Install the [CLI](../README.md#install-the-cli) and run from your target repository
+root. Replace `path/to/...` and `origin/main` with your input, policy and locally
+available comparison base; prepare both trees as described below.
+
 ```sh
-dotnet artifacts/cli/ArchitectureGuardian.Cli.dll scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --base origin/main --configuration Release --trusted
+archguard scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --base origin/main --configuration Release --trusted
 ```
 
 ## What is compared

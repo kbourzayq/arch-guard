@@ -119,7 +119,7 @@ if (repository.Status != AnalysisStatus.Completed || repository.Model is null)
 }
 
 var model = repository.Model;
-// The host can now supply this neutral snapshot to future repository rules.
+// The host can now supply this neutral snapshot to repository rules.
 ```
 
 `RepositoryBuildResult` carries `Model`, `Status` and canonically ordered `Issues`.

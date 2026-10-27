@@ -6,7 +6,7 @@ outside the solution when referenced by its members. Unsupported projects and em
 solutions cannot establish complete coverage.
 
 This reference covers build context, trust and the reusable loading API. Start with
-[installation](installation.md) and the [CLI guide](cli.md) for command-line use.
+[tool installation](../README.md#install-the-cli) and the [CLI guide](cli.md) for command-line use.
 The same loading service feeds [repository normalization](repository-model.md),
 [dependency extraction](dependency-graph.md) and solution rule evaluation.
 The command examples below run from the source checkout root.

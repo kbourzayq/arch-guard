@@ -71,8 +71,8 @@ before changing component responsibilities or dependencies.
   failure, unsupported command or missing context into a successful clean analysis.
 - Preserve useful diagnostic context. Do not swallow exceptions or cancellation to
   continue with silently reduced analysis coverage.
-- Keep normal output separate from errors. CLI errors go to stderr; future protocol
-  adapters must reserve their protocol output stream for protocol messages.
+- Keep normal output separate from errors. CLI operational errors go to stderr; protocol
+  adapters reserve stdout for protocol messages and send logs to stderr.
 
 ## Dependencies and validation
 

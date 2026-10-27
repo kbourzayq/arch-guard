@@ -5,6 +5,27 @@ artifacts. The gate uses process exit codes and needs no code-scanning service,
 paid security feature, MCP server or compiler analyzer. Artifact storage and runner
 quotas still follow your CI provider's plan.
 
+## Gate with the installed CLI
+
+Provision .NET 10 and the SDKs required by your target repository. From its root,
+replace `Application.slnx` and policy path with your own, authorize its build logic,
+and run these as ordinary pipeline steps:
+
+```sh
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
+dotnet restore Application.slnx -p:Configuration=Release --locked-mode
+archguard scan Application.slnx --policy architecture.guardian.yaml --configuration Release --trusted --format sarif --output architecture.sarif
+```
+
+Commit NuGet lock files before using `--locked-mode`. Ensure the global tool shim
+is on the runner's PATH, or install into a private tool directory and use its
+absolute executable path. Do not ignore nonzero scan exits: `1` rejects policy and
+`2` rejects unreliable analysis. Upload reports/logs with an always-run artifact
+step. For complete preparation, both report formats and retained failure artifacts,
+use the source-based templates below.
+
+## Complete source-based pipeline examples
+
 Copy and customize one complete example:
 
 - [GitHub Actions](examples/ci/github-actions.yml): copy into `.github/workflows/architecture.yml`.
@@ -13,7 +34,9 @@ Copy and customize one complete example:
   [Publish Build Artifacts](https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/publish-build-artifacts-v1?view=azure-pipelines)
   instead of `PublishPipelineArtifact@1`.
 
-Both examples install from source using a separate tool checkout. Replace
+Both examples intentionally build the CLI from a separate tool checkout. The
+shared runner accepts a published DLL path through `--cli`; it does not accept an
+installed `archguard` shim. Replace
 `Application.slnx`, policy and configuration with your repository's paths/context.
 Pin `GUARDIAN_REF`/`guardianRef` to a reviewed Architecture Guardian commit or tag
 containing these examples before adopting a required gate; `main` demonstrates the

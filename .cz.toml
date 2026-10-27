@@ -11,6 +11,10 @@ changelog_incremental = false
 bump_message = "chore(release): bump version $current_version → $new_version"
 version_files = [
   "Directory.Build.props:<Version>",
+  "README.md",
+  "docs/nuget-readme.md",
+  "docs/mcp.md",
+  "docs/ci.md",
   "CONTRIBUTING.md:ArchitectureGuardian.Analyzers.",
   "docs/compiler-analyzer.md",
   "docs/installation.md",

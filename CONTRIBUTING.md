@@ -7,6 +7,8 @@ open or discuss an issue so the intended behavior and scope are clear before imp
 
 ## Set up a development checkout
 
+For consumer installation use the [README](README.md); for source publish and
+local package commands see [local development](docs/installation.md).
 Install the exact SDK selected by [global.json](global.json). SDK roll-forward is
 disabled; apply SDK patch updates manually by changing its version. Then run:
 
@@ -162,7 +164,11 @@ CI runs package consumers on all three operating systems. The
 compatibility promises and maintainer configuration needed before publishing.
 
 For documentation-only changes, verify commands, local links, headings and fenced
-examples. Runtime tests are unnecessary unless the documented behavior changes.
+examples. Keep published-install examples separate from source-development steps.
+When moving versioned install examples, update `.cz.toml` `version_files` so
+Commitizen still synchronizes them. Validate the portable
+`skills/architecture-guardian/SKILL.md` against the MCP/CLI contracts when changing
+the agent workflow; test completion and gate handling separately. Runtime tests are unnecessary unless the documented behavior changes.
 Keep machine-specific paths out of committed examples and label any replacement values.
 
 ## Change dependencies deliberately

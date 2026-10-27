@@ -12,172 +12,136 @@ policy, workspace and rule engine. It registers five read-only tools:
 | `explain_violation` | Explain a rule or resolve a current diagnostic with evidence, path, policy and remediation | Diagnostic mode only |
 | `analyze_changes` | Compare full Git base/candidate contexts and gate new findings | Yes, for both trees |
 
-No prompts or resources are registered. Source/policy/baseline mutation, automatic
-restore and arbitrary shell execution are outside the server's capabilities.
-Trusted workspace evaluation can execute repository-controlled MSBuild tasks.
+No prompts or resources are registered. Source/policy/baseline mutation and
+arbitrary shell execution are outside the server's capabilities. Full scans
+require restore outside MCP; `analyze_changes` prepares isolated snapshots with
+cache-only restore and does not download packages. Trusted workspace evaluation
+can execute repository-controlled MSBuild tasks.
 
 ## Start and connect
 
 ### Install the packaged server
 
-Install `ArchitectureGuardian.Mcp` following the
-[tool installation guide](installation.md#install-the-net-tools-from-local-packages).
-Configure a stdio client with the absolute path to the installed `archguard-mcp`
-command (`archguard-mcp.exe` on Windows). For example:
+Install the published .NET tool from any terminal with the SDK available:
+
+```sh
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
+```
+
+The machine needs .NET 10 and the SDK required by the repository being loaded.
+Keep CLI, MCP and analyzer versions aligned. MCP reports its package version in
+its initialize response; it is a stdio service, not a web server or interactive CLI.
+The [README](../README.md#install-tools-only-for-one-repository) also covers a
+repository-local tool directory, updates and removal.
+
+Find the absolute executable path with `command -v archguard-mcp` on macOS/Linux
+or `(Get-Command archguard-mcp).Source` in PowerShell. Global tools normally live
+under `$HOME/.dotnet/tools` or `%USERPROFILE%\.dotnet\tools`. If command discovery
+fails, fix PATH or resolve the shim in that directory. Windows uses
+`archguard-mcp.exe`. The client launches the server and owns its stdin/stdout.
+
+### Configure your client
+
+Replace these markers in the examples below:
+
+| Marker | Value |
+| --- | --- |
+| `<FULL_PATH_TO_ARCHGUARD_MCP>` | Absolute path to the installed `archguard-mcp` executable |
+| `<FULL_PATH_TO_YOUR_REPOSITORY>` | Existing absolute root of the repository to analyze |
+
+Markers are not environment variables. The server does not expand `~`, `$HOME`,
+`%USERPROFILE%` or `${...}` in workspace paths. Do not depend on a client's current
+directory. Keep personal absolute paths in local configuration. In JSON, Windows
+paths may use forward slashes or escaped backslashes (`\\`).
+
+#### Codex CLI, desktop and IDE extension
+
+Merge this into local `~/.codex/config.toml`, preserving existing settings:
+
+```toml
+[mcp_servers.architecture-guardian]
+command = '<FULL_PATH_TO_ARCHGUARD_MCP>'
+args = ["--Workspace:Root", '<FULL_PATH_TO_YOUR_REPOSITORY>', "--Workspace:Trusted", "false"]
+tool_timeout_sec = 180
+```
+
+Single-quoted TOML paths preserve Windows backslashes. If a path contains an
+apostrophe, use a double-quoted string with forward slashes instead.
+
+Alternatively, register from a terminal:
+
+```sh
+codex mcp add architecture-guardian -- "<FULL_PATH_TO_ARCHGUARD_MCP>" --Workspace:Root "<FULL_PATH_TO_YOUR_REPOSITORY>" --Workspace:Trusted false
+```
+
+CLI registration uses the default tool timeout until you configure it; the TOML
+example allows three minutes for workspace operations. Run `codex mcp list`, start
+a new session and inspect `/mcp` for active tools. Registration alone does not
+prove a connection. These clients share configuration; see the official
+[Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp).
+
+#### Claude Code
+
+For private project-local registration, run:
+
+```sh
+claude mcp add --transport stdio --scope local architecture-guardian -- "<FULL_PATH_TO_ARCHGUARD_MCP>" --Workspace:Root "<FULL_PATH_TO_YOUR_REPOSITORY>" --Workspace:Trusted false
+```
+
+Local scope stores the entry for this project in `~/.claude.json`. Alternatively,
+merge this into project-root `.mcp.json` under your client's applicable trust rules:
 
 ```json
 {
   "mcpServers": {
     "architecture-guardian": {
       "type": "stdio",
-      "command": "<FULL_PATH_TO_INSTALLED_ARCHGUARD_MCP>",
+      "command": "<FULL_PATH_TO_ARCHGUARD_MCP>",
       "args": ["--Workspace:Root", "<FULL_PATH_TO_YOUR_REPOSITORY>", "--Workspace:Trusted", "false"]
     }
   }
 }
 ```
 
-Replace both placeholders. The installed tool includes application dependencies;
-the machine still needs .NET 10 and the SDK required by the repository being loaded.
-Keep CLI, MCP and analyzer versions aligned; MCP reports the package version in its
-initialize response. The configuration formats and workspace trust rules below
-also apply to this executable. When adapting a DLL example, replace `command` with
-the installed executable path and remove the DLL from `args`.
-
-### Publish the server
-
-Follow [installation](installation.md), or run these commands from the checkout root:
-
-```sh
-dotnet restore ArchitectureGuardian.slnx --locked-mode
-dotnet publish src/ArchitectureGuardian.Mcp --configuration Release --no-restore --output artifacts/mcp
-```
-
-Use the published DLL in client configuration. Keep its complete output directory.
-`dotnet run` can add build output to stdout and interfere with MCP framing.
-
-### Configure your client
-
-Create a local stdio server entry using your client's configuration format. The
-JSON below uses Claude Code's `mcpServers` format. Codex uses TOML; Copilot CLI
-adds its own server type and tool selection. See the client examples below.
-
-**Replace both path placeholders in every example.** They represent two
-independent locations, which may be in different directories:
-
-| Placeholder | Replace with |
-| --- | --- |
-| `<FULL_PATH_TO_MCP_DLL>` | The absolute path to the published `artifacts/mcp/ArchitectureGuardian.Mcp.dll` in your Architecture Guardian installation |
-| `<FULL_PATH_TO_YOUR_REPOSITORY>` | The existing absolute root directory of the repository you want the agent to inspect |
-
-```json
-{
-  "mcpServers": {
-    "architecture-guardian": {
-      "type": "stdio",
-      "command": "dotnet",
-      "args": [
-        "<FULL_PATH_TO_MCP_DLL>",
-        "--Workspace:Root",
-        "<FULL_PATH_TO_YOUR_REPOSITORY>",
-        "--Workspace:Trusted",
-        "false"
-      ]
-    }
-  }
-}
-```
-
-These are replacement markers, not environment variables. The server does not
-expand `~`, `$HOME`, `%USERPROFILE%` or `${...}` in these paths. Do not rely on the
-client's current directory to locate the DLL or workspace. Keep machine-specific
-configuration local instead of committing personal absolute paths to a repository.
-
-To obtain the DLL path from the checkout root on macOS/Linux:
-
-```sh
-printf '%s/artifacts/mcp/ArchitectureGuardian.Mcp.dll\n' "$(pwd)"
-```
-
-In PowerShell:
-
-```powershell
-(Resolve-Path artifacts/mcp/ArchitectureGuardian.Mcp.dll).Path
-```
-
-Windows JSON paths may use forward slashes, for example
-`C:/path/to/arch-guard/artifacts/mcp/ArchitectureGuardian.Mcp.dll` and
-`C:/path/to/your-repository`. Replace these example locations with your own.
-If using backslashes in JSON, escape each as `\\`.
-
-The client process must be able to find `dotnet`. If its PATH differs from your
-terminal's, set `command` to the full path of the dotnet executable. Find it with
-`command -v dotnet` on macOS/Linux or `(Get-Command dotnet).Source` in PowerShell.
-
-#### Codex CLI and IDE extension
-
-Add this entry to your local `~/.codex/config.toml`, preserving existing settings:
-
-```toml
-[mcp_servers.architecture-guardian]
-command = "dotnet"
-args = ["<FULL_PATH_TO_MCP_DLL>", "--Workspace:Root", "<FULL_PATH_TO_YOUR_REPOSITORY>", "--Workspace:Trusted", "false"]
-tool_timeout_sec = 180
-```
-
-Alternatively, `codex mcp add architecture-guardian -- dotnet "<FULL_PATH_TO_MCP_DLL>" --Workspace:Root "<FULL_PATH_TO_YOUR_REPOSITORY>" --Workspace:Trusted false`
-adds the server through the CLI. The TOML example increases the tool deadline for
-solution-wide workspace loads; CLI registration uses the client's default until
-you configure it. Run `codex mcp list` to check registration, then start a new Codex
-session and use `/mcp` to inspect active servers and tools. Registration alone
-does not prove a successful connection. See the official
-[Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
-
-#### Claude Code
-
-Use the JSON above in a project-root `.mcp.json`, merging into an existing
-`mcpServers` object rather than replacing other entries. Keep personal path values
-out of version control. For a local configuration managed by Claude instead, run:
-
-```sh
-claude mcp add --transport stdio --scope local architecture-guardian -- dotnet "<FULL_PATH_TO_MCP_DLL>" --Workspace:Root "<FULL_PATH_TO_YOUR_REPOSITORY>" --Workspace:Trusted false
-```
-
-Local scope is private to this project in `~/.claude.json`. Project `.mcp.json`
-entries require the client's applicable workspace/server trust approval. Check
-`claude mcp get architecture-guardian` and `/mcp` in an interactive session to
-confirm connection and tool discovery. See the official
-[Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
+Keep personal paths out of version control. Check `claude mcp get architecture-guardian`
+and `/mcp` in an interactive session to confirm connection and tool discovery.
+See the official [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
 
 #### GitHub Copilot CLI
 
-Merge this entry into `~/.copilot/mcp-config.json`. It is a Copilot CLI example;
-VS Code's `.vscode/mcp.json` uses a different `servers` wrapper and is not read
-by Copilot CLI.
+Merge this into `~/.copilot/mcp-config.json`:
 
 ```json
 {
   "mcpServers": {
     "architecture-guardian": {
       "type": "stdio",
-      "command": "dotnet",
-      "args": ["<FULL_PATH_TO_MCP_DLL>", "--Workspace:Root", "<FULL_PATH_TO_YOUR_REPOSITORY>", "--Workspace:Trusted", "false"],
+      "command": "<FULL_PATH_TO_ARCHGUARD_MCP>",
+      "args": ["--Workspace:Root", "<FULL_PATH_TO_YOUR_REPOSITORY>", "--Workspace:Trusted", "false"],
       "tools": ["list_rules", "get_architecture", "analyze_solution", "explain_violation", "analyze_changes"]
     }
   }
 }
 ```
 
-Alternatively, use `/mcp add` in Copilot CLI, select STDIO and enter the same
-command, arguments and tool names. Inspect `/mcp` for server status and available
-tools. Enterprise policy can restrict permitted servers. See the official
+Alternatively, use `/mcp add`, choose STDIO and enter the same command, arguments
+and tools. Inspect `/mcp` for status and discovery. This is a Copilot CLI format;
+VS Code's `.vscode/mcp.json` uses a different `servers` wrapper. Enterprise policies
+can restrict servers. See the official
 [Copilot CLI MCP documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers).
 
-These examples target compatible local stdio clients. The automated verification
-below exercises the MCP SDK client, not authenticated interactive runs in each
-coding agent. Client versions and organization settings can affect configuration
-and tool access. No Architecture Guardian API key is needed; client accounts and
-model access follow the respective client's requirements.
+No Architecture Guardian API key is needed. Client accounts, model access and
+organization policies follow the client's requirements. Automated tests exercise
+the MCP SDK and installed server, not authenticated interactive sessions in each
+agent. Verify your actual client's discovery before relying on workspace analysis.
+
+### Publish the server
+
+For local development, follow [source installation](installation.md#install-from-source).
+Replace `command` in a client example with the absolute `dotnet` executable path
+and prepend the absolute published `artifacts/mcp/ArchitectureGuardian.Mcp.dll`
+path to `args`. Retain the workspace options. Keep the complete publish directory.
+`dotnet run` can add build output to stdout and interfere with MCP framing.
 
 ### Enable workspace analysis
 
@@ -197,7 +161,7 @@ also applies to restore.
 
 ### Make the first tool call
 
-Tool paths are relative to `Workspace:Root`, independent of where the server DLL
+Tool paths are relative to `Workspace:Root`, independent of where the server executable
 is installed. For a repository with `MyApp.slnx` and `architecture.guardian.yaml`
 at its root:
 
@@ -234,6 +198,9 @@ handshake. Closing stdin ends the session; host shutdown and Ctrl+C use cooperat
 cancellation. No HTTP endpoint or web dashboard is provided.
 
 ## Coding-agent correction workflow
+
+For a reusable version of this workflow, install the optional
+[architecture-guardian skill](agent-workflow.md). It supports MCP and CLI fallback.
 
 Keep module ownership, dependency permissions, contracts, layers and severity in
 `architecture.guardian.yaml`. Client instructions describe the workflow and point

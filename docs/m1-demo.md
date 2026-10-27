@@ -52,13 +52,14 @@ dotnet run --project src/ArchitectureGuardian.Cli --configuration Release --no-b
 ```
 
 The final command returns 1 and reports one AG003 diagnostic, source evidence,
-remediation and `Gate failed`. Replacing both `AG003` values in the restore/scan
+remediation and `Gate failed`. Replacing `AG003` in the restore, build and scan
 commands with `Compliant` returns 0, zero diagnostics and `Gate passed`.
 Use `CleanArchitecture` and configuration `AG002` for the layer violation, or
 `ModularMonolith` with `AG001` for the forbidden implementation dependency.
-To inspect resolved ownership without running rules:
+Restore the context you want to inspect first:
 
 ```sh
+dotnet restore tests/Fixtures/ReferenceSolutions/ModularMonolith/ModularMonolith.slnx -p:Configuration=Compliant
 dotnet run --project src/ArchitectureGuardian.Cli --configuration Release --no-build -- inspect tests/Fixtures/ReferenceSolutions/ModularMonolith/ModularMonolith.slnx --policy tests/Fixtures/ReferenceSolutions/ModularMonolith/architecture.guardian.yaml --configuration Compliant --trusted
 dotnet run --project src/ArchitectureGuardian.Cli --configuration Release --no-build -- explain AG003
 ```
