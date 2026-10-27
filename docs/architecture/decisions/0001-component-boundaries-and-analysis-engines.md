@@ -523,3 +523,23 @@ missing findings are never declared resolved from an incomplete candidate. Proje
 removal/rename is reflected in each tree's complete inventory and policy. CLI and
 MCP render this result without implementing rule semantics. No project or package
 dependency boundary changes are needed.
+
+## F27: distribution boundaries
+
+Only CLI, MCP and Analyzers are packable. CLI and MCP are framework-dependent
+.NET 10 tools (`archguard` and `archguard-mcp`) that bundle the existing application
+components, runtime dependencies and Roslyn build hosts. Core, Analysis,
+Configuration and Reporting remain internal distribution components rather than
+separately published library contracts. SDK MSBuild assemblies are still excluded
+from the tool root and resolved through SDK registration. No project or external
+dependency direction changes.
+
+The analyzer remains a single .NET Standard 2.0 DLL with source-linked portable
+semantics and a Roslyn 4.8 floor; packaging never brings the .NET 10 solution engine
+into compiler hosts. Package contents and actual consumer execution enforce this
+boundary on all three operating systems. Python Commitizen owns the shared version
+in `.cz.toml`, synchronizes root build properties and examples, and generates the
+changelog. Package metadata and MCP's reported version consume those synchronized
+build properties; Commitizen is development/release tooling, not a runtime dependency.
+See the
+[release policy](../../releases.md) for reproducibility checks and the publication gate.

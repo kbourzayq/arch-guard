@@ -1,0 +1,17 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.2.0"
+version_provider = "commitizen"
+version_scheme = "semver2"
+tag_format = "v$version"
+major_version_zero = true
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+changelog_incremental = false
+bump_message = "chore(release): bump version $current_version → $new_version"
+version_files = [
+  "Directory.Build.props:<Version>",
+  "CONTRIBUTING.md:ArchitectureGuardian.Analyzers.",
+  "docs/compiler-analyzer.md",
+  "docs/installation.md",
+]

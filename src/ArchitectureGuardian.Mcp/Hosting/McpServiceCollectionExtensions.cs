@@ -1,3 +1,4 @@
+using System.Reflection;
 using ArchitectureGuardian.Configuration.Yaml;
 using ArchitectureGuardian.Core.Policies;
 using ArchitectureGuardian.Mcp.Tools;
@@ -18,9 +19,12 @@ internal static class McpServiceCollectionExtensions
             .ValidateOnStart();
         services.AddSingleton<IPolicyLoader, YamlPolicyLoader>();
         services.AddSingleton<WorkspaceFiles>();
+        var version = typeof(McpServiceCollectionExtensions).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+            ?? throw new InvalidOperationException("Assembly version metadata is missing.");
         return services.AddMcpServer(server =>
         {
-            server.ServerInfo = new() { Name = "architecture-guardian", Version = "0.1.0" };
+            server.ServerInfo = new() { Name = "architecture-guardian", Version = version };
             server.InitializationTimeout = TimeSpan.FromSeconds(10);
         }).WithToolsFromAssembly(typeof(McpServiceCollectionExtensions).Assembly);
     }

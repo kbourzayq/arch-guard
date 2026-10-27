@@ -1,8 +1,9 @@
 # Installation
 
-Architecture Guardian currently runs from source. These instructions produce local
-CLI and MCP executables; they do not require a globally installed `archguard` command
-or assume that a package has been published to nuget.org.
+Architecture Guardian distributes the `archguard` CLI, `archguard-mcp` stdio server
+and compiler analyzer as three NuGet packages. Build and install packages locally
+using the steps below, or select a version already published to your package feed.
+These instructions do not assume that a version is available on nuget.org.
 
 ## Requirements
 
@@ -60,6 +61,49 @@ Continue with [getting started](getting-started.md) for a first scan, or
 The MCP executable is a stdio service: connect through an MCP client rather than
 expecting a web dashboard or standalone command prompt.
 
+## Install the .NET tools from local packages
+
+From this checkout, with Python 3.10+, the pinned SDK and Python Commitizen installed
+on PATH (see [release tooling](releases.md#build-and-verify-packages)):
+
+```sh
+python3 eng/packages.py pack
+dotnet tool install ArchitectureGuardian.Cli --tool-path artifacts/tools --version 0.2.0 --configfile NuGet.Config --add-source artifacts/packages
+dotnet tool install ArchitectureGuardian.Mcp --tool-path artifacts/tools --version 0.2.0 --configfile NuGet.Config --add-source artifacts/packages
+artifacts/tools/archguard --version
+artifacts/tools/archguard --help
+artifacts/tools/archguard explain AG001
+```
+
+`pack` uses locked restore, creates all three packages in `artifacts/packages`,
+checks their contents and metadata, rebuilds and compares their payloads, then
+writes `SHA256SUMS`. Use an empty output directory; choose another with `--directory`
+for subsequent runs. Run `python3 eng/packages.py smoke` to verify isolated local-feed
+tool installation, real CLI/MCP workspace scans and analyzer consumer builds.
+
+The two tool packages contain their application dependencies and Roslyn build-host
+files. Install .NET 10 and the target repository's compatible SDK separately.
+The compiler analyzer carries neither those dependencies nor a .NET 10 requirement;
+see [host compatibility](compiler-analyzer.md#host-compatibility-and-validation).
+
+The installed commands above work from the checkout root; on Windows the shims are
+`archguard.exe` and `archguard-mcp.exe`. Use the absolute executable path from other
+directories or in MCP client configuration. For the installed MCP tool, use
+`command` set to that full `archguard-mcp` path and pass only workspace options;
+see the [packaged server example](mcp.md#install-the-packaged-server).
+
+To install a version available on nuget.org globally instead:
+
+```sh
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
+archguard --help
+```
+
+Ensure the .NET global tool directory is on your terminal/client's PATH. Pin the
+same version for CLI, MCP and analyzers when comparing results. Package versions,
+compiler hosts and release prerequisites are defined in the [release policy](releases.md).
+
 ## Use the source checkout directly
 
 For development, you can run the CLI without publishing it:
@@ -81,7 +125,7 @@ From the checkout root after locked restore:
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
 ```
 
-This produces `ArchitectureGuardian.Analyzers.0.1.0.nupkg` with the current source
+This produces `ArchitectureGuardian.Analyzers.0.2.0.nupkg` with the current source
 version. Use `artifacts/analyzers` as a local package source in the consuming
 repository. The analyzer also needs an XML ownership policy; installing the package
 alone does not configure architecture checks. Follow the complete
@@ -97,5 +141,12 @@ To remove an installation, remove its MCP client entry and any local wrappers or
 PATH entries you created, then delete the published directories. For the compiler
 integration, remove the package and its AdditionalFiles entry from participating
 projects when you no longer need the checks.
+
+For tool installations, use `dotnet tool update` with the same package ID,
+`--tool-path artifacts/tools` (or `--global`), source and desired `--version`.
+Stop MCP clients first. Remove each tool with `dotnet tool uninstall
+ArchitectureGuardian.Cli --tool-path artifacts/tools` or the corresponding MCP
+package ID; use `--global` for a global installation. Remove the MCP client entry
+when uninstalling its server.
 
 See [troubleshooting](troubleshooting.md) if SDK selection, restore or startup fails.

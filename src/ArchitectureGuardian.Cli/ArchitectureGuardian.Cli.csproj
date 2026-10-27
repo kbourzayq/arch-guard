@@ -1,7 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>archguard</ToolCommandName>
+    <Description>Policy-driven architecture analysis and CI gates for .NET solutions.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../docs/nuget-readme.md" Pack="true" PackagePath="README.md" Visible="false" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.CommandLine" />
   </ItemGroup>

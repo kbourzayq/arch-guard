@@ -84,7 +84,8 @@ independent runners. Each test host retains its two-collection limit and `-m:1`;
 this removes the wait between heavy suites without oversubscribing one runner.
 The unit runner executes both unit-test assemblies sequentially. The existing
 `Build and test (<os>)` check names are aggregate gates: both full test matrices
-must succeed, including schema validation, before any of those gates can pass.
+must succeed, including schema validation and all package-consumer checks, before
+any of those gates can pass.
 All tests still run on Linux, Windows and macOS. Fixture restore and individual
 workspace CLI checks retain bounded process deadlines; trusted MCP scenarios use a
 three-minute aggregate budget for their multiple full workspace calls. The process
@@ -133,12 +134,32 @@ For compiler package changes, also build and verify a consumer package:
 
 ```sh
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
-python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.402
+python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.2.0.nupkg --sdk 10.0.402
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
 CI separately checks compiler consumers with the same pinned SDK on each OS;
 see [host compatibility](docs/compiler-analyzer.md#host-compatibility-and-validation).
+
+For distribution or release changes, validate all three packages:
+
+Use the installed Python Commitizen version pinned in `eng/requirements-release.txt`.
+If needed, install that requirements file in an activated Python virtual environment
+with `python -m pip install -r eng/requirements-release.txt`.
+
+```sh
+python3 eng/packages.py pack
+python3 eng/packages.py verify
+python3 eng/packages.py smoke
+```
+
+Use an empty output directory (or pass `--directory` for another directory).
+These checks enforce package metadata, the source version and release notes,
+dependency boundaries and reproducible payloads, then install the tools into an
+isolated local-feed environment and run real CLI/MCP workspace and analyzer builds.
+CI runs package consumers on all three operating systems. The
+[release policy](docs/releases.md) describes the tagged workflow, checksum checks,
+compatibility promises and maintainer configuration needed before publishing.
 
 For documentation-only changes, verify commands, local links, headings and fenced
 examples. Runtime tests are unnecessary unless the documented behavior changes.
@@ -178,6 +199,18 @@ Use a Conventional Commit subject, for example:
 fix(cli): preserve incomplete workspace coverage
 docs: clarify source installation and MCP setup
 ```
+
+Use the Python Commitizen tool to compose and validate commits:
+
+```sh
+cz commit
+cz check --rev-range origin/main..HEAD
+```
+
+`.cz.toml` configures Conventional Commits, SemVer, synchronized .NET/package-example
+versions and generated release notes. Use `cz bump --check-consistency --dry-run --yes`
+to preview a release; actual release commits and tags follow the
+[maintainer release process](docs/releases.md#prepare-a-release-with-commitizen).
 
 In the pull request, describe the problem and resulting behavior, link the issue
 when applicable, and record the checks actually run. Include relevant limitations,
