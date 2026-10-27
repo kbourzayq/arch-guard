@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   push:
     branches: [main]
   pull_request:
@@ -91,26 +92,27 @@ jobs:
 
   build-and-test:
     # Preserve the existing required check names. These cannot pass if either
-    # test matrix failed, was cancelled, or was skipped on any supported OS.
+    # test or package-consumer matrix failed, was cancelled, or was skipped.
     name: Build and test (${{ matrix.os }})
     if: ${{ always() }}
-    needs: [architecture-tests, unit-tests]
+    needs: [architecture-tests, unit-tests, package-consumers]
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Require both complete test matrices
+      - name: Require complete test and package-consumer matrices
         env:
           ARCHITECTURE_RESULT: ${{ needs.architecture-tests.result }}
           UNIT_RESULT: ${{ needs.unit-tests.result }}
-        run: test "$ARCHITECTURE_RESULT" = success && test "$UNIT_RESULT" = success
+          PACKAGE_RESULT: ${{ needs.package-consumers.result }}
+        run: test "$ARCHITECTURE_RESULT" = success && test "$UNIT_RESULT" = success && test "$PACKAGE_RESULT" = success
 
-  pack-analyzer:
-    name: Pack compiler analyzer
+  pack-distribution:
+    name: Pack distribution
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -118,30 +120,35 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - name: Restore locked analyzer dependencies
-        run: dotnet restore src/ArchitectureGuardian.Analyzers --locked-mode
-      - name: Build and pack compiler analyzer
-        run: dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Pack and verify reproducible distribution payloads
+        run: python eng/packages.py pack
       - uses: actions/upload-artifact@v4
         with:
-          name: compiler-analyzer
-          path: artifacts/analyzers/*.nupkg
+          name: nuget-packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/SHA256SUMS
+          if-no-files-found: error
 
-  compiler-hosts:
-    name: Compiler host (${{ matrix.os }})
-    needs: pack-analyzer
+  package-consumers:
+    name: Package consumer (${{ matrix.os }})
+    needs: pack-distribution
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
-        id: dotnet
         with:
           global-json-file: global.json
       - uses: actions/setup-python@v6
@@ -149,7 +156,7 @@ jobs:
           python-version: '3.x'
       - uses: actions/download-artifact@v4
         with:
-          name: compiler-analyzer
-          path: artifacts/analyzers
-      - name: Verify packaged analyzer in an isolated SDK consumer
-        run: python eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk ${{ steps.dotnet.outputs.dotnet-version }}
+          name: nuget-packages
+          path: artifacts/packages
+      - name: Verify clean tool installation, CLI and MCP scans, and compiler consumer
+        run: python eng/packages.py smoke

@@ -28,8 +28,9 @@ configuration produce deterministic diagnostic identities and ordering.
 
 ## Project status
 
-Architecture Guardian is in early development. The supported setup today is a
-**source installation** with the SDK selected by [global.json](global.json).
+Architecture Guardian is in early development. Install the CLI and MCP as .NET
+tools from [locally built NuGet packages](docs/installation.md#install-the-net-tools-from-local-packages),
+or use a source installation with the SDK selected by [global.json](global.json).
 CLI and MCP run on .NET 10; development and CI cover Linux, macOS and Windows.
 The compiler analyzer targets `netstandard2.0` with a Roslyn 4.8 API floor.
 
@@ -37,8 +38,10 @@ Full-solution scans, YAML policy, six architecture rules and the MCP server are
 implemented, including [explicit diagnostic baselines](docs/baselines.md) and new-violation gates.
 [Full-context Git change comparison](docs/changes.md) is available through CLI
 `scan --base` and MCP `analyze_changes`. [JSON v1 and SARIF 2.1.0 reports](docs/reports.md)
-are available through `scan --format json|sarif`. Packaged CLI installation
-is planned. [GitHub Actions and Azure Pipelines examples](docs/ci.md) run independent
+are available through `scan --format json|sarif`. The three distribution packages
+share a [version and compatibility policy](docs/releases.md) and a verified release
+pipeline; see [release notes](CHANGELOG.md) for the prepared version.
+[GitHub Actions and Azure Pipelines examples](docs/ci.md) run independent
 CLI gates and retain reports on failure; see the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 See [known limitations](docs/troubleshooting.md#known-analysis-limitations)
 before adopting a scan as a required gate.
@@ -82,7 +85,7 @@ The CLI and MCP share the solution analysis engine. The compiler analyzer uses t
 host compilation and a separate XML ownership snapshot; it does not check module
 cycles or establish whole-solution coverage. See the [engine comparison](docs/semantic-accuracy.md).
 
-For MCP, publish the server and configure its executable and workspace root using
+For MCP, install the tool or publish the server and configure its executable and workspace root using
 the [portable configuration templates](docs/mcp.md#configure-your-client). All five
 tools are read-only: `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and
 `analyze_changes`. Workspace execution requires operator trust.

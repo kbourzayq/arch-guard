@@ -9,5 +9,15 @@
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <Version>0.1.0</Version>
+    <!-- Only the CLI, MCP host and compiler adapter are distribution contracts. -->
+    <IsPackable>false</IsPackable>
+    <Authors>Architecture Guardian contributors</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/kbourzayq/arch-guard</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/kbourzayq/arch-guard</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageTags>architecture;dotnet;analysis</PackageTags>
+    <PackageReleaseNotes>https://github.com/kbourzayq/arch-guard/blob/v$(Version)/CHANGELOG.md</PackageReleaseNotes>
   </PropertyGroup>
 </Project>

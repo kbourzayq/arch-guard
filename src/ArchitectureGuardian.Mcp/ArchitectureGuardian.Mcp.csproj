@@ -1,7 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>archguard-mcp</ToolCommandName>
+    <Description>Read-only architecture context and solution analysis over MCP stdio.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../docs/nuget-readme.md" Pack="true" PackagePath="README.md" Visible="false" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />

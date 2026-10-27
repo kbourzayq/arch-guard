@@ -18,6 +18,32 @@ Trusted workspace evaluation can execute repository-controlled MSBuild tasks.
 
 ## Start and connect
 
+### Install the packaged server
+
+Install `ArchitectureGuardian.Mcp` following the
+[tool installation guide](installation.md#install-the-net-tools-from-local-packages).
+Configure a stdio client with the absolute path to the installed `archguard-mcp`
+command (`archguard-mcp.exe` on Windows). For example:
+
+```json
+{
+  "mcpServers": {
+    "architecture-guardian": {
+      "type": "stdio",
+      "command": "<FULL_PATH_TO_INSTALLED_ARCHGUARD_MCP>",
+      "args": ["--Workspace:Root", "<FULL_PATH_TO_YOUR_REPOSITORY>", "--Workspace:Trusted", "false"]
+    }
+  }
+}
+```
+
+Replace both placeholders. The installed tool includes application dependencies;
+the machine still needs .NET 10 and the SDK required by the repository being loaded.
+Keep CLI, MCP and analyzer versions aligned; MCP reports the package version in its
+initialize response. The configuration formats and workspace trust rules below
+also apply to this executable. When adapting a DLL example, replace `command` with
+the installed executable path and remove the DLL from `args`.
+
 ### Publish the server
 
 Follow [installation](installation.md), or run these commands from the checkout root:

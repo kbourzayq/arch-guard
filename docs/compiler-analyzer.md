@@ -26,6 +26,9 @@ dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-rest
 
 The current version produces `ArchitectureGuardian.Analyzers.0.1.0.nupkg`.
 These instructions use a local package source and do not assume nuget.org publication.
+The complete [distribution build](releases.md#build-and-verify-packages) produces
+the same analyzer package alongside the CLI/MCP tools in `artifacts/packages`.
+All three packages share the root version and [compatibility policy](releases.md).
 
 ### 2. Reference the analyzer and policy
 
@@ -211,7 +214,7 @@ it does not extend vendor support for older SDKs or IDEs.
 | Host | Validation |
 | --- | --- |
 | Roslyn 4.8 in-process analyzer driver / IDE-style workspace | Microsoft.CodeAnalysis.Testing semantic tests, multi-project and AdditionalFiles/editorconfig cases |
-| Command-line compiler from the SDK pinned in `global.json` | Packaged consumer test in CI on Linux, Windows and macOS |
+| Command-line compiler from the SDK pinned in `global.json` | Packaged consumer test in CI and before release publication on Linux, Windows and macOS |
 | Visual Studio UI, Rider and other interactive IDEs | No UI-level validation in this repository; IDEs must supply Roslyn 4.8+ and AdditionalFiles |
 
 The semantic suite covers AG005/AG006 framework/external restrictions and lookalikes, invalid configuration, cancellation, concurrent reuse,

@@ -8,7 +8,8 @@ features are identified explicitly.
 
 | Guide | What you will find |
 | --- | --- |
-| [Installation](installation.md) | SDK requirements, source installation, CLI/MCP executables and local analyzer packages |
+| [Installation](installation.md) | SDK requirements, CLI/MCP tool packages, source installation and analyzer packages |
+| [Packages and releases](releases.md) | Shared versions, compatibility, reproducible packaging and verified NuGet publication |
 | [Getting started](getting-started.md) | A runnable example, a first policy for your repository and CI exit codes |
 | [CLI](cli.md) | Commands, options, output and gate behavior |
 | [Reports](reports.md) | JSON v1 schema, SARIF 2.1.0 mappings, file output and validation |
