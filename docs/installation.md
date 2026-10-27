@@ -68,8 +68,8 @@ on PATH (see [release tooling](releases.md#build-and-verify-packages)):
 
 ```sh
 python3 eng/packages.py pack
-dotnet tool install ArchitectureGuardian.Cli --tool-path artifacts/tools --version 0.1.0 --configfile NuGet.Config --add-source artifacts/packages
-dotnet tool install ArchitectureGuardian.Mcp --tool-path artifacts/tools --version 0.1.0 --configfile NuGet.Config --add-source artifacts/packages
+dotnet tool install ArchitectureGuardian.Cli --tool-path artifacts/tools --version 0.2.0 --configfile NuGet.Config --add-source artifacts/packages
+dotnet tool install ArchitectureGuardian.Mcp --tool-path artifacts/tools --version 0.2.0 --configfile NuGet.Config --add-source artifacts/packages
 artifacts/tools/archguard --version
 artifacts/tools/archguard --help
 artifacts/tools/archguard explain AG001
@@ -95,8 +95,8 @@ see the [packaged server example](mcp.md#install-the-packaged-server).
 To install a version available on nuget.org globally instead:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.1.0
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.1.0
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
 archguard --help
 ```
 
@@ -125,7 +125,7 @@ From the checkout root after locked restore:
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
 ```
 
-This produces `ArchitectureGuardian.Analyzers.0.1.0.nupkg` with the current source
+This produces `ArchitectureGuardian.Analyzers.0.2.0.nupkg` with the current source
 version. Use `artifacts/analyzers` as a local package source in the consuming
 repository. The analyzer also needs an XML ownership policy; installing the package
 alone does not configure architecture checks. Follow the complete

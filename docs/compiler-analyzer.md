@@ -24,7 +24,7 @@ From the Architecture Guardian checkout, after the locked restore in
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
 ```
 
-The current version produces `ArchitectureGuardian.Analyzers.0.1.0.nupkg`.
+The current version produces `ArchitectureGuardian.Analyzers.0.2.0.nupkg`.
 These instructions use a local package source and do not assume nuget.org publication.
 The complete [distribution build](releases.md#build-and-verify-packages) produces
 the same analyzer package alongside the CLI/MCP tools in `artifacts/packages`.
@@ -39,7 +39,7 @@ participating projects; every such assembly needs a mapping in the snapshot.
 ```xml
 <Project>
   <ItemGroup>
-    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.1.0" PrivateAssets="all" />
+    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.2.0" PrivateAssets="all" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />
   </ItemGroup>
 </Project>
@@ -227,7 +227,7 @@ that removing the restriction restores the passing build. It checks an AG006 ban
 then restores the passing build through an explicit namespace exception. Run it locally with an installed SDK version:
 
 ```sh
-python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.1.0.nupkg --sdk 10.0.402
+python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.2.0.nupkg --sdk 10.0.402
 ```
 
 CI results are distinct from local verification; interactive IDE UI behavior remains
