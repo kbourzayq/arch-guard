@@ -63,7 +63,8 @@ expecting a web dashboard or standalone command prompt.
 
 ## Install the .NET tools from local packages
 
-From this checkout, with Python 3 and the pinned SDK installed:
+From this checkout, with Python 3.10+, the pinned SDK and Python Commitizen installed
+on PATH (see [release tooling](releases.md#build-and-verify-packages)):
 
 ```sh
 python3 eng/packages.py pack

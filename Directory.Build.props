@@ -8,6 +8,7 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Synchronized from .cz.toml by Commitizen's version_files setting. -->
     <Version>0.1.0</Version>
     <!-- Only the CLI, MCP host and compiler adapter are distribution contracts. -->
     <IsPackable>false</IsPackable>

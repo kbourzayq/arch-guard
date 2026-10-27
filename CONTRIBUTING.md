@@ -143,6 +143,10 @@ see [host compatibility](docs/compiler-analyzer.md#host-compatibility-and-valida
 
 For distribution or release changes, validate all three packages:
 
+Use the installed Python Commitizen version pinned in `eng/requirements-release.txt`.
+If needed, install that requirements file in an activated Python virtual environment
+with `python -m pip install -r eng/requirements-release.txt`.
+
 ```sh
 python3 eng/packages.py pack
 python3 eng/packages.py verify
@@ -195,6 +199,18 @@ Use a Conventional Commit subject, for example:
 fix(cli): preserve incomplete workspace coverage
 docs: clarify source installation and MCP setup
 ```
+
+Use the Python Commitizen tool to compose and validate commits:
+
+```sh
+cz commit
+cz check --rev-range origin/main..HEAD
+```
+
+`.cz.toml` configures Conventional Commits, SemVer, synchronized .NET/package-example
+versions and generated release notes. Use `cz bump --check-consistency --dry-run --yes`
+to preview a release; actual release commits and tags follow the
+[maintainer release process](docs/releases.md#prepare-a-release-with-commitizen).
 
 In the pull request, describe the problem and resulting behavior, link the issue
 when applicable, and record the checks actually run. Include relevant limitations,

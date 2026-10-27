@@ -1,23 +1,36 @@
-# Release notes
+## Unreleased
 
-## 0.1.0
+### Feat
 
-Initial MVP distribution. Packages are prepared by the release workflow; this file
-does not establish that a version has been published to nuget.org.
+- **distribution**: add verified NuGet packaging and releases
+- **ci**: add independent architecture quality gates (#79)
+- **reporting**: export versioned JSON and SARIF reports
+- **analysis**: add full-context Git change analysis
+- **baselines**: add stable fingerprints and new-violation gates
+- **mcp**: explain violations with evidence and remediation (#65)
+- **mcp**: expose solution and change analysis tools
+- **mcp**: expose architecture and rule context (#63)
+- **mcp**: add read-only stdio server (#62)
+- **rules**: enforce domain infrastructure references
+- **rules**: enforce forbidden assembly and namespace references (#59)
+- **rules**: enforce cross-module implementation boundaries
+- **analyzers**: add compiler adapter and semantic test harness
+- **skills**: add reviewed issue-to-PR workflow
+- **cli**: add policy-driven scan inspect and explain commands
+- **rules**: detect AG003 module dependency cycles
+- **rules**: enforce AG002 layer dependencies
+- **rules**: enforce AG001 module dependencies
+- **analysis**: extract dependency edges and evidence graph
+- **analysis**: implement F05 normalized repository model
+- **analysis**: implement F04 workspace loading
+- **configuration**: implement F03 versioned YAML policy
+- **core**: define shared rule and analysis contracts
+- **core**: establish .NET solution and component boundaries
 
-- `ArchitectureGuardian.Cli`: install the `archguard` .NET tool for policy-driven
-  solution scans, inspection, explanations, baselines, full-context Git comparison
-  and JSON v1 / SARIF 2.1.0 reports.
-- `ArchitectureGuardian.Mcp`: install the `archguard-mcp` stdio tool with five
-  read-only architecture and analysis tools. Operator workspace trust is explicit.
-- `ArchitectureGuardian.Analyzers`: compiler feedback for AG001, AG002 and
-  AG004–AG006, plus AG000 configuration errors. Requires an explicit XML policy;
-  does not establish whole-solution coverage or detect module cycles.
-- CLI/MCP require .NET 10 and an installed compatible SDK for workspace loading.
-  The analyzer targets .NET Standard 2.0 with a Roslyn 4.8 API floor and has no
-  standalone runtime or package dependencies.
-- Package installation, analyzer consumer builds and CLI/MCP workspace smoke tests
-  run on Linux, Windows and macOS before release publication.
+### Fix
 
-See [compatibility and release policy](docs/releases.md) and
-[known limitations](docs/troubleshooting.md#known-analysis-limitations).
+- **analysis**: preserve nameof and deconstruction semantics
+- **tests**: stabilize workspace fixtures across SDKs and Windows
+- **analysis**: preserve MSBuild context and generator diagnostics
+- **cli**: use async output and own console cancellation
+- **ci**: preserve LF line endings on Windows

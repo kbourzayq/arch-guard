@@ -537,6 +537,9 @@ dependency direction changes.
 The analyzer remains a single .NET Standard 2.0 DLL with source-linked portable
 semantics and a Roslyn 4.8 floor; packaging never brings the .NET 10 solution engine
 into compiler hosts. Package contents and actual consumer execution enforce this
-boundary on all three operating systems. Versions and metadata come from the root
-build properties, including MCP's reported version. See the
+boundary on all three operating systems. Python Commitizen owns the shared version
+in `.cz.toml`, synchronizes root build properties and examples, and generates the
+changelog. Package metadata and MCP's reported version consume those synchronized
+build properties; Commitizen is development/release tooling, not a runtime dependency.
+See the
 [release policy](../../releases.md) for reproducibility checks and the publication gate.

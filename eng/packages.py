@@ -35,9 +35,11 @@ def run(arguments, cwd=ROOT, env=None, expected=0):
 
 
 def source_version():
-    version = ET.parse(ROOT / "Directory.Build.props").findtext(".//Version")
-    assert version and re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version), version
-    assert f"\n## {version}\n" in (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), "Missing release notes"
+    version = run(["cz", "version", "--project"]).strip()
+    assert ET.parse(ROOT / "Directory.Build.props").findtext(".//Version") == version, \
+        "Run Commitizen bump to synchronize the .NET version"
+    assert re.search(rf"^## (?:Unreleased|v{re.escape(version)})(?:\s|$)",
+                     (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.MULTILINE), "Missing generated release notes"
     return version
 
 
@@ -53,6 +55,9 @@ def verify(directory, tag=None, manifest=True):
     version = source_version()
     if tag is not None:
         assert tag == f"v{version}", f"Tag {tag} must match v{version}"
+        assert re.search(rf"^## v{re.escape(version)}(?:\s|$)",
+                         (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.MULTILINE), \
+            "Generate versioned release notes with Commitizen bump before tagging"
     revision = run(["git", "rev-parse", "HEAD"]).strip()
     expected = {f"{name}.{version}.nupkg" for name in PACKAGES}
     assert {path.name for path in directory.glob("*.nupkg")} == expected, "Unexpected package set"
