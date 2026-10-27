@@ -104,15 +104,19 @@ Warnings can pass a gate configured to fail only on errors. An incomplete scan
 with no findings still returns `2`. In MCP, check `status` and `gateOutcome` before
 using diagnostic counts as a compliance signal.
 
-After explicit restore, analysis itself needs no network access. It does not infer
-runtime dependencies through reflection or dependency injection.
+After explicit restore, the rule engine needs no network access. Repository-controlled
+MSBuild tasks and source generators run with the process's permissions and can have
+side effects. See [offline operation and reproducibility](docs/workspace-loading.md#offline-and-deterministic-operation)
+and [isolation for untrusted repositories](docs/workspace-loading.md#trust-and-isolation).
+Analysis does not infer runtime dependencies through reflection or dependency injection.
 
 ## Documentation and support
 
 - [Installation](docs/installation.md): requirements, local executables and analyzer packaging.
 - [Getting started](docs/getting-started.md): first scan, policy setup and CI use.
-- [Policy reference](docs/policy.md) and [rule catalog](docs/rule-catalog.md).
-- [Troubleshooting](docs/troubleshooting.md): SDK, restore, coverage and MCP setup issues.
+- [Policy reference](docs/policy.md): module identity, patterns, contracts, layers, baselines and exit codes.
+- [Rule catalog](docs/rule-catalog.md): examples, evidence, remediation and limitations for all six rules.
+- [Troubleshooting](docs/troubleshooting.md): SDK, restore, multi-targeting, generated code and MCP setup issues.
 - [Architecture overview](docs/architecture/overview.md): components, APIs and engine boundaries.
 - [Report a bug or request a feature](https://github.com/kbourzayq/arch-guard/issues/new).
 

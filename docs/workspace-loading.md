@@ -83,6 +83,52 @@ The loader does not invoke restore or a normal build. Design-time MSBuild can wr
 intermediate files or execute custom tasks, and compilation can run source generators.
 The host must terminate the isolated process if custom build logic ignores cancellation.
 
+MCP's operator-selected workspace root limits tool input paths; it does not restrict
+what trusted tasks or generators can read, write or execute. Treat CLI, MCP and
+compiler-hosted generators as code running with their process's permissions.
+Do not mount a real home directory, credential store, SSH agent or shared writable
+package cache into an untrusted build. A dedicated disposable cache prevents that
+build from modifying packages later consumed by a trusted environment.
+
+## Offline and deterministic operation
+
+Policy parsing, compiled rule metadata and neutral graph/rule evaluation run locally.
+The tool does not download rule implementations, query a remote service, fetch help
+pages or restore during a full `scan`, `load` or `inspect`. Opening a documentation
+URL is a separate browser action. Editor schema extensions may fetch schemas on
+their own; the repository's local schema is available without that step.
+
+Prepare the selected context before disconnecting:
+
+1. Install the SDK selected by the input's `global.json`, its reference/workload
+   packs and any required generator/build tools. Preserve pinned dependency versions
+   and committed lock files.
+2. Explicitly restore the complete input using the intended configuration/framework.
+   When lock files are maintained, use `dotnet restore <input> --locked-mode`
+   with those same MSBuild properties. Verify restore succeeds before scanning.
+3. Keep the source/policy snapshot, SDK, package assets, generator inputs and build
+   properties fixed. Run separately for every configuration/framework you require.
+4. Enforce offline execution with the container/VM network boundary. Restore may
+   need approved feeds during preparation; repository-controlled tasks, SDK resolvers
+   and generators may attempt network access even when the tool itself does not.
+
+For the same prepared semantic context and policy, rules produce the same diagnostic
+identities, evidence ordering and gate decision. Authored paths are policy-relative;
+generated paths use generator/type/hint identities rather than physical output
+directories. See [repository identities](repository-model.md#identities-and-reproducibility)
+and [graph ordering](dependency-graph.md#stable-identities-and-ordering).
+Changes to tool/SDK/package versions, conditional sources or generated content can
+change the context. Arbitrary build tasks and generators can depend on time, network,
+environment variables or local files; deterministic evaluation does not neutralize
+those inputs. Operational SDK/compiler messages may contain machine-specific paths.
+
+`scan --base` and MCP `analyze_changes` additionally need the explicit Git base tree
+and both trees' SDK/package requirements available locally. They perform a bounded
+cache-only locked restore in temporary snapshots; they never fetch history or
+download packages. Missing cache entries or unsupported snapshot inputs fail coverage.
+See [change preparation](changes.md#snapshot-preparation-and-trust). Temporary copies
+and cache-only restore do not sandbox repository-controlled execution.
+
 ## Configuration, frameworks and SDKs
 
 - Configuration defaults to `Debug`. `--configuration` sets the MSBuild global
