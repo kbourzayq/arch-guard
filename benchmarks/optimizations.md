@@ -1,14 +1,17 @@
-# Dependency graph allocation improvements
+# Dependency graph and rule allocation improvements
 
-The [original report](reports/analysis-macos-arm64.md) represents source at
-`c091bdd`. The [optimized report](reports/analysis-macos-arm64-optimized.md) was
-produced with the accompanying implementation changes. Both are unmodified
-BenchmarkDotNet Markdown exports from Apple M5/macOS 27.0.1, .NET 10.0.13 and SDK
-10.0.402 on 28 October 2026. Both use one launch, three warmups, ten measured
-iterations and one invocation per iteration, at normal process priority. The
-final timing run had no profiler attached and no concurrent builds or tests.
+The current [benchmark report](reports/analysis-macos-arm64.md) is an unmodified
+BenchmarkDotNet export. Superseded report files are retained in Git history, while
+historical measurements stay in this comparison. The first baseline is available
+with `git show c091bdd:benchmarks/reports/analysis-macos-arm64.md`; the first
+optimized measurement is available with
+`git show 9668ae8:benchmarks/reports/analysis-macos-arm64-optimized.md`.
 
-## Before and after
+Measurements use Apple M5/macOS 27.0.1, .NET 10.0.13 and SDK 10.0.402. Timing runs
+use one launch, three warmups, ten measured iterations and one invocation per
+iteration, at normal priority without a profiler or concurrent builds/tests.
+
+## First optimization pass
 
 Times below are means normalized to milliseconds; allocations are cumulative
 managed allocation traffic per operation normalized to MiB. Negative changes
@@ -80,9 +83,9 @@ Four focused changes address those costs:
    project. Including every endpoint field preserves conflicting-node validation.
    No cache survives a scan or holds data across workspaces.
 
-The final allocation trace contained 7,932 sampled events. String allocation
+The first pass's final allocation trace contained 7,932 sampled events. String allocation
 estimates fell to approximately 378 MiB and character arrays to 11 MiB. The
-remaining leading stacks involve evidence-key encoding, Roslyn semantic queries,
+remaining leading stacks involved evidence-key encoding, Roslyn semantic queries,
 repeated type normalization, symbol display and project-path validation.
 
 To reproduce a CPU profile with standard BenchmarkDotNet tooling:
@@ -96,37 +99,121 @@ profiler adds overhead. BenchmarkDotNet also supports the
 `EventPipeProfiler(EventPipeProfile.GcVerbose)` attribute for allocation traces.
 No profiler dependency or custom measurement loop was added to production code.
 
+## Second optimization pass
+
+A fresh allocation trace after the first pass contained 7,927 samples. Repeated
+`NormalizeType` calls rebuilt repository types, validated paths and hashed the
+same original definition for many semantic uses. Symbol display and namespace
+formatting also repeated pure work. Assembly ownership enumerated every loaded
+compilation and allocated a matches array for each lookup.
+
+The extraction context now memoizes normalized original definitions, exact symbol
+displays and namespace names. Keys use reference identity: Roslyn semantic
+symbol equality can ignore nullable annotations that affect evidence text. Values
+stay scoped to the current immutable compiler snapshot and are released with the
+extraction. An assembly-identity index retains every matching context, preserving
+the source-assembly preference and ambiguous-assembly issue. Null type inputs return
+before allocating traversal containers; non-null traversal is unchanged.
+
+Per-rule allocation traces also isolated approximately 32 MiB of sampled AG003
+allocation on the generated acyclic input, largely canonicalizing evidence for a
+module graph with no findings. Cycle evaluation now builds topology using one
+representative per original project pair. Strongly connected components and the
+existing shortest, ordinal cycle selection are unchanged. After path selection,
+one additional evidence pass serves all cyclic components, collecting every fact
+on chosen module hops from all original project pairs and graph levels. Acyclic
+graphs avoid that pass and the full evidence snapshots. Unmapped-project issues
+still occur once per original pair in the same order. Cancellation checks remain
+in evidence scans and graph/path traversal.
+
+The post-change trace contained 5,076 samples. Sampled string allocation fell from
+approximately 380 MiB to 257 MiB, string arrays from 110 MiB to 58 MiB, and repeated
+type normalization disappeared from the leading stacks. These estimates locate
+causes; the native BenchmarkDotNet report supplies comparable operation totals.
+
+### Second-pass measurements
+
+The 29 October run uses the same hardware, SDK, runtime and Monitoring job as the
+28 October first-pass measurement. All twelve cases completed successfully. This
+table compares the first optimized implementation with the current one; the first
+pass's original baseline remains above.
+
+| Input | Method | Mean before → after (ms) | Time change | Allocated before → after (MiB/op) | Allocation change |
+| --- | --- | ---: | ---: | ---: | ---: |
+| CleanArchitecture | Workspace | 905.431 → 844.108 | -6.8% | 90.5 → 90.5 | 0.0% |
+| CleanArchitecture | Graph | 18.722 → 17.205 | -8.1% | 6.0 → 5.4 | -9.6% |
+| CleanArchitecture | Rules | 0.985 → 0.915 | -7.1% | 0.3 → 0.3 | -0.7% |
+| CleanArchitecture | FullScan | 917.210 → 856.490 | -6.6% | 97.5 → 96.8 | -0.7% |
+| Generated24x40 | Workspace | 3,129.324 → 3,179.425 | +1.6% | 617.2 → 615.5 | -0.3% |
+| Generated24x40 | Graph | 635.050 → 479.437 | -24.5% | 698.4 → 440.6 | -36.9% |
+| Generated24x40 | Rules | 110.259 → 118.997 | +7.9% | 111.3 → 79.7 | -28.4% |
+| Generated24x40 | FullScan | 4,007.059 → 3,820.554 | -4.7% | 1,428.1 → 1,139.2 | -20.2% |
+| ModularMonolith | Workspace | 853.165 → 874.259 | +2.5% | 90.5 → 90.5 | +0.0% |
+| ModularMonolith | Graph | 20.295 → 14.540 | -28.4% | 5.8 → 5.3 | -8.8% |
+| ModularMonolith | Rules | 0.936 → 0.978 | +4.4% | 0.3 → 0.3 | -3.3% |
+| ModularMonolith | FullScan | 869.860 → 878.766 | +1.0% | 97.3 → 96.8 | -0.5% |
+
+For the generated input, graph allocation falls a further 36.9% (698.4 → 440.6
+MiB/op), and mean graph time falls 24.5% (635.050 → 479.437 ms). All-rule allocation
+falls 28.4% (111.3 → 79.7 MiB/op). Its mean time increases 7.9% (110.259 → 118.997
+ms), while its median falls from 105.184 to 96.775 ms. The new rule measurements
+range from 79.165 to 175.329 ms with a 99.9% confidence half-width of 67.454 ms;
+the allocation reduction is clear, while all-rule latency remains inconclusive.
+
+Generated full scans allocate 20.2% less (1,428.1 → 1,139.2 MiB/op), with an
+observed 4.7% lower mean (4,007.059 → 3,820.554 ms). Confidence intervals overlap,
+so the end-to-end timing change is less conclusive than the graph improvement.
+Graph Gen0 collections fall from 87 to 55 per operation; rules from 12 to 8; full
+scans from 179 to 144. Compared with the original implementation, generated graph
+allocation is down 88.7%, rules 81.3% and full scans 77.1%.
+
+Small-input timing changes vary by operation and have short-iteration/outlier
+warnings. The modular-monolith rule mean increases 4.4% while its allocations fall
+3.3%; its full-scan mean increases 1.0% with overlapping confidence intervals.
+Workspace allocation stays essentially flat for all inputs. There is no code
+change to workspace loading and no supported workspace performance claim.
+
 ## Correctness and remaining bottlenecks
 
-All 599 tests passed: 92 compiler, 148 architecture/CLI/MCP and 359 unit/workspace
-checks. This includes deterministic finding identities, generated/file-local and
-generic semantic cases, partial coverage, cancellation and changes/full-scan
-agreement. A new regression case prevents equal-looking facts from collapsing
-when their origin symbol or bound assembly differs. Repository architecture
-validation passed with zero findings. Report validation checked 20 serializer
-samples and four real JSON/SARIF CLI exports.
+First-pass validation covered 599 tests: 92 compiler, 148 architecture/CLI/MCP and 359
+unit/workspace checks. Its original-to-optimized serialized graph and analysis
+payloads matched byte for byte for all three inputs. The second pass additionally
+compares both reference architectures in Release and AG003 configurations,
+including the modular-monolith cycle, plus the generated case. All five complete
+graph and analysis payloads are byte-identical before and after, including every
+origin, diagnostic ID, evidence field, primary location and structured context.
+Inventories stay at 200/715 nodes/edges for Clean Architecture, 199/704 for the
+modular monolith (199/711 in AG003), and 1,252/5,892 with all 299 diagnostics for the
+generated case.
 
-Complete serialized graph and analysis payloads from the original and optimized
-implementations were byte-identical for all three benchmark inputs, including
-every graph origin and diagnostic evidence field. Inventories stayed at 200/715
-nodes/edges for Clean Architecture, 199/704 for the modular monolith, and
-1,252/5,892 with all 299 diagnostics for the generated case. The fixed v1 diagnostic
-identity test also passed. All twelve optimized benchmark cases completed with
-completed coverage and iteration validation.
+A new regression exercises two cyclic components, multiple project pairs per
+module hop, repeated facts with distinct origins, mixed graph levels and
+aggregation. It verifies that all chosen-hop evidence survives and evidence on
+other branches is excluded. The existing deep-cycle, deterministic-path, partial
+coverage, cancellation, generated/file-local/generic semantic, and changes/full-scan
+checks remain covered. All 600 tests pass in the second round: 92 compiler,
+148 architecture/CLI/MCP and 360 unit/workspace cases. Locked restores, Release
+builds and formatting checks pass for the solution and benchmark project.
+Repository architecture validation reports zero findings; report validation
+passes 20 serialization samples and four real JSON/SARIF CLI exports.
 
-Workspace discovery, compilation and validation now dominate the generated
-full-scan latency: workspace loading averages 3.13 seconds against a 4.01-second
-full scan. These operations are independently measured and should not be summed
-to infer cold startup. Graph extraction still allocates about 698 MiB and rule
-evaluation about 111 MiB. Repeated Roslyn type normalization and canonicalization
-of retained evidence remain useful future profiling targets. Assembly ownership
-lookup also scans loaded compilation contexts; larger project counts need their
-own representative measurements before introducing more caches or indexes.
+The main remaining application allocation stacks involve canonical sorting of
+retained evidence, source-origin discovery, semantic traversal and project-path
+validation. AG004 also repeatedly encodes diagnostic evidence while sorting and
+building finding identities. Those are further profiling targets; global caches
+would trade allocation traffic for retained memory and complicate equality and
+lifetime contracts. Workspace discovery, compilation and validation remain the
+main full-scan latency costs: workspace loading averages 3.18 seconds against a
+3.82-second generated full scan. Do not add independently measured phase means to
+infer a cold scan. The timed Release inputs are acyclic; cyclic behavior has exact
+payload and regression-test validation, but cyclic performance has not been
+separately quantified. The deferred evidence pass is linear in input evidence
+across all selected components, rather than a full pass per cycle.
 
 Rule selection, permissions, severities, diagnostics, evidence, identities and
 analysis scope are preserved. Extraction-local accumulation and immutable sharing
 keep the existing sequential semantic traversal and rule evaluation. The benchmark
-retains its prepared validation context, excludes startup/report
-rendering, and measures managed allocation traffic rather than retained/native,
-child-process or peak memory. Small iterations still trigger BenchmarkDotNet's
-minimum-iteration-time warning. Cross-platform CI remains necessary.
+retains its prepared validation context, excludes startup/report rendering, and
+measures managed allocation traffic rather than retained/native, child-process or
+peak memory. Small iterations still trigger BenchmarkDotNet's minimum-iteration-time
+warning. Cross-platform CI remains necessary.

@@ -56,6 +56,33 @@ public sealed class ModuleCyclesRuleTests
         Assert.All(Facts("A>B;B>A"), item => Assert.Contains(item.Fact, finding.Evidence));
     }
 
+    /// <summary>Deferred evidence collection retains all project pairs on chosen hops across independent cycles.</summary>
+    [Fact]
+    public async Task Cycle_paths_keep_all_hop_evidence_across_projects_and_graph_levels()
+    {
+        var firstHop = new DependencyEvidence("A/Contracts.csproj", "B/Implementation.csproj",
+            new("Additional A to B use.", new("A/Use.cs", 2, 3)), "A.Use", "B.Service");
+        var secondHop = new DependencyEvidence("D/Contracts.csproj", "E/Implementation.csproj",
+            new("Additional D to E use.", new("D/Use.cs", 4, 5)), "D.Use", "E.Service");
+        var facts = Facts("A>B;B>A;A>C;C>A;D>E;E>D;F>G").Concat([firstHop, secondHop,
+            new(firstHop.SourceProject, firstHop.TargetProject, firstHop.Fact, "A.OtherUse", "B.Service")]).ToArray();
+        var context = Context(facts);
+        var mixed = new DependencyGraph(context.Graph!.Nodes,
+            context.Graph.Edges.Concat(Context(facts.Reverse(), DependencyKind.Type).Graph!.Edges)).Aggregate(context.Repository!);
+        var direct = await new ModuleCyclesRule().EvaluateAsync(context, TestContext.Current.CancellationToken);
+        var aggregated = await new ModuleCyclesRule().EvaluateAsync(new(context.Repository, mixed, AnalysisStatus.Completed), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, direct.Violations.Count);
+        Assert.Equal(direct.Violations.Select(item => item.Id), aggregated.Violations.Select(item => item.Id));
+        foreach (var (module, pair, extra) in new[] { ("A", "A>B;B>A", firstHop), ("D", "D>E;E>D", secondHop) })
+        {
+            var finding = Assert.Single(direct.Violations, item => item.Target.Module == module);
+            Assert.Equal(3, finding.Evidence.Count);
+            Assert.All(Facts(pair).Select(item => item.Fact).Append(extra.Fact), fact => Assert.Contains(fact, finding.Evidence));
+            Assert.Equal(extra.Fact.Location, finding.Location);
+        }
+    }
+
     /// <summary>Original ownership determines cycles at every input graph level, without requiring aggregate nodes.</summary>
     /// <param name="kind">The graph level carrying the observed project evidence.</param>
     [Theory]

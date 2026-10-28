@@ -56,14 +56,14 @@ restoring inputs:
 dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore -- --list flat
 ```
 
-The repository preserves the [original report](reports/analysis-macos-arm64.md)
-and the [optimized report](reports/analysis-macos-arm64-optimized.md) as unmodified
-BenchmarkDotNet Markdown exports. See the [before/after analysis](optimizations.md)
+The repository keeps one [current report](reports/analysis-macos-arm64.md), an
+unmodified BenchmarkDotNet Markdown export. Earlier reports remain in Git
+history. See the [before/after analysis](optimizations.md)
 for root causes, validation and remaining bottlenecks. After an intentional new
 measurement, copy the generated report for review:
 
 ```sh
-cp artifacts/performance/results/ArchitectureGuardian.Benchmarks.AnalysisBenchmarks-report-github.md benchmarks/reports/analysis-macos-arm64-optimized.md
+cp artifacts/performance/results/ArchitectureGuardian.Benchmarks.AnalysisBenchmarks-report-github.md benchmarks/reports/analysis-macos-arm64.md
 ```
 
 On PowerShell use `Copy-Item` with the same source and destination paths. Use a
@@ -76,12 +76,13 @@ then review performance changes alongside the normal correctness tests.
 
 ## Current measured budgets
 
-Measured on 28 October 2026 with BenchmarkDotNet 0.15.8, Apple M5 (10 cores),
+Measured on 29 October 2026 with BenchmarkDotNet 0.15.8, Apple M5 (10 cores),
 macOS 27.0.1, .NET 10.0.13 and SDK 10.0.402. The OS declined high-priority
 scheduling, so measurements used normal process priority. The current thresholds
-use the optimized report, which includes all twelve successful cases. The original
-report remains available for comparison. Some short iterations triggered
-minimum-iteration-time warnings; inspect variation as well as the median before drawing conclusions.
+use the current report, which includes all twelve successful cases. Historical
+measurements remain documented in the comparison analysis. Some short iterations
+triggered minimum-iteration-time warnings; inspect variation as well as the median
+before drawing conclusions.
 
 Latency thresholds are 1.5 × the **reported maximum**, rounded up to whole
 milliseconds. Allocation thresholds are 1.5 × **reported allocated bytes**, rounded
@@ -92,18 +93,24 @@ value above its threshold as a possible regression on comparable hardware.
 
 | Input | Method | Reported max (ms) | Latency budget (ms) | Allocated (MiB/op) | Allocation budget (MiB/op) |
 | --- | --- | ---: | ---: | ---: | ---: |
-| CleanArchitecture | Workspace | 976.605 | 1,465 | 90.5 | 135.8 |
-| CleanArchitecture | Graph | 31.792 | 48 | 6.0 | 9.0 |
-| CleanArchitecture | Rules | 1.059 | 2 | 0.3 | 0.6 |
-| CleanArchitecture | FullScan | 969.212 | 1,454 | 97.5 | 146.2 |
-| Generated24x40 | Workspace | 3,247.811 | 4,872 | 617.2 | 925.8 |
-| Generated24x40 | Graph | 680.842 | 1,022 | 698.4 | 1,047.7 |
-| Generated24x40 | Rules | 132.320 | 199 | 111.3 | 167.0 |
-| Generated24x40 | FullScan | 4,291.853 | 6,438 | 1,428.1 | 2,142.2 |
-| ModularMonolith | Workspace | 956.810 | 1,436 | 90.5 | 135.8 |
-| ModularMonolith | Graph | 26.839 | 41 | 5.8 | 8.8 |
-| ModularMonolith | Rules | 1.029 | 2 | 0.3 | 0.6 |
-| ModularMonolith | FullScan | 987.536 | 1,482 | 97.3 | 146.0 |
+| CleanArchitecture | Workspace | 931.382 | 1,398 | 90.5 | 135.8 |
+| CleanArchitecture | Graph | 29.852 | 45 | 5.4 | 8.1 |
+| CleanArchitecture | Rules | 0.970 | 2 | 0.3 | 0.5 |
+| CleanArchitecture | FullScan | 974.329 | 1,462 | 96.8 | 145.3 |
+| Generated24x40 | Workspace | 3,434.011 | 5,152 | 615.5 | 923.3 |
+| Generated24x40 | Graph | 514.826 | 773 | 440.6 | 661.0 |
+| Generated24x40 | Rules | 175.329 | 263 | 79.7 | 119.6 |
+| Generated24x40 | FullScan | 3,957.594 | 5,937 | 1,139.2 | 1,708.9 |
+| ModularMonolith | Workspace | 986.250 | 1,480 | 90.5 | 135.8 |
+| ModularMonolith | Graph | 14.998 | 23 | 5.3 | 8.0 |
+| ModularMonolith | Rules | 1.027 | 2 | 0.3 | 0.5 |
+| ModularMonolith | FullScan | 996.694 | 1,496 | 96.8 | 145.2 |
+
+The generated `Rules` latency budget rises from 199 to 263 ms because the latest
+maximum increased from 132.320 to 175.329 ms with wider timing variation; its
+allocation budget falls from 167.0 to 119.6 MiB/op. The comparison analysis records
+the increased mean and uncertainty. Re-measure on a controlled runner before
+making that latency threshold a gate.
 
 These are local investigation thresholds, not universal CI or capacity guarantees.
 Managed allocations measure allocation traffic during one operation; they do not

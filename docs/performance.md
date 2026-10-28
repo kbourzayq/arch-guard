@@ -37,8 +37,7 @@ scans plus snapshot/restore work and is not directly benchmarked here.
 
 ## Published reports and budgets
 
-The repository includes the [original](../benchmarks/reports/analysis-macos-arm64.md) and
-[optimized](../benchmarks/reports/analysis-macos-arm64-optimized.md) BenchmarkDotNet Markdown reports
+The repository includes the [current BenchmarkDotNet Markdown report](../benchmarks/reports/analysis-macos-arm64.md)
 and [measured budget table](../benchmarks/README.md#current-measured-budgets).
 The [optimization analysis](../benchmarks/optimizations.md) documents the before/after
 measurements, allocation profiles, correctness checks and remaining bottlenecks.
