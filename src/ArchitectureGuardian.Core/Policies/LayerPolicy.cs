@@ -1,4 +1,8 @@
+#if PORTABLE_POLICY
+namespace ArchitectureGuardian.Policy.Documents;
+#else
 namespace ArchitectureGuardian.Core.Policies;
+#endif
 
 /// <summary>Declares an architectural layer independently of logical modules.</summary>
 public sealed class LayerPolicy

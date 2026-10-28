@@ -47,8 +47,9 @@ suggested contract is not proof that it is a suitable replacement.
 Do not weaken policy, suppress diagnostics, remove projects from analysis or refresh
 accepted-debt baselines just to obtain a passing result. Policy changes require the
 task to authorize an intentional architecture change. If compiler integration is
-present, keep its XML ownership snapshot synchronized with any authorized YAML or
-assembly-ownership change; there is no automatic YAML exporter.
+present, use the same YAML policy with its packaged build metadata targets. During
+the XML transition, synchronize any still-configured legacy snapshot with authorized
+YAML or assembly-ownership changes.
 
 ## Validate and correct
 

@@ -19,7 +19,7 @@ dotnet restore ArchitectureGuardian.slnx --locked-mode
 dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
 ```
 
-The solution contains seven production projects and three test projects. Source
+The solution contains eight production projects and three test projects. Source
 organization, dependency direction and the two analysis engines are described in
 the [architecture overview](docs/architecture/overview.md).
 [AGENT.md](AGENT.md) contains the repository's coding and validation conventions.
@@ -131,6 +131,12 @@ build. It runs the shared CI runner against real CLI scans, covering blocking
 findings, accepted debt, operational failures and retained JSON/SARIF artifacts.
 CI runs this check on all three operating systems. The consumer pipeline templates
 and checkout/restore requirements are documented in [CI quality gates](docs/ci.md).
+
+To validate this checkout with its current analyzer and all six CLI rules after
+locked restore, run `python3 eng/validate-repository.py`. See
+[manual validation](docs/manual-validation.md) for compiler feedback, negative cases
+and the AG003 solution-only boundary. White-box tests belong to the Guardian module
+and retain their separate Tests layer.
 
 For compiler package changes, also build and verify a consumer package:
 

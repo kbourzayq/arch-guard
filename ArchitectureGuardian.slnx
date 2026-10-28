@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/ArchitectureGuardian.Policy/ArchitectureGuardian.Policy.csproj" />
     <Project Path="src/ArchitectureGuardian.Core/ArchitectureGuardian.Core.csproj" />
     <Project Path="src/ArchitectureGuardian.Configuration/ArchitectureGuardian.Configuration.csproj" />
     <Project Path="src/ArchitectureGuardian.Analysis/ArchitectureGuardian.Analysis.csproj" />

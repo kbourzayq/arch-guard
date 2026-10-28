@@ -13,11 +13,12 @@ public sealed class DependencyBoundaryTests
     private static readonly Dictionary<string, string[]> ProjectDependencies = new()
     {
         ["ArchitectureGuardian.Core"] = [],
-        ["ArchitectureGuardian.Configuration"] = ["ArchitectureGuardian.Core"],
+        ["ArchitectureGuardian.Configuration"] = ["ArchitectureGuardian.Core", "ArchitectureGuardian.Policy"],
+        ["ArchitectureGuardian.Policy"] = [],
         ["ArchitectureGuardian.Reporting"] = ["ArchitectureGuardian.Core"],
         ["ArchitectureGuardian.Analysis"] = ["ArchitectureGuardian.Core"],
         ["ArchitectureGuardian.Cli"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration", "ArchitectureGuardian.Reporting"],
-        ["ArchitectureGuardian.Analyzers"] = [],
+        ["ArchitectureGuardian.Analyzers"] = ["ArchitectureGuardian.Policy"],
         ["ArchitectureGuardian.Mcp"] = ["ArchitectureGuardian.Analysis", "ArchitectureGuardian.Configuration"],
     };
 
@@ -39,6 +40,8 @@ public sealed class DependencyBoundaryTests
     /// <param name="project">The production project whose references are inspected.</param>
     /// <param name="configuration">The build configuration in which MSBuild evaluates the project.</param>
     [Theory]
+    [InlineData("ArchitectureGuardian.Policy", "Debug")]
+    [InlineData("ArchitectureGuardian.Policy", "Release")]
     [InlineData("ArchitectureGuardian.Core", "Debug")]
     [InlineData("ArchitectureGuardian.Core", "Release")]
     [InlineData("ArchitectureGuardian.Configuration", "Debug")]
@@ -62,7 +65,7 @@ public sealed class DependencyBoundaryTests
         Assert.True(result.ExitCode == 0, result.Output + result.Error);
         using var document = JsonDocument.Parse(result.Output);
         Assert.Equal("true", document.RootElement.GetProperty("Properties").GetProperty("ManagePackageVersionsCentrally").GetString());
-        Assert.Equal(project == "ArchitectureGuardian.Analyzers" ? "netstandard2.0" : "net10.0",
+        Assert.Equal(project is "ArchitectureGuardian.Analyzers" or "ArchitectureGuardian.Policy" ? "netstandard2.0" : "net10.0",
             document.RootElement.GetProperty("Properties").GetProperty("TargetFramework").GetString());
 
         var items = document.RootElement.GetProperty("Items");

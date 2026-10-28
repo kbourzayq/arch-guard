@@ -16,7 +16,7 @@ AG006 against its host compilation. Only the solution engine checks module cycle
 Choose rules and severities in your [YAML policy](policy.md#rule-selection-severity-and-gates).
 Use CLI `explain <rule-id>` for local metadata. The
 [semantic accuracy matrix](semantic-accuracy.md) records scope, precision and limits;
-the [compiler guide](compiler-analyzer.md) describes its separate policy and severity setup.
+the [compiler guide](compiler-analyzer.md) describes shared YAML policy, legacy XML migration and severity setup.
 
 ## How catalog metadata reaches a diagnostic
 
@@ -456,7 +456,7 @@ quality-gate decision. Compiler-hosted checks must observe the scope constraints
 ## Compiler scope
 
 The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002/AG004 for bound semantic
-uses between assemblies present in its supplied ownership snapshot. AG005 and AG006 also check
+uses between assemblies present in its supplied policy and ownership metadata. AG005 and AG006 also check
 explicit restrictions on all bound target assemblies. The adapter shares Core's
 IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
 spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable

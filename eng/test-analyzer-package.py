@@ -9,6 +9,8 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 import zipfile
 
+from analyzer_yaml_consumer import verify_yaml_consumer
+
 
 def run(arguments, cwd):
     result = subprocess.run(arguments, cwd=cwd, capture_output=True, text=True, timeout=180)
@@ -24,7 +26,9 @@ def main():
     package = args.package.resolve()
     with zipfile.ZipFile(package) as archive:
         dlls = [name for name in archive.namelist() if name.endswith(".dll")]
-        assert dlls == ["analyzers/dotnet/cs/ArchitectureGuardian.Analyzers.dll"], dlls
+        assert set(dlls) == {"analyzers/dotnet/cs/ArchitectureGuardian.Analyzers.dll",
+            "analyzers/dotnet/cs/ArchitectureGuardian.Policy.dll", "analyzers/dotnet/cs/YamlDotNet.dll"}, dlls
+        assert "buildTransitive/ArchitectureGuardian.Analyzers.targets" in archive.namelist()
         metadata = ET.fromstring(archive.read(next(name for name in archive.namelist() if name.endswith(".nuspec"))))
         version = next(node.text for node in metadata.iter() if node.tag.endswith("}version"))
         assert not any(node.tag.endswith("}dependency") for node in metadata.iter())
@@ -62,8 +66,8 @@ def main():
         snapshot = orders / "architecture.guardian.compiler.xml"
         snapshot.write_text(policy)
         # Isolate the local analyzer package so repeated runs cannot use a cached older build.
-        assert run(["dotnet", "restore", "Orders/Orders.csproj", "--packages", str(root / "packages")], root).returncode == 0
-        build = ["dotnet", "build", "Orders/Orders.csproj", "--no-restore", "-p:UseSharedCompilation=false"]
+        assert run(["dotnet", "restore", "Orders/Orders.csproj", "--packages", str(root / "packages"), "-p:NuGetAudit=false", "-m:1", "-nr:false"], root).returncode == 0
+        build = ["dotnet", "build", "Orders/Orders.csproj", "--no-restore", "-p:UseSharedCompilation=false", "-m:1", "-nr:false"]
         forbidden = run(build, root)
         assert forbidden.returncode != 0, "Forbidden semantic dependency passed"
         for diagnostic in ("error AG001", "error AG002", "error AG004", "Order.cs("):
@@ -98,6 +102,7 @@ def main():
         snapshot.write_text(snapshot.read_text().replace('infrastructureNamespaces="Billing"',
             'infrastructureNamespaces="Billing" allowedInfrastructureNamespaces="Billing"'))
         assert run(build, root).returncode == 0, "AG006 namespace exception did not restore passing build"
+        verify_yaml_consumer(root, version, framework, build, run)
         print(f"Analyzer package passed forbidden/allowed and AG005/AG006 builds with SDK {args.sdk}")
 
 

@@ -8,7 +8,7 @@
       "architectureguardian.reporting": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Core": "[0.1.0, )"
+          "ArchitectureGuardian.Core": "[0.2.0, )"
         }
       }
     }

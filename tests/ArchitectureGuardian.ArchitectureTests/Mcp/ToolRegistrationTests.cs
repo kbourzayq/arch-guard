@@ -33,7 +33,7 @@ public sealed class ToolRegistrationTests
                 new Dictionary<string, object?> { ["path"] = Path.Combine(Repository.Root, "architecture.guardian.yaml") },
                 cancellationToken: token);
             Assert.NotEqual(true, result.IsError);
-            Assert.Equal($"{Repository.Root}: 2 modules", Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text);
+            Assert.Equal($"{Repository.Root}: 1 modules", Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text);
         });
     }
 

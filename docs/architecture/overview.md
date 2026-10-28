@@ -15,8 +15,9 @@ records the decisions and constraints behind them.
 | Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG006 module/layer/cycle/implementation/reference evaluation | Extended rules |
 | Analysis | `AnalysisService<TContext>` over prepared contexts; shared CLI/MCP `SolutionAnalysisService`; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization, dependency extraction and full-context Git comparison | Additional input adapters |
 | CLI | System.CommandLine help/version, `scan`, `baseline update`, `inspect`, `explain` and trusted `load`; JSON/SARIF output; installable `archguard` tool | Additional commands |
-| Configuration | Strict v1 YAML loading through `IPolicyLoader`, structural and reference validation | Additional policy features |
-| Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, AdditionalFiles snapshot, labeled cross-engine parity | Extended rules |
+| Policy | Portable strict YAML v1 parsing, declaration positions and source-shared selectors/contracts | Additional policy features |
+| Configuration | File loading through `IPolicyLoader` and adaptation from portable policy documents into Core | Additional policy features |
+| Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, shared YAML / legacy XML, build metadata and labeled cross-engine parity | Extended rules |
 | MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and `analyze_changes` with full base/candidate comparison | Report export |
 | Reporting | JSON v1 and SARIF 2.1.0 serialization, portable locations and atomic file output; depends only on Core | Additional formats |
 | Quality gates | Inclusive severity threshold, explicit baselines and new-violation gates; noncompleted coverage always fails | — |
@@ -35,7 +36,8 @@ flowchart LR
     Cli["ArchitectureGuardian.Cli<br/>Arguments and composition<br/>Console and exit codes"]
     Analysis["ArchitectureGuardian.Analysis<br/>Orchestration, workspace loading, normalization and extraction"]
     Core["ArchitectureGuardian.Core<br/>Neutral contracts and metadata<br/>Pure policy"]
-    Configuration["ArchitectureGuardian.Configuration<br/>YAML parsing and validation"]
+    Configuration["ArchitectureGuardian.Configuration<br/>File loading and Core adaptation"]
+    Policy["ArchitectureGuardian.Policy<br/>netstandard2.0 strict YAML reader"]
 
     Mcp["ArchitectureGuardian.Mcp<br/>Stdio protocol and read-only application composition"]
     Mcp --> Configuration
@@ -46,7 +48,9 @@ flowchart LR
     Reporting --> Core
     Analysis --> Core
     Configuration --> Core
-    Analyzers["ArchitectureGuardian.Analyzers<br/>Host compilation and AdditionalFiles<br/>Source-links pure Core semantics; no project references"]
+    Configuration --> Policy
+    Analyzers["ArchitectureGuardian.Analyzers<br/>Host compilation and AdditionalFiles<br/>Source-links pure Core semantics"]
+    Analyzers --> Policy
 ```
 
 Core uses only the .NET base library. It performs no file, network or process access
@@ -55,7 +59,9 @@ technology-specific inputs into neutral facts before invoking rules. CLI can con
 Core contracts through its transitive reference to Core. Reporting depends only on
 Core and uses System.Text.Json from the base library; CLI composes it after analysis
 and gate evaluation. Neither Core nor Analysis references Reporting.
-Configuration depends only on Core and keeps YamlDotNet outside the domain. CLI
+Configuration depends on Core and the portable Policy reader. Policy owns
+YamlDotNet and source-links neutral declarations and project selectors with a
+compiler-specific namespace; Core remains free of adapter/project/package references. CLI
 references Configuration and Analysis to compose policy-driven commands; its
 System.CommandLine package stays outside the shared services. MCP references
 Configuration for its injectable policy loader and Analysis for trusted repository
@@ -111,9 +117,10 @@ nested implementation helpers stay with their owner.
 | Analysis | `Repositories` | Workspace-to-Core normalization and policy ownership composition |
 | Analysis | `Dependencies` | Evaluated reference and semantic dependency extraction with source evidence |
 | Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
-| Configuration | `Yaml` | YAML parsing and loading |
+| Policy | `Documents` / project root | Portable parsing, validation and source positions |
+| Configuration | `Yaml` | File loading and Core adaptation |
 | Configuration | `Validation` | Configuration error contracts with source positions |
-| Analyzers | `Policies` / project root | Compiler snapshot validation / compilation-local semantic diagnostics |
+| Analyzers | `Policies` / project root | YAML / legacy XML validation and observed ownership / compilation-local semantic diagnostics |
 | MCP | `Hosting` / `Tools` / project root | SDK registration and workspace options / bounded architecture, rule and analysis schemas and tools / host bootstrap |
 | Reporting | Project root | JSON/SARIF serialization and atomic report-file publication |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |

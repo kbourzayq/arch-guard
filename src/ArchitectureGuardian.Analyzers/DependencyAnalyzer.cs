@@ -6,6 +6,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
+using ArchitectureGuardian.Policy;
 
 namespace ArchitectureGuardian.Analyzers;
 
@@ -53,17 +55,30 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
             try
             {
                 var files = start.Options.AdditionalFiles.Where(file =>
-                    Path.GetFileName(file.Path) == CompilerPolicy.FileName).ToArray();
+                    Path.GetFileName(file.Path) is CompilerPolicy.FileName or CompilerPolicy.YamlFileName).ToArray();
                 if (files.Length != 1)
                 {
-                    throw new ArgumentException("Supply exactly one " + CompilerPolicy.FileName + " as an AdditionalFile.");
+                    throw new ArgumentException("Supply exactly one architecture.guardian.yaml (or a legacy architecture.guardian.compiler.xml) as an AdditionalFile; do not combine formats.");
                 }
 
-                policy = CompilerPolicy.Load(files[0], start.CancellationToken);
+                policy = Path.GetFileName(files[0].Path) == CompilerPolicy.YamlFileName
+                    ? CompilerPolicy.LoadYaml(files[0], start.Options, start.Compilation, start.CancellationToken)
+                    : CompilerPolicy.Load(files[0], start.CancellationToken);
                 if (!policy.Contains(source))
                 {
                     throw new ArgumentException("Current assembly '" + source + "' has no ownership mapping.");
                 }
+            }
+            catch (PolicyReadException exception)
+            {
+                var file = start.Options.AdditionalFiles.Single(item => Path.GetFileName(item.Path) == CompilerPolicy.YamlFileName);
+                var text = file.GetText(start.CancellationToken)!;
+                var line = Math.Min(exception.Position.Line - 1, text.Lines.Count - 1);
+                var column = Math.Min(exception.Position.Column - 1, text.Lines[line].Span.Length);
+                var position = new LinePosition(line, column);
+                var location = Location.Create(file.Path, new TextSpan(text.Lines[line].Start + column, 0), new LinePositionSpan(position, position));
+                start.RegisterCompilationEndAction(end => end.ReportDiagnostic(Diagnostic.Create(Configuration, location, exception.Message)));
+                return;
             }
             catch (Exception exception) when (exception is ArgumentException or XmlException or System.IO.IOException or UnauthorizedAccessException)
             {
@@ -112,17 +127,17 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
                 foreach (var restriction in policy.Restrictions(source, assembly.Name, namespaceName))
                 {
                     context.CancellationToken.ThrowIfCancellationRequested();
-                    context.ReportDiagnostic(Diagnostic.Create(ForbiddenReferences, context.Node.GetLocation(), source,
+                    Report(context, policy, ForbiddenReferences, source,
                         targetSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name,
-                        restriction.Scope, restriction.Kind, restriction.Name));
+                        restriction.Scope, restriction.Kind, restriction.Name);
                 }
 
                 foreach (var restriction in policy.InfrastructureRestrictions(source, assembly.Name, namespaceName))
                 {
                     context.CancellationToken.ThrowIfCancellationRequested();
-                    context.ReportDiagnostic(Diagnostic.Create(DomainInfrastructure, context.Node.GetLocation(), source,
+                    Report(context, policy, DomainInfrastructure, source,
                         targetSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name,
-                        restriction.Scope, restriction.Kind, restriction.Name));
+                        restriction.Scope, restriction.Kind, restriction.Name);
                 }
             }
 
@@ -140,10 +155,31 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
                     DependencySemantics.LayerId => Layers,
                     _ => Implementations,
                 };
-                context.ReportDiagnostic(Diagnostic.Create(descriptor, context.Node.GetLocation(), violation.Source, violation.Target,
-                    source, targetSymbol!.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name));
+                Report(context, policy, descriptor, violation.Source, violation.Target,
+                    source, targetSymbol!.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat), assembly.Name);
             }
         }
+    }
+
+    private static void Report(SyntaxNodeAnalysisContext context, CompilerPolicy policy, DiagnosticDescriptor descriptor, params object[] arguments)
+    {
+        if (!policy.IsSelected(descriptor.Id)) { return; }
+        var severity = policy.Severity(descriptor.Id);
+        var provider = context.Compilation.Options.SyntaxTreeOptionsProvider;
+        if (provider is not null && (provider.TryGetDiagnosticValue(context.Node.SyntaxTree, descriptor.Id, context.CancellationToken, out var configured)
+            || provider.TryGetGlobalDiagnosticValue(descriptor.Id, context.CancellationToken, out configured)))
+        {
+            if (configured == ReportDiagnostic.Suppress) { return; }
+            severity = configured switch
+            {
+                ReportDiagnostic.Error => DiagnosticSeverity.Error,
+                ReportDiagnostic.Warn => DiagnosticSeverity.Warning,
+                ReportDiagnostic.Info => DiagnosticSeverity.Info,
+                ReportDiagnostic.Hidden => DiagnosticSeverity.Hidden,
+                _ => severity,
+            };
+        }
+        context.ReportDiagnostic(Diagnostic.Create(descriptor, context.Node.GetLocation(), severity, null, null, arguments));
     }
 
     private static string NamespaceName(INamespaceSymbol? symbol)

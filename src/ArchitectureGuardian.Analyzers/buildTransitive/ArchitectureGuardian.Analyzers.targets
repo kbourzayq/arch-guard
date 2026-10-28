@@ -1,0 +1,35 @@
+<Project>
+  <!-- Export evaluated names even when an IDE binds project references in memory. -->
+  <Target Name="ArchitectureGuardianAnnotateProjectOutput" AfterTargets="GetTargetPathWithTargetPlatformMoniker">
+    <ItemGroup>
+      <TargetPathWithTargetPlatformMoniker>
+        <ArchitectureGuardianAssemblyName>$(AssemblyName)</ArchitectureGuardianAssemblyName>
+      </TargetPathWithTargetPlatformMoniker>
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="MSBuildProjectFullPath" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ArchitectureGuardianReferencePath" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ArchitectureGuardianAssemblyName" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="ArchitectureGuardianAssemblyIdentity" />
+  </ItemGroup>
+
+  <Target Name="ArchitectureGuardianProjectMetadata"
+          BeforeTargets="GenerateMSBuildEditorConfigFileCore"
+          DependsOnTargets="FindReferenceAssembliesForReferences">
+    <ItemGroup>
+      <_ArchitectureGuardianYaml Include="@(AdditionalFiles)" Condition="'%(Filename)%(Extension)' == 'architecture.guardian.yaml'" />
+      <_ArchitectureGuardianReference Include="@(ReferencePathWithRefAssemblies)"
+                                      Condition="'@(_ArchitectureGuardianYaml)' != '' and '%(ReferencePathWithRefAssemblies.MSBuildSourceProjectFile)' != ''" />
+      <!-- Cold IDE builds can bind source projects before their DLLs exist. -->
+      <_ArchitectureGuardianReference Include="@(_ResolvedProjectReferencePaths)"
+                                      Condition="'@(_ArchitectureGuardianYaml)' != '' and '%(_ResolvedProjectReferencePaths.MSBuildSourceProjectFile)' != '' and !Exists('%(_ResolvedProjectReferencePaths.FullPath)')" />
+      <AdditionalFiles Include="@(_ArchitectureGuardianReference->'%(MSBuildSourceProjectFile)')">
+        <ArchitectureGuardianReferencePath>%(_ArchitectureGuardianReference.FullPath)</ArchitectureGuardianReferencePath>
+        <ArchitectureGuardianAssemblyName>%(_ArchitectureGuardianReference.ArchitectureGuardianAssemblyName)</ArchitectureGuardianAssemblyName>
+        <ArchitectureGuardianAssemblyIdentity>%(_ArchitectureGuardianReference.FusionName)</ArchitectureGuardianAssemblyIdentity>
+      </AdditionalFiles>
+    </ItemGroup>
+  </Target>
+</Project>

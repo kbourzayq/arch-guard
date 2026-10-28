@@ -55,15 +55,17 @@ Reference the analyzer in participating projects:
 
 ```xml
 <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.2.0" PrivateAssets="all" />
-<AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />
+<AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
 ```
 
 Place these items in an `ItemGroup` in a root props file, or adapt paths for your
 project. Central package management declares the version in `Directory.Packages.props`.
-Provide an XML ownership snapshot mapping every participating assembly and configure
-severities through `.editorconfig`. The analyzer reads XML, not YAML; missing or
-invalid configuration produces AG000. Installing the package alone does not
-configure architecture checks.
+Use the same YAML v1 policy as CLI/MCP. Packaged MSBuild targets supply evaluated
+project/assembly metadata. YAML supplies selection and default severities;
+`.editorconfig` can override reporting for selected rules. Missing, duplicate or
+invalid configuration produces AG000. XML remains available for one transition
+release; do not configure both formats. YAML requires a build/release containing
+issue #83; published `0.2.0` still uses the legacy XML setup linked below.
 
 The analyzer checks AG001, AG002 and AG004–AG006 in each compilation, without
 whole-solution coverage or AG003 cycle checks. Retain an independent CLI gate.

@@ -1,4 +1,8 @@
+#if PORTABLE_POLICY
+namespace ArchitectureGuardian.Policy.Documents;
+#else
 namespace ArchitectureGuardian.Core.Policies;
+#endif
 
 /// <summary>Declares AG006 technology restrictions and namespace exceptions for one source layer.</summary>
 public sealed class DomainInfrastructurePolicy

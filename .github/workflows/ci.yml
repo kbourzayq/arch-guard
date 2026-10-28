@@ -46,6 +46,8 @@ jobs:
           python-version: '3.x'
       - name: Install report schema validator
         run: python -m pip install jsonschema==4.26.0
+      - name: Validate this repository with the current analyzer and all six CLI rules
+        run: python eng/validate-repository.py
       - name: Validate JSON and SARIF report contracts
         run: python eng/test-reports.py
       - name: Verify independent CI gates and failure artifacts

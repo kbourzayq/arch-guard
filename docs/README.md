@@ -21,7 +21,8 @@ and the implementation contracts behind the installed tools.
 | [CLI](cli.md) | Commands, options, output and gate behavior |
 | [MCP](mcp.md) | Installed-server setup for Codex, Claude Code and Copilot CLI; requests and responses |
 | [Agent workflow](agent-workflow.md) | Install/invoke the portable skill, integrate AGENTS.md and validate corrections |
-| [Compiler analyzer](compiler-analyzer.md) | Package reference, XML snapshot, severities and host compatibility |
+| [Manual validation](manual-validation.md) | Run this checkout with its current analyzer and six-rule CLI gate |
+| [Compiler analyzer](compiler-analyzer.md) | Shared YAML, legacy XML migration, severities and host compatibility |
 | [Policy](policy.md) | YAML v1, ownership, contracts, layers, rule selection and editor schema |
 | [Rule catalog](rule-catalog.md) | AG001–AG006 examples, evidence, remediation and limits |
 | [Baselines](baselines.md) | Reviewed accepted debt, stable matching and new-finding gates |

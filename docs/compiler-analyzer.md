@@ -2,12 +2,13 @@
 
 Add architecture feedback to C# compilation with `ArchitectureGuardian.Analyzers`.
 It targets `netstandard2.0`, uses the host's current compilation and reads an explicit
-XML ownership snapshot supplied as an AdditionalFile.
+YAML policy supplied as an AdditionalFile, shared with CLI and MCP.
+Legacy XML snapshots remain supported for one transition release.
 
 The analyzer checks AG001, AG002, AG004, AG005 and AG006. It shares their permission
 semantics with the solution engine, but reports bound type/member uses at source
 locations rather than grouping evidence by project pair. Counts and diagnostic
-identities are not interchangeable across engines. It does not load YAML, restore
+identities are not interchangeable across engines. It does not restore
 projects, open a workspace or establish whole-solution cycle coverage.
 
 Keep CLI or MCP solution scans as the full architecture gate. See
@@ -30,13 +31,14 @@ absolute package-directory path to shared configuration.
 
 In the consuming repository, add the following to a root `Directory.Build.props`
 (or merge the ItemGroup into your existing file). The package applies to all
-participating projects; every such assembly needs a mapping in the snapshot.
+participating projects. YAML project selectors determine ownership; packaged build
+targets supply evaluated assembly identities and paths.
 
 ```xml
 <Project>
   <ItemGroup>
     <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.2.0" PrivateAssets="all" />
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
   </ItemGroup>
 </Project>
 ```
@@ -45,8 +47,10 @@ If the consuming repository uses central package management, declare
 `<PackageVersion Include="ArchitectureGuardian.Analyzers" Version="0.2.0" />` in
 `Directory.Packages.props` and omit `Version` from `PackageReference` above.
 
-Create `architecture.guardian.compiler.xml` alongside that props file using the
-[snapshot format below](#compiler-policy-snapshot). Authorize the consuming
+Use the same `architecture.guardian.yaml` as your CLI/MCP scans. YAML support
+requires a build containing issue #83 or a release including it; published `0.2.0`
+consumers should use the [legacy snapshot setup](#compiler-policy-snapshot).
+Authorize the consuming
 repository's build logic and run from its root, replacing `MyApp.slnx`:
 
 ```sh
@@ -60,14 +64,52 @@ A successful configured build has no AG000 or analyzer-load errors; architecture
 findings follow the severities you select. Package installation alone is not a
 configured check.
 
-Set [reporting severity](#reporting-and-scope) in the consuming repository's
-`.editorconfig`; CLI YAML severity settings do not configure compiler diagnostics.
+YAML supplies rule selection and default severity for supported compiler rules.
+Optional `.editorconfig` settings override reporting severity or suppress selected rules.
 
-The package contains only `analyzers/dotnet/cs/ArchitectureGuardian.Analyzers.dll`;
-it has no runtime library or NuGet dependencies. Roslyn assemblies come from the host.
+The package bundles the analyzer, portable policy reader and YamlDotNet assemblies
+under `analyzers/dotnet/cs`, plus `buildTransitive` metadata targets. All compiler
+dependencies support .NET Standard 2.0; no CLI or .NET 10 runtime is required.
+Roslyn assemblies come from the host.
 `PrivateAssets="all"` prevents unintended distribution to consumers of your own package.
 
+## YAML ownership and migration
+
+Include exactly one explicit `architecture.guardian.yaml`. Do not include both
+YAML and XML or duplicate policy files: these produce AG000. Invalid YAML never
+falls back to XML. No upward policy search or automatic CLI invocation occurs.
+
+The package forwards the current project path and resolved direct/transitive
+project-reference metadata through the SDK's generated analyzer configuration.
+Referenced project files appear as additional inputs carrying evaluated assembly
+names/identities and reference paths; the analyzer reads their metadata, not their
+XML content. Install the package through root props in participating projects so
+clean design-time project references also export their evaluated names. Custom
+`AssemblyName`, configuration/framework-specific outputs and in-memory references
+retain project-path ownership. Build artifacts stay under the normal `obj/` folders.
+
+Each observed project must match exactly one module and layer and at most one
+whole-project contract relative to the YAML directory. Missing/conflicting ownership
+produces AG000. Full-inventory checks, such as unused selectors, remain with CLI/MCP.
+Framework and package references have no project ownership, but AG005/AG006 still
+check their bound symbol uses. The analyzer does not open a workspace or evaluate
+project files. Custom compiler hosts must provide equivalent analyzer options.
+
+To migrate, replace the XML `AdditionalFiles` entry with YAML, remove the maintained
+snapshot when unused, and review existing `.editorconfig` overrides. Omitted YAML
+rules are inactive even if `.editorconfig` supplies a severity. AG003 is accepted in
+the shared document but evaluated only by solution scans; `gate.failOn` does not
+change compiler reporting. Prefer YAML for new installations.
+
+The first minor release containing YAML support retains XML for one transition
+release. XML removal is planned for the following minor release.
+
 ## Compiler policy snapshot
+
+This is the legacy format, including the setup for published `0.2.0`. Use
+`<AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />`
+with the analyzer package instead of the YAML entry above. XML mode preserves its
+existing `.editorconfig`-based reporting behavior during the transition release.
 
 Commit the compiler snapshot alongside the authoritative `architecture.guardian.yaml`.
 Maintain it explicitly from the YAML's resolved project inventory:
@@ -154,11 +196,13 @@ when evaluated ownership or assembly names differ.
   rule/use/restriction callbacks are not repeated, while distinct restrictions retain
   separate diagnostics. See the [deduplication policy](rule-catalog.md#ag006-domain-infrastructure).
 - AG000 is an operational error for a missing, unreadable, duplicate or invalid
-  snapshot or an unmapped current assembly. It is outside the canonical rule catalog
+  policy or an unmapped current assembly. It is outside the canonical rule catalog
   and does not represent an architecture violation. Do not suppress it to claim coverage.
 
-Configure reporting through normal `.editorconfig` settings; the analyzer does not
-read the YAML rule severities or apply the solution's severity gate:
+YAML selects the supported compiler rules and their default severities. Normal
+`.editorconfig` settings can override severity or suppress selected rules; XML mode
+continues to use the warning defaults and `.editorconfig` settings. Neither mode
+applies the solution severity gate:
 
 ```ini
 [*.cs]
@@ -190,17 +234,17 @@ pattern methods. Bound explicit names within those expressions are still checked
 Use solution scanning for the broader semantic evidence described in the
 [dependency graph guide](dependency-graph.md#semantic-reference-scope).
 
-AG001/AG002/AG004 require assemblies in the snapshot. Other references, including framework
+AG001/AG002/AG004 require project ownership from YAML/build metadata or legacy XML. Other references, including framework
 and external package assemblies, are ignored by those ownership rules; AG005 and AG006 check
-explicit restrictions against all bound target assemblies. Missing entries for referenced repository
-assemblies cannot be discovered from one compilation. Unused project references are
+explicit restrictions against all bound target assemblies. Missing or ambiguous observed project ownership produces AG000 in YAML mode.
+Legacy XML cannot discover missing referenced-assembly entries. Unused project references are
 not checked. Compiler errors retain the host's own diagnostics, and unresolved symbols
 do not establish a dependency. An empty analyzer result establishes neither complete
 repository coverage nor compliance with AG003.
 
-Each compilation loads its own snapshot once and concurrent callbacks only read it.
+Each compilation loads its own policy once and concurrent callbacks only read it.
 There is no static mutable policy cache. Cancellation is forwarded to AdditionalText
-and semantic queries and observed during snapshot validation and semantic evaluation.
+and semantic queries and observed during policy validation and semantic evaluation.
 Cancellation is propagated, rather than converted into a clean result or AG000.
 
 ## Host compatibility and validation

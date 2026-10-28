@@ -1,0 +1,19 @@
+<Project>
+  <!-- Opt in after staging a stable analyzer snapshot; never load a DLL that this build overwrites. -->
+  <PropertyGroup>
+    <ArchitectureGuardianSelfAnalyzerDirectory>$(MSBuildThisFileDirectory)artifacts/self-analysis/</ArchitectureGuardianSelfAnalyzerDirectory>
+  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)src/ArchitectureGuardian.Analyzers/buildTransitive/ArchitectureGuardian.Analyzers.targets"
+          Condition="'$(ArchitectureGuardianSelfAnalysis)' == 'true'" />
+  <ItemGroup Condition="'$(ArchitectureGuardianSelfAnalysis)' == 'true'">
+    <Analyzer Include="$(ArchitectureGuardianSelfAnalyzerDirectory)ArchitectureGuardian.Analyzers.dll" />
+    <Analyzer Include="$(ArchitectureGuardianSelfAnalyzerDirectory)ArchitectureGuardian.Policy.dll" />
+    <Analyzer Include="$(ArchitectureGuardianSelfAnalyzerDirectory)YamlDotNet.dll" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
+  </ItemGroup>
+  <Target Name="ArchitectureGuardianRequireSelfAnalyzer" BeforeTargets="CoreCompile"
+          Condition="'$(ArchitectureGuardianSelfAnalysis)' == 'true'">
+    <Error Condition="!Exists('$(ArchitectureGuardianSelfAnalyzerDirectory)ArchitectureGuardian.Analyzers.dll')"
+           Text="Stage the current analyzer first by running python3 eng/validate-repository.py." />
+  </Target>
+</Project>

@@ -120,7 +120,7 @@ dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-rest
 
 This produces `ArchitectureGuardian.Analyzers.0.2.0.nupkg` with the current source
 version. Use `artifacts/analyzers` as a local package source in the consuming
-repository. The analyzer also needs an XML ownership policy; installing the package
+repository. The analyzer also needs an explicit YAML policy (or legacy XML); installing the package
 alone does not configure architecture checks. Follow the complete
 [analyzer setup](compiler-analyzer.md#install-and-distribute-policy).
 

@@ -188,6 +188,18 @@ public sealed class DependencyGraphBuilder
                     continue;
                 }
 
+                // Empty array dimensions and intrinsic constraints have error-type sentinels in TypeInfo,
+                // but do not reference unresolved types. Bound element types and escaped names still run.
+                if (node is OmittedArraySizeExpressionSyntax
+                    || node is IdentifierNameSyntax { Parent: TypeConstraintSyntax constraint } constraintName
+                    && constraint.Parent is TypeParameterConstraintClauseSyntax clause
+                    && semantic.GetSymbolInfo(clause.Name, _cancellationToken).Symbol is ITypeParameterSymbol parameter
+                    && (constraintName.Identifier.Text == "notnull" && parameter.HasNotNullConstraint
+                        || constraintName.Identifier.Text == "unmanaged" && parameter.HasUnmanagedTypeConstraint))
+                {
+                    continue;
+                }
+
                 // nameof is represented as invocation syntax, but its intrinsic callee has an error-type
                 // sentinel rather than a referenced type. Keep scanning the bound argument normally.
                 if (node is IdentifierNameSyntax

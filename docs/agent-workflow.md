@@ -69,8 +69,8 @@ For Claude, place the same instruction in `CLAUDE.md`; for Copilot, use its
 repository instructions such as `.github/copilot-instructions.md`. Do not duplicate
 module/layer permissions, rule severities or public-contract declarations there.
 Read those values from YAML. If compiler integration is enabled, maintain its
-explicit [XML snapshot](compiler-analyzer.md#compiler-policy-snapshot) from YAML;
-agent instructions do not replace that snapshot.
+shared YAML policy and its [build metadata setup](compiler-analyzer.md). During
+the XML transition, synchronize any still-configured legacy snapshot with YAML.
 
 ## Run the workflow
 

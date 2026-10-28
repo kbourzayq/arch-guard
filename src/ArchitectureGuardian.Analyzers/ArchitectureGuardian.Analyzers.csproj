@@ -5,20 +5,24 @@
     <LangVersion>latest</LangVersion>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IncludeBuildOutput>false</IncludeBuildOutput>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
     <Description>Compiler-hosted architecture dependency diagnostics for C#.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../ArchitectureGuardian.Policy/ArchitectureGuardian.Policy.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
     <!-- Share only pure, portable semantics; never load the net10 solution engine in a compiler host. -->
     <Compile Include="../ArchitectureGuardian.Core/Rules/DependencySemantics.cs" Link="Rules/DependencySemantics.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Rules/ForbiddenReferenceSemantics.cs" Link="Rules/ForbiddenReferenceSemantics.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Rules/DomainInfrastructureSemantics.cs" Link="Rules/DomainInfrastructureSemantics.cs" />
+    <None Include="$(OutputPath)ArchitectureGuardian.Policy.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="$(OutputPath)YamlDotNet.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="buildTransitive/ArchitectureGuardian.Analyzers.targets" Pack="true" PackagePath="buildTransitive" />
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="../../docs/nuget-readme.md" Pack="true" PackagePath="README.md" Visible="false" />
-    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
-    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+    <!-- Microsoft.CodeAnalysis.Analyzers supplies the release files automatically. -->
   </ItemGroup>
 </Project>
