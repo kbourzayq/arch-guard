@@ -56,29 +56,32 @@ restoring inputs:
 dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore -- --list flat
 ```
 
-The checked-in [measured report](reports/analysis-macos-arm64.md) is an unmodified
-copy of BenchmarkDotNet's generated Markdown report. After an intentional new
+The repository preserves the [original report](reports/analysis-macos-arm64.md)
+and the [optimized report](reports/analysis-macos-arm64-optimized.md) as unmodified
+BenchmarkDotNet Markdown exports. See the [before/after analysis](optimizations.md)
+for root causes, validation and remaining bottlenecks. After an intentional new
 measurement, copy the generated report for review:
 
 ```sh
-cp artifacts/performance/results/ArchitectureGuardian.Benchmarks.AnalysisBenchmarks-report-github.md benchmarks/reports/analysis-macos-arm64.md
+cp artifacts/performance/results/ArchitectureGuardian.Benchmarks.AnalysisBenchmarks-report-github.md benchmarks/reports/analysis-macos-arm64-optimized.md
 ```
 
 On PowerShell use `Copy-Item` with the same source and destination paths. Use a
 separate report filename for another OS/architecture. Publish the Markdown with
 the corresponding code change; leave generated HTML, CSV, logs, build outputs and
-copied inputs ignored. There is no automatic upload or custom regression gate. CI builds, formats and
-discovers this project on Linux, Windows and macOS, without collecting timings.
+copied inputs ignored. There is no automatic upload or custom regression gate.
+CI builds, formats and discovers this project on Linux, Windows and macOS, without collecting timings.
 Compare reports on matching hardware/OS/runtime with heavy background work stopped,
 then review performance changes alongside the normal correctness tests.
 
-## Initial measured budgets
+## Current measured budgets
 
 Measured on 28 October 2026 with BenchmarkDotNet 0.15.8, Apple M5 (10 cores),
 macOS 27.0.1, .NET 10.0.13 and SDK 10.0.402. The OS declined high-priority
-scheduling, so measurements used normal process priority. The report includes all
-twelve successful cases. Some short iterations triggered minimum-iteration-time
-warnings; inspect variation as well as the median before drawing conclusions.
+scheduling, so measurements used normal process priority. The current thresholds
+use the optimized report, which includes all twelve successful cases. The original
+report remains available for comparison. Some short iterations triggered
+minimum-iteration-time warnings; inspect variation as well as the median before drawing conclusions.
 
 Latency thresholds are 1.5 × the **reported maximum**, rounded up to whole
 milliseconds. Allocation thresholds are 1.5 × **reported allocated bytes**, rounded
@@ -89,18 +92,18 @@ value above its threshold as a possible regression on comparable hardware.
 
 | Input | Method | Reported max (ms) | Latency budget (ms) | Allocated (MiB/op) | Allocation budget (MiB/op) |
 | --- | --- | ---: | ---: | ---: | ---: |
-| CleanArchitecture | Workspace | 925.762 | 1,389 | 90.5 | 135.7 |
-| CleanArchitecture | Graph | 37.429 | 57 | 24.4 | 36.7 |
-| CleanArchitecture | Rules | 1.269 | 2 | 0.4 | 0.6 |
-| CleanArchitecture | FullScan | 1,009.888 | 1,515 | 115.9 | 173.9 |
-| Generated24x40 | Workspace | 3,289.601 | 4,935 | 618.2 | 927.4 |
-| Generated24x40 | Graph | 2,414.519 | 3,622 | 3,912.6 | 5,868.9 |
-| Generated24x40 | Rules | 154.923 | 233 | 425.4 | 638.1 |
-| Generated24x40 | FullScan | 6,263.774 | 9,396 | 4,964.9 | 7,447.4 |
-| ModularMonolith | Workspace | 963.122 | 1,445 | 90.8 | 136.2 |
-| ModularMonolith | Graph | 45.185 | 68 | 23.7 | 35.6 |
-| ModularMonolith | Rules | 1.339 | 3 | 0.4 | 0.7 |
-| ModularMonolith | FullScan | 986.152 | 1,480 | 115.3 | 173.0 |
+| CleanArchitecture | Workspace | 976.605 | 1,465 | 90.5 | 135.8 |
+| CleanArchitecture | Graph | 31.792 | 48 | 6.0 | 9.0 |
+| CleanArchitecture | Rules | 1.059 | 2 | 0.3 | 0.6 |
+| CleanArchitecture | FullScan | 969.212 | 1,454 | 97.5 | 146.2 |
+| Generated24x40 | Workspace | 3,247.811 | 4,872 | 617.2 | 925.8 |
+| Generated24x40 | Graph | 680.842 | 1,022 | 698.4 | 1,047.7 |
+| Generated24x40 | Rules | 132.320 | 199 | 111.3 | 167.0 |
+| Generated24x40 | FullScan | 4,291.853 | 6,438 | 1,428.1 | 2,142.2 |
+| ModularMonolith | Workspace | 956.810 | 1,436 | 90.5 | 135.8 |
+| ModularMonolith | Graph | 26.839 | 41 | 5.8 | 8.8 |
+| ModularMonolith | Rules | 1.029 | 2 | 0.3 | 0.6 |
+| ModularMonolith | FullScan | 987.536 | 1,482 | 97.3 | 146.0 |
 
 These are local investigation thresholds, not universal CI or capacity guarantees.
 Managed allocations measure allocation traffic during one operation; they do not

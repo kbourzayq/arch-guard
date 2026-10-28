@@ -12,14 +12,39 @@ internal static class CanonicalData
     /// <returns>A concatenation of invariant length-prefixed values, with a distinct marker for null.</returns>
     public static string Encode(params string?[] values)
     {
-        var builder = new StringBuilder();
+        var length = 0;
         foreach (var value in values)
         {
             // String lengths count UTF-16 code units; the complete representation is later hashed as UTF-8.
-            builder.Append(value is null ? "-1:" : value.Length.ToString(CultureInfo.InvariantCulture) + ":" + value);
+            if (value is null)
+            {
+                length = checked(length + 3);
+                continue;
+            }
+
+            var digits = 1;
+            for (var remaining = value.Length; remaining >= 10; remaining /= 10) { digits++; }
+            length = checked(length + digits + 1 + value.Length);
         }
 
-        return builder.ToString();
+        // Write the existing v1 representation once, without builders, prefix strings or copies of nested values.
+        return string.Create(length, values, static (destination, items) =>
+        {
+            foreach (var value in items)
+            {
+                if (value is null)
+                {
+                    "-1:".AsSpan().CopyTo(destination);
+                    destination = destination[3..];
+                    continue;
+                }
+
+                value.Length.TryFormat(destination, out var written, provider: CultureInfo.InvariantCulture);
+                destination[written] = ':';
+                value.AsSpan().CopyTo(destination[(written + 1)..]);
+                destination = destination[(written + 1 + value.Length)..];
+            }
+        });
     }
 
     /// <summary>Produces a reproducible SHA-256 identity without process-dependent hash seeds.</summary>

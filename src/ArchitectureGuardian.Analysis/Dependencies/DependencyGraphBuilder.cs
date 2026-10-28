@@ -70,7 +70,8 @@ public sealed class DependencyGraphBuilder
         private readonly string _root;
         private readonly CancellationToken _cancellationToken;
         private readonly List<DependencyNode> _nodes = [];
-        private readonly List<DependencyEdge> _edges = [];
+        private readonly Dictionary<(DependencyNode Source, DependencyNode Target), HashSet<DependencyEvidence>> _edges = [];
+        private readonly Dictionary<(DependencyKind Kind, string Identity, string Name, string? Project), DependencyNode> _nodeCache = [];
         private readonly Dictionary<ProjectId, Context> _contexts = [];
 
         internal Extraction(Solution solution, RepositoryModel repository, string root,
@@ -96,7 +97,8 @@ public sealed class DependencyGraphBuilder
 
         internal HashSet<AnalysisIssue> Issues { get; }
 
-        internal DependencyGraph Graph() => new DependencyGraph(_nodes, _edges).Aggregate(_repository);
+        internal DependencyGraph Graph() => new DependencyGraph(_nodes,
+            _edges.Select(pair => new DependencyEdge(pair.Key.Source, pair.Key.Target, pair.Value))).Aggregate(_repository);
 
         internal async Task RunAsync()
         {
@@ -496,8 +498,8 @@ public sealed class DependencyGraphBuilder
                 }
 
                 var metadataName = (namespaceName.Length == 0 ? "" : namespaceName + ".") + string.Join("+", names);
-                targetType = new(DependencyKind.Type, targetAssembly.Id + "/" + metadataName, metadataName);
-                targetNamespace = new(DependencyKind.Namespace, targetAssembly.Id + "/" + namespaceName, namespaceName);
+                targetType = Node(DependencyKind.Type, targetAssembly.Id + "/" + metadataName, metadataName);
+                targetNamespace = Node(DependencyKind.Namespace, targetAssembly.Id + "/" + namespaceName, namespaceName);
             }
 
             var sourceType = origin as INamedTypeSymbol ?? origin?.ContainingType;
@@ -562,24 +564,36 @@ public sealed class DependencyGraphBuilder
             if (source.Id != target.Id || evidence.TargetSymbol is not null &&
                 source.Kind is DependencyKind.Assembly or DependencyKind.Namespace)
             {
-                _edges.Add(new(source, target, [evidence]));
+                // One semantic use appears at several levels and may be discovered by multiple Roslyn paths.
+                // Keep every distinct origin, but freeze/hash each endpoint pair only when materializing the graph.
+                var pair = (source, target);
+                if (!_edges.TryGetValue(pair, out var origins)) { _edges.Add(pair, origins = []); }
+                origins.Add(evidence);
             }
         }
 
-        private static DependencyNode ProjectNode(RepositoryProject project) =>
-            new(DependencyKind.Project, project.Id, project.Name, project.Id);
+        private DependencyNode ProjectNode(RepositoryProject project) =>
+            Node(DependencyKind.Project, project.Id, project.Name, project.Id);
 
-        private static DependencyNode AssemblyNode(RepositoryProject project) => new(DependencyKind.Assembly,
+        private DependencyNode AssemblyNode(RepositoryProject project) => Node(DependencyKind.Assembly,
             project.Assembly.Id, project.Assembly.Name, project.Id);
 
-        private static DependencyNode NamespaceNode(RepositoryNamespace ns) =>
-            new(DependencyKind.Namespace, ns.Id, ns.Name, ns.ProjectPath);
+        private DependencyNode NamespaceNode(RepositoryNamespace ns) =>
+            Node(DependencyKind.Namespace, ns.Id, ns.Name, ns.ProjectPath);
 
-        private static DependencyNode TypeNode(RepositoryType type) =>
-            new(DependencyKind.Type, type.Id, type.MetadataName, type.ProjectPath);
+        private DependencyNode TypeNode(RepositoryType type) =>
+            Node(DependencyKind.Type, type.Id, type.MetadataName, type.ProjectPath);
 
-        private static DependencyNode ExternalAssemblyNode(IAssemblySymbol assembly) => new(DependencyKind.Assembly,
+        private DependencyNode ExternalAssemblyNode(IAssemblySymbol assembly) => Node(DependencyKind.Assembly,
             "external:" + assembly.Identity, assembly.Identity.ToString());
+
+        private DependencyNode Node(DependencyKind kind, string identity, string name, string? project = null)
+        {
+            // Scope interning to this extraction and include all endpoint data, so conflicting identities still fail validation.
+            var key = (kind, identity, name, project);
+            if (!_nodeCache.TryGetValue(key, out var node)) { _nodeCache.Add(key, node = new(kind, identity, name, project)); }
+            return node;
+        }
 
         /// <summary>Pairs one compiler snapshot with its normalized declaration identities.</summary>
         private sealed class Context(

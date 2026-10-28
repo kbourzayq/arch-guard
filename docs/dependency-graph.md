@@ -123,6 +123,14 @@ and type endpoints are scoped to that identity. Edge IDs hash their directional
 endpoint IDs independently of evidence. Duplicate edges merge all distinct facts in
 canonical ordinal order. Conflicting node data for the same identity is rejected.
 
+Extraction accumulates distinct origins by endpoint pair before materializing
+immutable edges. An extraction-local cache reuses nodes with identical kind,
+identity, display name and project ownership; conflicting data still reaches graph
+validation. Both structures live for one extraction, with no cross-scan cache.
+Graph snapshots can reuse immutable edges when no merging is required, and evidence
+is deduplicated before canonical sorting. These allocation reductions preserve
+all origins, ordering, coverage and v1 diagnostic identities.
+
 Authored evidence paths are relative to the policy directory with `/` separators;
 linked sources can retain `..`. Generated evidence paths use
 `generated/PROJECT/GENERATED_FILE_ID/HINT`, where the generated-file ID comes from

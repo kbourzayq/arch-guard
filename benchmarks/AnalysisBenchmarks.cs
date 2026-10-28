@@ -25,7 +25,7 @@ public class AnalysisBenchmarks
     private AnalysisResult? _lastAnalysis;
     private DependencyBuildResult? _lastGraph;
 
-    /// <summary>Gets or sets the reproducible repository shape supplied by the preparation script.</summary>
+    /// <summary>Gets or sets the reproducible repository shape prepared by the C# entry point.</summary>
     [Params("CleanArchitecture", "ModularMonolith", "Generated24x40")]
     public string Input { get; set; } = "CleanArchitecture";
 
