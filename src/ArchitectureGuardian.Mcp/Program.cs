@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Analysis.Telemetry;
 using ArchitectureGuardian.Mcp.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,6 +11,7 @@ internal static class Program
 {
     public static async Task Main(string[] args)
     {
+        using var telemetry = LocalTelemetryListener.FromEnvironment(Console.Error);
         var builder = Host.CreateApplicationBuilder(args);
         builder.Logging.AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace);
         builder.Services.AddArchitectureGuardianMcp().WithStdioServerTransport();

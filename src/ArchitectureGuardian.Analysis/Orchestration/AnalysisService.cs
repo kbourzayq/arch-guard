@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Analysis.Telemetry;
 using ArchitectureGuardian.Core.Analysis;
 using ArchitectureGuardian.Core.Diagnostics;
 using ArchitectureGuardian.Core.Rules;
@@ -48,6 +49,10 @@ public sealed class AnalysisService<TContext> : IAnalysisService<TContext> where
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="request"/> is null.</exception>
     public async Task<AnalysisResult> AnalyzeAsync(AnalysisRequest<TContext> request, CancellationToken cancellationToken = default)
+        => await AnalysisTelemetry.MeasureAsync("rules", () => AnalyzeCoreAsync(request, cancellationToken),
+            result => result.Status, cancellationToken).ConfigureAwait(false);
+
+    private async Task<AnalysisResult> AnalyzeCoreAsync(AnalysisRequest<TContext> request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         var diagnostics = new List<Diagnostic>();
@@ -72,7 +77,9 @@ public sealed class AnalysisService<TContext> : IAnalysisService<TContext> where
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var evaluation = await rule.EvaluateAsync(request.Context, cancellationToken).ConfigureAwait(false)
+                var evaluation = await AnalysisTelemetry.MeasureAsync("rule", () => rule.EvaluateAsync(request.Context, cancellationToken),
+                        result => cancellationToken.IsCancellationRequested ? AnalysisStatus.Cancelled : result?.Status ?? AnalysisStatus.Failed,
+                        cancellationToken, rule.Descriptor.Id).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("A rule returned no evaluation result.");
                 // Reject misattributed findings before applying another rule's policy or publishing its identity.
                 if (evaluation.Violations.Any(violation => !StringComparer.Ordinal.Equals(violation.Rule.Id, rule.Descriptor.Id)))

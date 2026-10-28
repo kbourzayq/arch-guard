@@ -1,5 +1,6 @@
-using ArchitectureGuardian.Analysis.Dependencies;
 using ArchitectureGuardian.Analysis.Changes;
+using ArchitectureGuardian.Analysis.Dependencies;
+using ArchitectureGuardian.Analysis.Telemetry;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Core.Analysis;
 using ArchitectureGuardian.Core.Dependencies;
@@ -18,6 +19,10 @@ public sealed class SolutionAnalysisService
     /// <returns>Coverage, evidence-backed diagnostics and operational issues; cancellation retains shared coverage semantics.</returns>
     public async Task<AnalysisResult> AnalyzeAsync(WorkspaceLoadRequest request, string policyDirectory,
         ArchitecturePolicy policy, CancellationToken cancellationToken = default)
+        => await AnalysisTelemetry.MeasureAsync("analysis", () => AnalyzeCoreAsync(request, policyDirectory, policy, cancellationToken),
+            result => result.Status, cancellationToken).ConfigureAwait(false);
+
+    private async Task<AnalysisResult> AnalyzeCoreAsync(WorkspaceLoadRequest request, string policyDirectory, ArchitecturePolicy policy, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(policyDirectory);
@@ -47,6 +52,8 @@ public sealed class SolutionAnalysisService
         ArgumentException.ThrowIfNullOrWhiteSpace(policyPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(baseReference);
         ArgumentNullException.ThrowIfNull(loader);
-        return ChangeAnalysisService.AnalyzeAsync(request, policyPath, baseReference, loader, allowedRoot, cancellationToken);
+        return AnalysisTelemetry.MeasureAsync("changes",
+            () => ChangeAnalysisService.AnalyzeAsync(request, policyPath, baseReference, loader, allowedRoot, cancellationToken),
+            result => result.Analysis.Status, cancellationToken);
     }
 }

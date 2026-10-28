@@ -243,3 +243,6 @@ See [release notes](CHANGELOG.md) and the [roadmap](https://github.com/kbourzayq
 [Report an issue](https://github.com/kbourzayq/arch-guard/issues/new) with the command,
 build context, relevant policy and diagnostic output. Remove credentials and private
 source details before sharing. Available under the [MIT license](LICENSE).
+
+For source-development measurements and opt-in local phase/rule metrics, see
+[performance budgets and telemetry](docs/performance.md).

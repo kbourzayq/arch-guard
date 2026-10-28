@@ -1,13 +1,14 @@
 using ArchitectureGuardian.Analysis.Repositories;
+using ArchitectureGuardian.Analysis.Telemetry;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Core.Analysis;
 using ArchitectureGuardian.Core.Dependencies;
 using ArchitectureGuardian.Core.Policies;
 using ArchitectureGuardian.Core.Repositories;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis;
 using SourceLocation = ArchitectureGuardian.Core.Diagnostics.SourceLocation;
 
 namespace ArchitectureGuardian.Analysis.Dependencies;
@@ -24,6 +25,10 @@ public sealed class DependencyGraphBuilder
     /// <remarks>Runtime dispatch and reflection are not inferred. Unbound dynamic operations explicitly reduce coverage.</remarks>
     public async Task<DependencyBuildResult> BuildAsync(WorkspaceLoadResult workspace, string policyDirectory,
         ArchitecturePolicy policy, CancellationToken cancellationToken = default)
+        => await AnalysisTelemetry.MeasureAsync("graph", () => BuildCoreAsync(workspace, policyDirectory, policy, cancellationToken),
+            result => result.Status, cancellationToken).ConfigureAwait(false);
+
+    private async Task<DependencyBuildResult> BuildCoreAsync(WorkspaceLoadResult workspace, string policyDirectory, ArchitecturePolicy policy, CancellationToken cancellationToken)
     {
         var normalized = await new RepositoryModelBuilder()
             .BuildAsync(workspace, policyDirectory, policy, cancellationToken)

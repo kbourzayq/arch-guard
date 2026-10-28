@@ -29,6 +29,7 @@ and the implementation contracts behind the installed tools.
 | [Change analysis](changes.md) | Full Git comparison and working-tree semantics |
 | [Reports](reports.md) | JSON v1, SARIF 2.1.0, file output and validation |
 | [CI quality gates](ci.md) | Independent installed-CLI gate and complete source-based pipeline examples |
+| [Performance and telemetry](performance.md) | Reproduce measured budgets and collect opt-in local phase/rule metrics |
 | [Troubleshooting](troubleshooting.md) | Installation, restore, coverage, multi-targeting and MCP failures |
 
 ## Understand the implementation
