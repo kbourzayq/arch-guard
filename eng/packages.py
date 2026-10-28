@@ -73,7 +73,7 @@ def verify(directory, tag=None, manifest=True):
             metadata = document.find("metadata")
             assert metadata.findtext("id") == name
             assert metadata.findtext("version") == version
-            assert metadata.findtext("authors") == "Architecture Guardian contributors"
+            assert metadata.findtext("authors") == "Khalid BOURZAYQ"
             assert metadata.findtext("description")
             assert metadata.findtext("projectUrl") == "https://github.com/kbourzayq/arch-guard"
             assert metadata.find("license").attrib == {"type": "expression"}
@@ -88,8 +88,11 @@ def verify(directory, tag=None, manifest=True):
             assert repository.get("url") == "https://github.com/kbourzayq/arch-guard"
             assert not metadata.findall(".//dependency"), "Packages must install without separate runtime packages"
             if command is None:
-                assert [path for path in paths if path.endswith(".dll")] == [
-                    "analyzers/dotnet/cs/ArchitectureGuardian.Analyzers.dll"]
+                assert {path for path in paths if path.endswith(".dll")} == {
+                    "analyzers/dotnet/cs/ArchitectureGuardian.Analyzers.dll",
+                    "analyzers/dotnet/cs/ArchitectureGuardian.Policy.dll",
+                    "analyzers/dotnet/cs/YamlDotNet.dll"}
+                assert "buildTransitive/ArchitectureGuardian.Analyzers.targets" in paths
                 assert not any(path.startswith(("lib/", "tools/", "runtimes/")) for path in paths)
             else:
                 assert metadata.find("packageTypes/packageType").get("name") == "DotnetTool"
@@ -99,7 +102,7 @@ def verify(directory, tag=None, manifest=True):
                 assert entry.attrib == {"Name": command, "EntryPoint": name + ".dll", "Runner": "dotnet"}
                 for item in (name + ".dll", name + ".deps.json", name + ".runtimeconfig.json",
                              "ArchitectureGuardian.Core.dll", "ArchitectureGuardian.Analysis.dll",
-                             "ArchitectureGuardian.Configuration.dll", "YamlDotNet.dll",
+                             "ArchitectureGuardian.Configuration.dll", "ArchitectureGuardian.Policy.dll", "YamlDotNet.dll",
                              "BuildHost-netcore/Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.dll"):
                     assert prefix + item in paths, f"{name} missing {item}"
                 for item in ("Microsoft.Build.dll", "Microsoft.Build.Framework.dll", "Microsoft.NET.StringTools.dll"):

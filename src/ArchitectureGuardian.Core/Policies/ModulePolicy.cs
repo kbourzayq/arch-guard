@@ -1,4 +1,8 @@
+#if PORTABLE_POLICY
+namespace ArchitectureGuardian.Policy.Documents;
+#else
 namespace ArchitectureGuardian.Core.Policies;
+#endif
 
 /// <summary>Declares a logical module, its public contracts and explicitly permitted outgoing dependencies.</summary>
 public sealed class ModulePolicy

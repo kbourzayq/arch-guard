@@ -336,7 +336,16 @@
         }
       },
       "architectureguardian.analyzers": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "ArchitectureGuardian.Policy": "[0.2.0, )"
+        }
+      },
+      "architectureguardian.policy": {
+        "type": "Project",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0, )"
+        }
       },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "CentralTransitive",
@@ -352,6 +361,12 @@
         "dependencies": {
           "Microsoft.CodeAnalysis.Common": "[4.8.0]"
         }
+      },
+      "YamlDotNet": {
+        "type": "CentralTransitive",
+        "requested": "[18.1.0, )",
+        "resolved": "18.1.0",
+        "contentHash": "5K+9KFg2TdTl7VXv88Qzi/0lqK6JFoNP3lRuImPYGRV7K/QYklDyTrj4+A+KAki1JsQi6qKY+hDyY7d6WRqjrw=="
       }
     }
   }

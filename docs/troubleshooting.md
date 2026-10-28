@@ -109,7 +109,7 @@ warnings alone do not block completion. See
 **Compiler and CLI counts differ.** Solution rules aggregate evidence; compiler
 diagnostics locate bound explicit names and cover a narrower semantic surface.
 Compare the rule, ownership, restriction and bound use rather than raw counts or
-diagnostic IDs. Check the XML ownership snapshot as well as YAML; there is no
+diagnostic IDs. Check the YAML policy and build metadata (or a legacy XML snapshot); there is no
 automatic exporter. See [engine parity](semantic-accuracy.md).
 
 ## Policy and gate problems
@@ -190,12 +190,12 @@ both trees and that MCP `Workspace:Root` contains the Git root. See [change anal
   reflection, runtime dependency injection or concrete virtual dispatch targets.
 - Coverage applies to the selected configuration and framework. Other build contexts
   require separate runs.
-- The repository's own solution currently exposes extraction gaps around existing
-  `notnull` constraints and some target-typed/discard constructs, along with duplicate
-  analyzer release-file workspace warnings. Its self-scan can return incomplete
-  coverage even when build/tests pass. These findings do not establish a passing gate.
+- Intrinsic `notnull`/`unmanaged` constraints and omitted array dimensions are
+  recognized as compiler syntax rather than unresolved types. Genuine missing
+  types, missing references and dynamic binding still reduce coverage. The repository
+  [manual validation workflow](manual-validation.md) runs a complete six-rule scan.
 - Compiler analysis checks a narrower bound-name surface and requires an explicit
-  XML ownership snapshot. It does not discover missing referenced-assembly mappings
+  configured policy and observed ownership metadata. Legacy XML does not discover missing referenced-assembly mappings
   or check whole-solution cycles. IDE UI behavior is not validated by this repository.
 - JSON v1 and SARIF 2.1.0 exports are available for CLI scans; see [reports](reports.md).
   Git comparison uses isolated full snapshots; see

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../ArchitectureGuardian.Core/ArchitectureGuardian.Core.csproj" />
-    <PackageReference Include="YamlDotNet" />
+    <ProjectReference Include="../ArchitectureGuardian.Policy/ArchitectureGuardian.Policy.csproj" />
   </ItemGroup>
 </Project>

@@ -232,6 +232,67 @@ public sealed class DependencyGraphBuilderTests(WorkspaceFixture fixture) : ICla
         }
     }
 
+    /// <summary>Intrinsic constraints and empty array dimensions keep coverage without hiding element or escaped-name dependencies.</summary>
+    [Fact]
+    public async Task Intrinsic_constraints_and_omitted_array_sizes_are_not_unresolved_types()
+    {
+        var root = Path.Combine(fixture.Root, "ModularMonolith");
+        var sourcePath = Path.Combine(root, "src/Billing/Billing.Application/TypeSentinels.cs");
+        var targetPath = Path.Combine(root, "src/Billing/Billing.Domain/TypeSentinels.cs");
+        try
+        {
+            await File.WriteAllTextAsync(targetPath, """
+                #pragma warning disable CS8981
+                namespace Billing.Domain;
+                public class Marker { }
+                public class @notnull { }
+                public class @unmanaged { }
+                """, TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(sourcePath, """
+                namespace Billing.Application;
+                public class Sentinels<T> where T : notnull
+                {
+                    public Billing.Domain.Marker?[]? Values;
+                    public System.Collections.Generic.Dictionary<string, Billing.Domain.Marker[]> Cache = new();
+                    public Billing.Domain.Marker[] Make() => [new()];
+                    public T[] Empty() => System.Array.Empty<T>();
+                    public void Ignore() { _ = new Billing.Domain.Marker(); }
+                }
+                public class Unmanaged<T> where T : unmanaged { }
+                public class ExplicitNames<T, U>
+                    where T : Billing.Domain.@notnull
+                    where U : Billing.Domain.@unmanaged { }
+                """, TestContext.Current.CancellationToken);
+            var result = await BuildAsync();
+            Complete(result);
+            var types = result.Graph!.Edges.Where(edge => edge.Kind == DependencyKind.Type).ToArray();
+            Assert.Contains(types, edge => edge.Source.Name == "Billing.Application.Sentinels`1" && edge.Target.Name == "Billing.Domain.Marker");
+            Assert.Contains(types, edge => edge.Source.Name == "Billing.Application.ExplicitNames`2" && edge.Target.Name == "Billing.Domain.notnull");
+            Assert.Contains(types, edge => edge.Source.Name == "Billing.Application.ExplicitNames`2" && edge.Target.Name == "Billing.Domain.unmanaged");
+        }
+        finally
+        {
+            File.Delete(sourcePath);
+            File.Delete(targetPath);
+        }
+    }
+
+    /// <summary>Unresolved array element types still reduce coverage after ignoring empty dimension sentinels.</summary>
+    [Fact]
+    public async Task Missing_array_element_type_retains_incomplete_coverage()
+    {
+        var sourcePath = Path.Combine(fixture.Root, "ModularMonolith/src/Billing/Billing.Application/MissingArray.cs");
+        try
+        {
+            await File.WriteAllTextAsync(sourcePath, "namespace Billing.Application; public class Broken { public MissingType[] Values = []; }",
+                TestContext.Current.CancellationToken);
+            var result = await BuildAsync();
+            Assert.Equal(AnalysisStatus.Incomplete, result.Status);
+            Assert.Contains(result.Issues, issue => issue.Code == "dependency-type-unresolved" && issue.Message.Contains("MissingType", StringComparison.Ordinal));
+        }
+        finally { File.Delete(sourcePath); }
+    }
+
     /// <summary>Recognizes intrinsic nameof without discarding argument dependencies or real methods with that name.</summary>
     [Fact]
     public async Task Nameof_keeps_complete_coverage_and_argument_dependencies()

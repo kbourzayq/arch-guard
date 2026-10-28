@@ -3,15 +3,15 @@
 Architecture Guardian validates architecture decisions against labeled C# fixtures.
 The solution engine loads an explicitly
 restored MSBuild context, extracts a graph and runs policy-selected Core rules.
-The compiler engine runs in the host's current compilation using an explicit XML
-ownership snapshot. It implements AG001, AG002, AG004, AG005 and AG006; AG003 needs
+The compiler engine runs in the host's current compilation using the shared YAML policy and evaluated build metadata
+(or legacy XML during the transition release). It implements AG001, AG002, AG004, AG005 and AG006; AG003 needs
 the solution graph and is unavailable in the compiler engine.
 
 ## Per-rule precision and limits
 
 | Rule | Solution engine | Compiler engine | Precision and known limits |
 | --- | --- | --- | --- |
-| AG001 | Evaluated project/assembly references and semantic evidence; one finding per forbidden project pair | Bound explicit symbol uses; one diagnostic per use | Exact, directional module/contract permissions. External assemblies have no module ownership. Compiler requires a snapshot entry for repository targets and misses unused references. |
+| AG001 | Evaluated project/assembly references and semantic evidence; one finding per forbidden project pair | Bound explicit symbol uses; one diagnostic per use | Exact, directional module/contract permissions. External assemblies have no module ownership. Compiler requires project ownership metadata for repository targets and misses unused references. |
 | AG002 | Evaluated references and semantic evidence; one finding per forbidden project pair | Bound explicit symbol uses | Exact directional layer matrix; same-layer access passes. Module permission does not grant layer permission. Compiler has the same ownership and unused-reference limits as AG001. |
 | AG003 | Cyclic module components from direct observed evidence; one representative shortest cycle per component | Unavailable | Static graph only, including allowed contract dependencies. Does not enumerate every possible cycle or infer runtime dependencies. |
 | AG004 | Semantic evidence grouped by source project, target project and symbol | Bound explicit symbol uses | Another module's implementation remains forbidden even if C# public or AG001 grants whole-module permission. Whole-project contracts and same-module targets pass. Unused references alone do not violate AG004. Compiler ownership gaps and implicit operations limit coverage. |
@@ -34,8 +34,8 @@ remain unvalidated.
 ## Shared cases and intentional differences
 
 `tests/Fixtures/Workspaces/SemanticParity` models Orders consuming Billing contracts
-and persistence. The YAML and compiler XML are checked in independently so drift
-between the two policy representations changes test results. Source lines labeled
+and persistence. The engines consume the same YAML document. Legacy XML remains in focused
+compatibility cases during the transition release. Source lines labeled
 `// case:...` identify positive and negative architectural decisions.
 
 `SemanticAccuracyParityTests` evaluates the same loaded compilations with both
@@ -95,11 +95,11 @@ and framework. No fixture package additions or network calls occur during analys
 restore may use the configured package feeds. Shared rules use policy-relative
 source paths; normalized decisions ignore checkout directories and ordering.
 
-For AG001/AG002/AG004, reproduce a decision with the labeled project pair and both
-ownership snapshots. For AG005, also retain each source module/layer restriction;
+For AG001/AG002/AG004, reproduce a decision with the labeled project pair and the shared YAML
+policy and evaluated build metadata. For AG005, also retain each source module/layer restriction;
 for AG006, retain the source layer and allowed namespace exceptions. For AG003,
 retain the complete selected solution graph and run the module-cycle regression
-suite; a single compiler snapshot cannot reproduce a solution cycle. In every case
+suite; one compiler invocation cannot reproduce a solution cycle. In every case
 record SDK, framework, configuration and generated inputs. Changing any of those
 changes the evaluated context.
 

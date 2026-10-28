@@ -50,7 +50,7 @@ services, handles arguments and maps results to console output and exit codes.
 It contains no rule evaluation.
 
 Configuration implements Core's `IPolicyLoader` port and references only Core.
-YamlDotNet 18.1.0 is confined to this adapter: the base library has no YAML parser,
+Originally YamlDotNet was confined to Configuration (superseded by issue #83 below): the base library has no YAML parser,
 and a mature parser preserves source marks and detects malformed documents without
 introducing serializer types into Core. Strict schema checks run before constructing
 neutral policy. No workspace or rule-discovery dependency is introduced.
@@ -344,7 +344,7 @@ project's solution membership and Core-only direction in Debug and Release.
 ## Consequences
 
 - Analysis owns workspace/MSBuild packages, Analyzers owns compiler-only Roslyn
-  packages and Configuration owns the YAML package;
+  packages and Configuration originally owned the YAML package (now Policy, per #83);
   Core remains independent of external packages. MCP transport is implemented in F17;
   MCP architecture tools are implemented in F18; F19 adds solution analysis; F23 implements full-context Git comparison.
   F24 adds the Reporting adapter for JSON v1 and SARIF 2.1.0 exports.
@@ -543,3 +543,55 @@ changelog. Package metadata and MCP's reported version consume those synchronize
 build properties; Commitizen is development/release tooling, not a runtime dependency.
 See the
 [release policy](../../releases.md) for reproducibility checks and the publication gate.
+
+## Issue #83: one YAML policy across engines
+
+This decision supersedes the separate-policy and dependency-free compiler package
+choices in F03/F12 and the original distribution description. Core remains free
+of project/package dependencies; CLI/MCP remain .NET 10; the compiler API floor
+remains Roslyn 4.8 with .NET Standard 2.0 dependencies.
+
+`ArchitectureGuardian.Policy` is a non-packable netstandard2.0 adapter that owns
+YamlDotNet, strict v1 parsing, declaration positions and neutral immutable policy
+documents. It source-links the same module/layer/contract validation and portable
+project selectors as Core under a separate namespace. Configuration depends on
+Core and Policy and preserves its existing loading/error contracts by adapting
+these documents. Analyzers depends only on Policy and retains its source-linked
+portable rule semantics. No Core reference to a YAML adapter is introduced. CLI/MCP inherit Policy
+references through Configuration, so the repository layer matrix permits these
+composition dependencies alongside their existing transitive Core references.
+
+The compiler reads YAML through AdditionalFiles. Packaged buildTransitive targets
+export the current project path and evaluated reference assembly/project identities
+through generated analyzer configuration. Referenced project paths are additional
+inputs whose metadata is consumed without reading their XML or opening a workspace.
+This supports custom assembly names, transitive references, selected build contexts
+and IDE in-memory references. Each observed project must have one module/layer and
+at most one whole-project contract; global inventory completeness remains a solution
+engine responsibility. Configuration failures produce AG000, with YAML locations
+where available, rather than clean results.
+
+YAML selects compiler-supported AG001/AG002/AG004/AG005/AG006 and their default
+severities. Roslyn/editorconfig reporting overrides remain available for selected
+rules. AG003 cycles and the solution severity gate remain outside compiler scope.
+XML keeps its existing behavior for one transition release; configuring both
+formats is rejected. Removal is planned for the following minor release.
+
+The analyzer NuGet package bundles only its analyzer DLL, portable Policy DLL and
+YamlDotNet's netstandard2.0 DLL beside buildTransitive targets; Roslyn remains
+host-provided. No CLI, .NET 10 engine or separate NuGet dependency is loaded into
+compiler hosts. Boundary tests, shared-YAML parity, Roslyn 4.8 driver tests and
+isolated XML/YAML package consumers enforce these boundaries.
+
+The repository policy selects all six rules as errors. Production and its white-box
+tests belong to the Guardian module; the Tests layer preserves dependency direction
+without declaring test implementation access a cross-module contract. Core's explicit
+AG005 bans protect it from compiler/build/YAML/network adapters; its AG006 namespace
+bans cover data-access/ORM technology. Opt-in source self-analysis loads a stable
+copy of the current analyzer to avoid build cycles and Windows output locks.
+
+Intrinsic notnull/unmanaged constraints and omitted array dimensions do not denote
+unresolved types; extraction skips only those syntax/semantic sentinels while
+retaining element types, escaped user-defined names, genuine missing types and
+operation-based dependency evidence. Analyzer release files are supplied once by
+the upstream authoring targets. Package author metadata is Khalid BOURZAYQ.

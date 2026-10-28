@@ -45,7 +45,7 @@ public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture
         var context = await new DependencyGraphBuilder().BuildAsync(workspace, root, policy, TestContext.Current.CancellationToken);
         Complete(context.Status, context.Issues);
         var results = await EvaluateAsync(context);
-        var compiler = await AnalyzeAsync(workspace.Solution!, await File.ReadAllTextAsync(Path.Combine(root, "architecture.guardian.compiler.xml"), TestContext.Current.CancellationToken));
+        var compiler = await AnalyzeYamlAsync(workspace.Solution!, Path.Combine(root, "architecture.guardian.yaml"));
         var labels = Labels(root);
 
         var solutionCases = results.SelectMany(result => result.Violations.SelectMany(violation => violation.Evidence
@@ -154,6 +154,50 @@ public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture
         var results = await Task.WhenAll(Rules().Select(rule => rule.EvaluateAsync(context)));
         Assert.All(results, result => Complete(result.Status, result.Issues));
         return results;
+    }
+
+    private static async Task<Microsoft.CodeAnalysis.Diagnostic[]> AnalyzeYamlAsync(Solution solution, string policyPath)
+    {
+        var yaml = new PolicyText(policyPath, await File.ReadAllTextAsync(policyPath, TestContext.Current.CancellationToken));
+        var projects = solution.Projects.Select(project => new PolicyText(project.FilePath!, null)).ToArray();
+        var files = ImmutableArray.Create<AdditionalText>(yaml).AddRange(projects);
+        var metadata = solution.Projects.ToDictionary(project => project.FilePath!, project => project.AssemblyName!);
+        var diagnostics = new List<Microsoft.CodeAnalysis.Diagnostic>();
+        foreach (var project in solution.Projects)
+        {
+            var compilation = (await project.GetCompilationAsync(TestContext.Current.CancellationToken))!;
+            var options = new AnalyzerOptions(files, new YamlOptionsProvider(project.FilePath!, metadata));
+            diagnostics.AddRange(await compilation.WithAnalyzers([new DependencyAnalyzer()], options)
+                .GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken));
+        }
+        Assert.DoesNotContain(diagnostics, item => item.Id is "AG000" or "AD0001");
+        return diagnostics.ToArray();
+    }
+
+    private sealed class PolicyText(string path, string? text) : AdditionalText
+    {
+        public override string Path => path;
+        public override SourceText? GetText(CancellationToken cancellationToken = default) => text is null ? null : SourceText.From(text);
+    }
+
+    private sealed class YamlOptionsProvider(string projectPath, Dictionary<string, string> assemblies) : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions => new DictionaryOptions(new()
+        {
+            ["build_property.MSBuildProjectFullPath"] = projectPath,
+        });
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => new DictionaryOptions([]);
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => assemblies.TryGetValue(textFile.Path, out var name)
+            ? new DictionaryOptions(new()
+            {
+                ["build_metadata.AdditionalFiles.ArchitectureGuardianReferencePath"] = textFile.Path + ".dll",
+                ["build_metadata.AdditionalFiles.ArchitectureGuardianAssemblyName"] = name,
+            }) : new DictionaryOptions([]);
+    }
+
+    private sealed class DictionaryOptions(Dictionary<string, string> values) : AnalyzerConfigOptions
+    {
+        public override bool TryGetValue(string key, out string value) => values.TryGetValue(key, out value!);
     }
 
     private static async Task<Microsoft.CodeAnalysis.Diagnostic[]> AnalyzeAsync(Solution solution, string snapshot)

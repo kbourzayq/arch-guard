@@ -4,14 +4,14 @@ Architecture Guardian publishes three independently installable packages at one
 shared version, managed by Python Commitizen in root `.cz.toml`. Its built-in
 `version_files` setting synchronizes `Directory.Build.props` and versioned install
 examples. Internal Core, Analysis,
-Configuration and Reporting projects are bundled application components, with no
+Configuration, Policy and Reporting projects are bundled application components, with no
 separately supported NuGet library API. They are not packable.
 
 | Package | Entry point / host | Dependency boundary |
 | --- | --- | --- |
 | `ArchitectureGuardian.Cli` | `archguard`, .NET 10 | Tool package includes its runtime dependencies and Roslyn build hosts; workspace loading uses an installed SDK |
 | `ArchitectureGuardian.Mcp` | `archguard-mcp`, .NET 10 stdio | Same solution engine and SDK requirements as CLI; stdout is reserved for MCP |
-| `ArchitectureGuardian.Analyzers` | C# compiler, .NET Standard 2.0 / Roslyn 4.8+ | Only its analyzer DLL under `analyzers/dotnet/cs`; no standalone runtime, Workspaces or NuGet dependencies |
+| `ArchitectureGuardian.Analyzers` | C# compiler, .NET Standard 2.0 / Roslyn 4.8+ | Analyzer, portable Policy reader and YamlDotNet under `analyzers/dotnet/cs`, plus buildTransitive targets; no standalone runtime, Workspaces or separate NuGet dependencies |
 
 See [published installation](../README.md), [source development](installation.md), [compiler-host validation](compiler-analyzer.md#host-compatibility-and-validation)
 and [workspace SDK selection](workspace-loading.md). Local builds and CI use the
@@ -77,7 +77,7 @@ manifest and are the ones installed, tested and published.
 Verification requires exactly the three expected packages at the source version,
 MIT license metadata, repository/commit, release notes, readmes with usable absolute
 documentation links, tool entry points,
-bundled application/build-host files and the dependency-free analyzer layout.
+bundled application/build-host files and the portable analyzer dependency layout.
 Smoke tests use fresh tool installations and package/HTTP caches outside repository
 build defaults, with a local-only tool feed. They run CLI version/help/explanation,
 reject an unknown rule, load a two-project SDK workspace, require a completed

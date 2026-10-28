@@ -2,36 +2,44 @@
 version: 1
 modules:
   - id: Guardian
-    projects: ["src/**/*.csproj"]
-  - id: Tests
-    projects: ["tests/**/*.csproj"]
-    allowedDependencies: ["module:Guardian"]
+    # White-box tests belong to the product module; their layer still has separate permissions.
+    projects: ["src/**/*.csproj", "tests/**/*.csproj"]
 layers:
+  - id: Policy
+    projects: ["src/ArchitectureGuardian.Policy/*.csproj"]
   - id: Core
     projects: ["src/ArchitectureGuardian.Core/*.csproj"]
+    forbiddenAssemblies: [Microsoft.Build, Microsoft.CodeAnalysis, Microsoft.CodeAnalysis.CSharp, YamlDotNet]
+    forbiddenNamespaces: [Microsoft.Build, Microsoft.CodeAnalysis, YamlDotNet, System.Net]
+    domainInfrastructure:
+      forbiddenNamespaces: [System.Data, Microsoft.EntityFrameworkCore]
   - id: Analysis
     projects: ["src/ArchitectureGuardian.Analysis/*.csproj"]
     allowedDependencies: [Core]
   - id: Configuration
     projects: ["src/ArchitectureGuardian.Configuration/*.csproj"]
-    allowedDependencies: [Core]
+    allowedDependencies: [Core, Policy]
   - id: Reporting
     projects: ["src/ArchitectureGuardian.Reporting/*.csproj"]
     allowedDependencies: [Core]
   - id: Cli
     projects: ["src/ArchitectureGuardian.Cli/*.csproj"]
-    allowedDependencies: [Core, Analysis, Configuration, Reporting]
+    allowedDependencies: [Core, Analysis, Configuration, Reporting, Policy]
   - id: Mcp
     projects: ["src/ArchitectureGuardian.Mcp/*.csproj"]
-    allowedDependencies: [Core, Analysis, Configuration]
+    allowedDependencies: [Core, Analysis, Configuration, Policy]
   - id: Analyzers
     projects: ["src/ArchitectureGuardian.Analyzers/*.csproj"]
+    allowedDependencies: [Policy]
   - id: Tests
     projects: ["tests/**/*.csproj"]
-    allowedDependencies: [Core, Analysis, Configuration, Reporting, Cli, Analyzers, Mcp]
+    allowedDependencies: [Core, Analysis, Configuration, Reporting, Cli, Analyzers, Mcp, Policy]
 rules:
   AG001: error
   AG002: error
   AG003: error
+  AG004: error
+  AG005: error
+  AG006: error
 gate:
   failOn: error

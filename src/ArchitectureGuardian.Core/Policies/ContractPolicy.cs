@@ -1,4 +1,8 @@
+#if PORTABLE_POLICY
+namespace ArchitectureGuardian.Policy.Documents;
+#else
 namespace ArchitectureGuardian.Core.Policies;
+#endif
 
 /// <summary>Declares a public contract as a named subset of its module's projects.</summary>
 public sealed class ContractPolicy

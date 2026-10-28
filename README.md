@@ -9,7 +9,7 @@ compiler analyzer for feedback during builds. CLI and MCP share the solution eng
 the analyzer complements them with checks in the host compilation.
 
 [Getting started](docs/getting-started.md) · [Documentation](docs/README.md) ·
-[Local development](docs/installation.md) · [Contributing](CONTRIBUTING.md)
+[Local development](docs/installation.md) · [Manual validation](docs/manual-validation.md) · [Contributing](CONTRIBUTING.md)
 
 ## Requirements
 
@@ -124,7 +124,7 @@ In your consuming repository, merge this into a root `Directory.Build.props`:
 <Project>
   <ItemGroup>
     <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.2.0" PrivateAssets="all" />
-    <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.compiler.xml" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
   </ItemGroup>
 </Project>
 ```
@@ -133,41 +133,21 @@ For central package management, put the version in `Directory.Packages.props` an
 omit `Version` on `PackageReference`. `PrivateAssets="all"` keeps the analyzer from
 flowing to consumers of your own packages.
 
-Create `architecture.guardian.compiler.xml` beside the props file. This minimal
-example maps two assemblies; replace them with your evaluated `AssemblyName`
-values and include **every participating assembly**:
-
-```xml
-<ArchitectureGuardian version="1">
-  <Module id="Shop" />
-  <Layer id="Domain" />
-  <Layer id="Application" allows="Domain" />
-  <Assembly name="Shop.Domain" module="Shop" layer="Domain" />
-  <Assembly name="Shop.Application" module="Shop" layer="Application" />
-</ArchitectureGuardian>
-```
-
-Set compiler diagnostic severities in the consuming repository's `.editorconfig`:
-
-```ini
-[*.cs]
-dotnet_diagnostic.AG001.severity = error
-dotnet_diagnostic.AG002.severity = error
-dotnet_diagnostic.AG004.severity = error
-dotnet_diagnostic.AG005.severity = error
-dotnet_diagnostic.AG006.severity = error
-```
+Use the same `architecture.guardian.yaml` as CLI and MCP. The analyzer package's
+MSBuild targets supply evaluated project/assembly ownership metadata automatically.
+YAML selects AG001, AG002 and AG004–AG006 and supplies their default severities;
+normal `.editorconfig` settings can override severity or suppress selected rules.
+AG003 cycle analysis and `gate.failOn` remain solution-scan responsibilities.
 
 Then run `dotnet restore Shop.slnx` and `dotnet build Shop.slnx --no-restore`,
-substituting your solution. Missing or invalid snapshots produce AG000; installing
-the package alone does not configure architecture checks.
+substituting your solution. Missing or invalid configuration produces AG000.
+Retain a CLI solution scan in CI for complete repository coverage.
 
-The analyzer reads **XML**, not YAML. Maintain the snapshot from the authoritative
-YAML policy; automatic export is not available. It checks AG001, AG002 and
-AG004–AG006 in each compilation, without whole-solution coverage or AG003 cycle
-analysis. Keep a CLI solution scan in CI. See the
-[complete analyzer guide](docs/compiler-analyzer.md) for ownership, contracts,
-restrictions, configuration and host limits.
+YAML support requires a package built from this change or a release containing it;
+published `0.2.0` uses the [legacy XML setup](docs/compiler-analyzer.md#compiler-policy-snapshot).
+The first minor release with YAML support retains XML for one transition release;
+its removal is planned for the following minor release. See the
+[complete analyzer guide](docs/compiler-analyzer.md) for migration and host limits.
 
 ## Install the optional agent skill
 
@@ -230,7 +210,7 @@ dotnet tool uninstall --global ArchitectureGuardian.Mcp
 
 Use the same tool-path substitution for local tools. Remove the MCP client entry.
 To remove compiler integration, remove its package reference and AdditionalFiles
-entry, then restore; remove shared snapshot/severity settings only when no remaining
+entry, then restore; remove shared policy/severity settings only when no remaining
 project uses them. Remove an installed skill by deleting its copied folder and
 adjusting instructions that reference it.
 

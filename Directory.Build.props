@@ -12,7 +12,7 @@
     <Version>0.2.0</Version>
     <!-- Only the CLI, MCP host and compiler adapter are distribution contracts. -->
     <IsPackable>false</IsPackable>
-    <Authors>Architecture Guardian contributors</Authors>
+    <Authors>Khalid BOURZAYQ</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/kbourzayq/arch-guard</PackageProjectUrl>
     <RepositoryUrl>https://github.com/kbourzayq/arch-guard</RepositoryUrl>

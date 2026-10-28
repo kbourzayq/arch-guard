@@ -1,11 +1,15 @@
+#if PORTABLE_POLICY
+namespace ArchitectureGuardian.Policy.Documents;
+#else
 namespace ArchitectureGuardian.Core.Policies;
+#endif
 
 /// <summary>Validates and snapshots the small immutable policy collections.</summary>
 internal static class PolicyData
 {
     internal static string Id(string id)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        if (string.IsNullOrWhiteSpace(id)) { throw new ArgumentException("Identity cannot be blank."); }
         if (!System.Text.RegularExpressions.Regex.IsMatch(id, "\\A[A-Za-z][A-Za-z0-9_.-]*\\z",
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant))
         {
@@ -29,8 +33,8 @@ internal static class PolicyData
     internal static IReadOnlyList<string> ReferenceNames(IEnumerable<string> values, bool assembly)
     {
         var names = Strings(values);
-        if (names.Any(name => assembly ? !Rules.ForbiddenReferenceSemantics.IsAssemblyName(name)
-            : !Rules.ForbiddenReferenceSemantics.IsNamespaceName(name)))
+        if (names.Any(name => assembly ? !ArchitectureGuardian.Core.Rules.ForbiddenReferenceSemantics.IsAssemblyName(name)
+            : !ArchitectureGuardian.Core.Rules.ForbiddenReferenceSemantics.IsNamespaceName(name)))
         {
             throw new ArgumentException(assembly
                 ? "forbiddenAssemblies requires exact simple names (letters, digits, '.', '_' or '-'); wildcards and full assembly identities are unsupported."
@@ -42,13 +46,13 @@ internal static class PolicyData
 
     internal static IReadOnlyList<string> Strings(IEnumerable<string> values) => Unique(values, value =>
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (string.IsNullOrWhiteSpace(value)) { throw new ArgumentException("Value cannot be blank."); }
         return value;
     }, "value");
 
     internal static IReadOnlyList<T> Unique<T>(IEnumerable<T> values, Func<T, string> key, string kind)
     {
-        ArgumentNullException.ThrowIfNull(values);
+        if (values is null) { throw new ArgumentNullException(nameof(values)); }
         var copy = values.ToArray();
         if (copy.Any(value => value is null))
         {

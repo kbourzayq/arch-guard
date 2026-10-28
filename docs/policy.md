@@ -7,14 +7,14 @@ contracts, dependency permissions, rule selection, severities and the quality ga
 New users can start with the [policy walkthrough](getting-started.md#2-write-a-policy).
 This reference covers YAML version `1`; the
 [JSON Schema](schema/architecture.guardian.v1.schema.json) supports editor validation.
-The [repository policy](../architecture.guardian.yaml) maps this solution's ten
+The [repository policy](../architecture.guardian.yaml) maps this solution's eleven
 projects, and the [modular-monolith example](examples/modular-monolith/architecture.guardian.yaml)
 demonstrates public contracts. Both are loaded and resolved by tests.
 
 CLI `scan` and MCP `analyze_solution` use the same loader, ownership resolution and
 rule engine. Loading a valid policy alone establishes neither resolved project
-coverage nor compliance. Compiler integration uses a separate
-[XML ownership snapshot](compiler-analyzer.md), maintained alongside this YAML.
+coverage nor compliance. Compiler integration reads this same YAML with [build-supplied ownership metadata](compiler-analyzer.md).
+Legacy XML remains supported during the transition release.
 
 ## Document shape
 
@@ -362,9 +362,10 @@ prevent completed coverage. See the [AG001 guide](rule-catalog.md#ag001-module-d
 AG002 independently checks the configured layer matrix and retains symbol/source
 evidence. See the [AG002 guide](rule-catalog.md#ag002-layer-dependencies).
 AG003 independently detects cycles even when every dependency has module or contract
-permission. See the [AG003 guide](rule-catalog.md#ag003-module-cycles). The repository
-and modular-monolith example policies select AG001–AG003 and can now be evaluated
-through this composition. AG004 is also available when selected and checks semantic implementation access independently of module permissions. AG006 checks configured domain technology restrictions and scoped exceptions when selected.
+permission. See the [AG003 guide](rule-catalog.md#ag003-module-cycles). The repository policy selects all six rules; the introductory modular-monolith
+example selects AG001–AG003. AG004 checks semantic implementation access
+independently of module permissions. AG006 checks configured domain technology
+restrictions and scoped exceptions.
 
 `PolicyConfigurationException` reports a document path, one-based line/column,
 logical field path and corrective message. Contract/reference errors may point to
@@ -376,8 +377,10 @@ analysis results.
 
 ## Compiler policy distribution
 
-The netstandard2.0 [compiler analyzer](compiler-analyzer.md) consumes an explicit,
-versioned assembly ownership snapshot through AdditionalFiles. It cannot load this
-YAML or discover the inventory in compiler callbacks. Maintain that snapshot from the
-resolved YAML policy outside the compiler; an automatic exporter is not yet available.
-Roslyn editorconfig controls compiler severity independently of this file's CLI gate.
+The netstandard2.0 [compiler analyzer](compiler-analyzer.md) reads this same YAML
+through AdditionalFiles, using packaged MSBuild targets for project/assembly
+ownership metadata. It shares strict parsing and selector semantics with CLI/MCP.
+Selected compiler-supported rules use YAML default severities; `.editorconfig` can
+override or suppress their reporting. AG003 and the solution gate remain CLI/MCP
+responsibilities. Legacy XML is supported for one transition release; configure
+exactly one format and follow the [migration guide](compiler-analyzer.md#yaml-ownership-and-migration).

@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis;
 namespace ArchitectureGuardian.Analyzers.Policies;
 
 /// <summary>Validates a supplied assembly ownership snapshot without discovering or loading projects.</summary>
-internal sealed class CompilerPolicy
+internal sealed partial class CompilerPolicy
 {
     internal const string FileName = "architecture.guardian.compiler.xml";
     private readonly Dictionary<string, string[]> _modules = new(StringComparer.Ordinal);

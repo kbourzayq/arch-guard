@@ -473,7 +473,7 @@
       "architectureguardian.analysis": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Core": "[0.1.0, )",
+          "ArchitectureGuardian.Core": "[0.2.0, )",
           "Microsoft.Build.Locator": "[1.11.2, )",
           "Microsoft.CodeAnalysis.CSharp.Workspaces": "[5.9.0, )",
           "Microsoft.CodeAnalysis.Workspaces.MSBuild": "[5.9.0, )"
@@ -482,17 +482,17 @@
       "architectureguardian.cli": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Analysis": "[0.1.0, )",
-          "ArchitectureGuardian.Configuration": "[0.1.0, )",
-          "ArchitectureGuardian.Reporting": "[0.1.0, )",
+          "ArchitectureGuardian.Analysis": "[0.2.0, )",
+          "ArchitectureGuardian.Configuration": "[0.2.0, )",
+          "ArchitectureGuardian.Reporting": "[0.2.0, )",
           "System.CommandLine": "[2.0.13, )"
         }
       },
       "architectureguardian.configuration": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Core": "[0.1.0, )",
-          "YamlDotNet": "[18.1.0, )"
+          "ArchitectureGuardian.Core": "[0.2.0, )",
+          "ArchitectureGuardian.Policy": "[0.2.0, )"
         }
       },
       "architectureguardian.core": {
@@ -501,16 +501,22 @@
       "architectureguardian.mcp": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Analysis": "[0.1.0, )",
-          "ArchitectureGuardian.Configuration": "[0.1.0, )",
+          "ArchitectureGuardian.Analysis": "[0.2.0, )",
+          "ArchitectureGuardian.Configuration": "[0.2.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.13, )",
           "ModelContextProtocol": "[2.3.0, )"
+        }
+      },
+      "architectureguardian.policy": {
+        "type": "Project",
+        "dependencies": {
+          "YamlDotNet": "[18.1.0, )"
         }
       },
       "architectureguardian.reporting": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Core": "[0.1.0, )"
+          "ArchitectureGuardian.Core": "[0.2.0, )"
         }
       },
       "Microsoft.Build.Locator": {
