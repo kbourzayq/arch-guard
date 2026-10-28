@@ -39,15 +39,15 @@ scans plus snapshot/restore work and is not directly benchmarked here.
 
 The repository includes the [current BenchmarkDotNet Markdown report](../benchmarks/reports/analysis-macos-arm64.md)
 and [measured budget table](../benchmarks/README.md#current-measured-budgets).
-The [optimization analysis](../benchmarks/optimizations.md) documents the before/after
-measurements, allocation profiles, correctness checks and remaining bottlenecks.
 BenchmarkDotNet also produces local HTML/CSV reports and detailed logs under
 ignored `artifacts/performance/`. The published Markdown is copied from the
 standard exporter without editing its numbers or hiding warnings.
 
 For future performance work, rerun the .NET command on comparable hardware and
-review the new report against the published measurements and budgets. Initial
-thresholds use measured maximum latency or managed allocations plus 50% headroom;
+review the new report against the published measurements and budgets. Keep
+before/after comparisons with the performance optimization issue and replace the
+repository report with the latest native export. Initial thresholds use measured
+maximum latency or managed allocations plus 50% headroom;
 this allowance is an explicit initial noise margin. There is no custom automated
 comparison or performance CI gate. Record the environment and review any budget
 update alongside the code change; do not silently replace measurements to hide a
