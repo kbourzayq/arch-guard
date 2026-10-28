@@ -132,12 +132,16 @@ findings, accepted debt, operational failures and retained JSON/SARIF artifacts.
 CI runs this check on all three operating systems. The consumer pipeline templates
 and checkout/restore requirements are documented in [CI quality gates](docs/ci.md).
 
-For performance work, run `python3 eng/test-benchmark.py`, then use
-`python3 eng/benchmark.py` and compare with
-`python3 eng/benchmark.py --check benchmarks/baseline.json` on comparable hardware.
+For performance work, run the .NET [BenchmarkDotNet project](benchmarks/README.md)
+and include its generated Markdown report when updating published measurements.
 The [performance guide](docs/performance.md) describes reproducible inputs, measured
-budgets, memory scope and opt-in local telemetry. The BenchmarkDotNet project has its own
-committed lock file and is built by the runner, outside the shipping solution.
+budgets, memory scope and opt-in local telemetry. The benchmark project has its own
+committed lock file and builds outside the shipping solution. Verify its formatting
+with `dotnet format benchmarks/ArchitectureGuardian.Benchmarks.csproj --verify-no-changes --no-restore`.
+The benchmark entry point handles input preparation and standard report generation;
+no Python benchmarking scripts or custom JSON baseline are required. CI builds,
+formats and discovers the benchmark suite on all three supported operating systems
+without running performance measurements on shared runners.
 
 To validate this checkout with its current analyzer and all six CLI rules after
 locked restore, run `python3 eng/validate-repository.py`. See

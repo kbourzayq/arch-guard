@@ -139,6 +139,23 @@ public sealed class TelemetryTests
             .AnalyzeAsync(new("context"), TestContext.Current.CancellationToken)).IsComplete);
     }
 
+    /// <summary>Invalid rule contracts must record failure even when the rule returned a completed outcome.</summary>
+    /// <param name="missingResult">Whether the rule omits its result instead of misattributing a finding.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Invalid_rule_results_record_failed_evaluations(bool missingResult)
+    {
+        using var output = new StringWriter();
+        using var telemetry = new LocalTelemetryListener(output);
+        var result = await Service(_ => missingResult ? Task.FromResult<RuleEvaluationResult>(null!)
+            : Task.FromResult(new RuleEvaluationResult(AnalysisStatus.Completed, [DiagnosticTests.Finding(RuleCatalog.LayerDependencies)])))
+            .AnalyzeAsync(new("context"), TestContext.Current.CancellationToken);
+        Assert.Equal(AnalysisStatus.Failed, result.Status);
+        Assert.Empty(result.Diagnostics);
+        Assert.All(Parse(output), item => Assert.Equal("failed", item.GetProperty("tags").GetProperty("status").GetString()));
+    }
+
     private static JsonElement[] Parse(StringWriter output) => output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries)
         .Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
 

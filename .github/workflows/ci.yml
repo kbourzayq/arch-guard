@@ -82,6 +82,14 @@ jobs:
         run: dotnet restore ArchitectureGuardian.slnx --locked-mode
       - name: Build
         run: dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
+      - name: Build, format and discover benchmarks
+        # Compile/discover the non-shipping suite without collecting timings on shared runners.
+        # Its own lock file and formatter keep tooling outside the solution covered on every OS.
+        run: |
+          dotnet restore benchmarks/ArchitectureGuardian.Benchmarks.csproj --locked-mode
+          dotnet build benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore
+          dotnet format benchmarks/ArchitectureGuardian.Benchmarks.csproj --verify-no-changes --no-restore
+          dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-build --no-restore -- --list flat
       - name: Test compiler analyzer
         run: dotnet test tests/ArchitectureGuardian.Analyzers.Tests/ArchitectureGuardian.Analyzers.Tests.csproj --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
       - name: Test contracts and workspace analysis

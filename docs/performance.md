@@ -2,97 +2,54 @@
 
 These development tools require a checkout containing the F29 implementation;
 the original NuGet 0.2.0 release predates them. CLI and MCP share the measured
-workspace, graph and rule pipeline. Compiler-hosted analysis is outside these baselines.
+workspace, graph and rule pipeline. Compiler-hosted analysis is outside these measurements.
 
-## Reproduce BenchmarkDotNet measurements
+## Run the .NET benchmarks
 
-Install the pinned SDK, Python 3 and the normal development dependencies. From
-the repository root:
+Install the SDK pinned by `global.json`. From the repository root:
 
 ```sh
-dotnet restore ArchitectureGuardian.slnx --locked-mode
-python3 eng/benchmark.py --output artifacts/performance/current.json
-python3 eng/test-benchmark.py
-python3 eng/benchmark.py --check benchmarks/baseline.json --output artifacts/performance/comparison.json
+dotnet restore benchmarks/ArchitectureGuardian.Benchmarks.csproj --locked-mode
+dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore -- --filter '*'
 ```
 
-The runner builds the non-shipping [BenchmarkDotNet suite](../tests/Fixtures/Performance/AnalysisBenchmarks.cs),
-copies the checked-in Clean Architecture and modular-monolith reference solutions,
-and generates a deterministic repository with 24 projects/modules in a reference
-chain, 40 types per project and eight methods per type (960 source files, 7,680
-methods). All six rules are selected. Temporary inputs have no external packages
-and restore against cleared package sources. The harness uses centrally pinned
-BenchmarkDotNet 0.15.8 and its own committed lock file; shipping packages gain no
-benchmark dependency. Input preparation/restore is outside measurements.
+The [benchmark project](../benchmarks/README.md) handles input preparation in C#.
+It copies the Clean Architecture and modular-monolith fixtures, generates a
+24-project/960-file repository, and restores these package-free inputs outside
+measurement. Isolated copies are cleaned up after the run; source fixtures are
+unchanged. All six rules are selected.
 
-BenchmarkDotNet owns process isolation, warmup, timing, statistics and allocation
-measurement. The fixed Monitoring job uses one launch, one warmup, five measured
-iterations and one invocation per iteration for each of twelve input/method pairs.
-Each pair has a separate process; iterations in that process reuse runtime/SDK
-initialization. Global setup prepares a workspace and graph, verifies completed
-coverage and compares deterministic rule results. Cleanup validates the final
-measured results and agreement across benchmark processes, outside timing.
+BenchmarkDotNet 0.15.8 launches a separate process for each input/method pair,
+warms up and measures workspace loading, graph extraction, rules and full scans.
+The Monitoring job uses three warmups, ten measured iterations and one invocation
+per iteration. Results are validated after every iteration, outside timing.
+MemoryDiagnoser supplies managed allocations per operation and GC counts. It does
+not measure resident memory, retained heap, native allocations or child MSBuild
+memory. No custom benchmark timer, allocation counter, sampler, Python wrapper or
+JSON baseline is used.
 
-| Method | Measured operation |
-| --- | --- |
-| `Workspace` | Load and dispose a fresh workspace, including compilation coverage validation |
-| `Graph` | Normalize and extract/aggregate a new graph from the prepared workspace |
-| `Rules` | Evaluate all six selected rules against the prepared graph |
-| `FullScan` | Run the public solution-analysis service, including workspace disposal |
+These warm, prepared-input measurements exclude startup, policy parsing and report
+rendering. Graph/rules reuse prepared Roslyn context. Short rule iterations can
+still have significant relative timing variation; inspect the generated report's
+statistics before drawing conclusions. Keep the full semantic, cancellation and
+Git comparison tests as correctness checks. Change analysis performs two full
+scans plus snapshot/restore work and is not directly benchmarked here.
 
-These are warm, prepared-input measurements. They exclude process startup, policy
-parsing and report rendering. Graph/rules reuse Roslyn context; do not add their
-latencies to workspace time to estimate a cold scan. Change analysis does two full
-scans plus snapshot/restore work and is not directly benchmarked here. Short rule
-iterations can trigger BenchmarkDotNet's minimum-iteration-time warning; these
-initial macrobenchmark budgets do not claim microbenchmark precision.
+## Published reports and budgets
 
-[`benchmarks/baseline.json`](../benchmarks/baseline.json) contains the full standard
-JSON export, including raw iterations, host CPU/OS/runtime/SDK, latency statistics,
-MemoryDiagnoser allocation/GC data, input and implementation SHA-256 hashes,
-graph sizes, result fingerprints and derived budgets. Detailed execution output
-is retained in ignored `artifacts/performance/benchmark.log`. `revision` and `dirty`
-describe the measurement checkout; the implementation hash identifies measured
-sources even before their commit. Normal telemetry listeners are disabled during
-benchmarking. Telemetry itself remains tested independently.
+The repository includes the [generated BenchmarkDotNet Markdown report](../benchmarks/reports/analysis-macos-arm64.md)
+and [measured budget table](../benchmarks/README.md#initial-measured-budgets).
+BenchmarkDotNet also produces local HTML/CSV reports and detailed logs under
+ignored `artifacts/performance/`. The published Markdown is copied from the
+standard exporter without editing its numbers or hiding warnings.
 
-Memory budgets use BenchmarkDotNet's **managed bytes allocated per operation**.
-They do not describe live/retained heap size, native allocations, resident process
-memory or child MSBuild memory. No custom clocks, allocation counters or memory
-samplers participate in the benchmark. See BenchmarkDotNet's
-[MemoryDiagnoser documentation](https://benchmarkdotnet.org/articles/configs/diagnosers.html).
-
-Each latency budget is **1.5 × the measured maximum**, rounded up in milliseconds;
-each allocation budget is **1.5 × measured allocated bytes**, rounded up. The 50%
-allowance is an explicit initial noise margin. `--check` compares new latency
-medians and allocated bytes with the fixed budgets and exits one on regression.
-Different input/result hashes, missing methods or failed/incomplete benchmarks
-stop comparison. Review such changes before measuring a replacement baseline;
-do not overwrite it merely to pass a regression. The output cannot overwrite its
-comparison baseline. Default output goes under ignored `artifacts/`.
-
-Compare on the same hardware/OS/runtime with other heavy work stopped. These are
-initial local investigation thresholds, not universal CI gates or capacity
-promises. Re-measure on a controlled runner before enforcing them in CI. The
-benchmark dependency and its generated executables remain outside the shipping
-solution and are built by the preparation script.
-
-## Initial measured baseline
-
-Measured on Apple M5 (10 cores), macOS 27.0.1, .NET 10.0.13 and SDK 10.0.402.
-The OS declined high-priority scheduling; these runs used normal process priority.
-The full JSON contains all phase measurements and their individual budgets.
-
-| Input | Projects | Full-scan median | Full-scan budget | Allocated per full scan | Allocation budget |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Clean Architecture | 4 | 993 ms | 1,551 ms | 116.5 MiB | 174.8 MiB |
-| Modular monolith | 4 | 972 ms | 1,528 ms | 115.9 MiB | 173.9 MiB |
-| Generated 24 × 40 | 24 | 5,287 ms | 8,454 ms | 4,962.3 MiB | 7,443.4 MiB |
-
-Allocated bytes are cumulative allocation traffic during one operation; they are
-not the memory required to keep that repository in memory. These observations
-identify graph extraction in the generated case as a useful optimization target;
-this change establishes measurements and does not change analysis algorithms.
+For future performance work, rerun the .NET command on comparable hardware and
+review the new report against the published measurements and budgets. Initial
+thresholds use measured maximum latency or managed allocations plus 50% headroom;
+this allowance is an explicit initial noise margin. There is no custom automated
+comparison or performance CI gate. Record the environment and review any budget
+update alongside the code change; do not silently replace measurements to hide a
+regression. Re-measure on a controlled runner before making budgets mandatory in CI.
 
 ## Opt in to local collection
 
