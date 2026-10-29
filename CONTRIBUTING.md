@@ -157,6 +157,8 @@ python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.An
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
+It rejects public-feed fallback for the analyzer and verifies the restored package
+against the supplied artifact by SHA-256.
 CI separately checks compiler consumers with the same pinned SDK on each OS;
 see [host compatibility](docs/compiler-analyzer.md#host-compatibility-and-validation).
 

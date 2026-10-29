@@ -85,6 +85,11 @@ failing scan, grant the dependency and require a passing scan. MCP initializes o
 stdio, verifies its version and five tools, and performs the same failing/passing
 solution analyses. A real compiler consumer checks forbidden and allowed uses,
 policy changes, AG005/AG006 and absence of analyzer-load errors.
+The compiler consumer maps `ArchitectureGuardian.Analyzers` exclusively to the
+local feed, checks that a missing local artifact fails restore, and verifies the
+restored package's SHA-256 against the supplied artifact. SDK reference packages
+can still come from nuget.org; a published analyzer at the same version cannot
+substitute for the package under test.
 
 The compiler driver suite also tests the Roslyn 4.8 baseline. Full solution tests,
 formatting, reporting-schema validation and independent architecture gate checks
