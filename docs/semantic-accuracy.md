@@ -48,7 +48,8 @@ Restriction identity retains scope, kind and name, catching missing overlapping
 AG005 restrictions as well as unexpected findings on allowed cases.
 
 Cases cover attributes, inheritance/interfaces, constraints, aliases (including
-arrays and constructed generics), generic arguments, creation, `typeof`, `nameof`,
+arrays, constructed generics and function-pointer return/parameter types with nested
+signatures), generic arguments, creation, `typeof`, `nameof`,
 casts, patterns, members, extension calls, partial/generated declarations, allowed
 contracts, namespace lookalikes, unused imports, literals and AG006 exceptions.
 The expected cases change with the active configuration/framework. Inactive branches

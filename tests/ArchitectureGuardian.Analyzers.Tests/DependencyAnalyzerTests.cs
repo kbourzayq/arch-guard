@@ -421,6 +421,67 @@ public sealed class DependencyAnalyzerTests
         return test;
     }
 
+    /// <summary>Expands used function-pointer aliases recursively and deduplicates repeated signature types.</summary>
+    /// <param name="signature">The alias target containing a forbidden type.</param>
+    [Theory]
+    [InlineData("delegate*<Billing.Service, void>")]
+    [InlineData("delegate*<Billing.Service>")]
+    [InlineData("delegate*<Billing.Service[], void>")]
+    [InlineData("delegate*<Billing.Service*, void>")]
+    [InlineData("delegate*<System.Collections.Generic.List<Billing.Service[]>, void>")]
+    [InlineData("delegate*<delegate*<Billing.Service, void>, void>")]
+    [InlineData("delegate*<Billing.Service, Billing.Service, Billing.Service>")]
+    public async Task Function_pointer_aliases_report_all_rules_at_each_use(string signature)
+    {
+        var policy = Policy.Replace("<Module id=\"Orders\" />", "<Module id=\"Orders\" forbiddenNamespaces=\"Billing\" />", StringComparison.Ordinal)
+            .Replace("<Layer id=\"Application\" />", "<Layer id=\"Application\" infrastructureNamespaces=\"Billing\" />", StringComparison.Ordinal);
+        var test = await CreateAsync($"using unsafe Callback = {signature}; public unsafe class Order {{ public {{|#0:Callback|}} First; public {{|#1:Callback|}} Second; }}", policy);
+        test.SolutionTransforms.Add((solution, id) => solution.WithProjectCompilationOptions(id,
+            ((CSharpCompilationOptions)solution.GetProject(id)!.CompilationOptions!).WithAllowUnsafe(true)));
+        foreach (var location in new[] { 0, 1 })
+        {
+            ExpectPair(test, location);
+            test.ExpectedDiagnostics.Add(Result("AG005", location));
+            test.ExpectedDiagnostics.Add(Result("AG006", location));
+        }
+        await test.RunAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Function-pointer aliases retain independent ownership, contract and layer permissions.</summary>
+    /// <param name="module">The target module.</param>
+    /// <param name="layer">The target layer.</param>
+    /// <param name="permission">The outgoing permission.</param>
+    /// <param name="contract">The optional target contract.</param>
+    /// <param name="expected">The exact expected rule IDs.</param>
+    [Theory]
+    [InlineData("Orders", "Application", "", "", "")]
+    [InlineData("Billing", "Infrastructure", "module:Billing", "", "AG002,AG004")]
+    [InlineData("Billing", "Application", "contract:Billing/api", "api", "")]
+    [InlineData("Billing", "Application", "", "api", "AG001")]
+    public async Task Function_pointer_alias_permissions_remain_independent(string module, string layer, string permission, string contract, string expected)
+    {
+        var policy = Policy.Replace("<Module id=\"Orders\" />", $"<Module id=\"Orders\" allows=\"{permission}\" />", StringComparison.Ordinal)
+            .Replace("module=\"Billing\" layer=\"Infrastructure\"", $"module=\"{module}\" layer=\"{layer}\"" +
+                (contract.Length == 0 ? "" : $" contract=\"{contract}\""), StringComparison.Ordinal);
+        var test = await CreateAsync("using unsafe Callback = delegate*<Billing.Service, void>; public unsafe class Order { public {|#0:Callback|} Value; }", policy);
+        test.SolutionTransforms.Add((solution, id) => solution.WithProjectCompilationOptions(id,
+            ((CSharpCompilationOptions)solution.GetProject(id)!.CompilationOptions!).WithAllowUnsafe(true)));
+        foreach (var rule in expected.Split(',', StringSplitOptions.RemoveEmptyEntries)) { test.ExpectedDiagnostics.Add(Result(rule, 0)); }
+        await test.RunAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Unused aliases remain imports even when their signature types violate all configured rules.</summary>
+    [Fact]
+    public async Task Unused_function_pointer_alias_is_silent()
+    {
+        var policy = Policy.Replace("<Module id=\"Orders\" />", "<Module id=\"Orders\" forbiddenNamespaces=\"Billing\" />", StringComparison.Ordinal)
+            .Replace("<Layer id=\"Application\" />", "<Layer id=\"Application\" infrastructureNamespaces=\"Billing\" />", StringComparison.Ordinal);
+        var test = await CreateAsync("using unsafe Callback = delegate*<Billing.Service, void>; public class Order { }", policy);
+        test.SolutionTransforms.Add((solution, id) => solution.WithProjectCompilationOptions(id,
+            ((CSharpCompilationOptions)solution.GetProject(id)!.CompilationOptions!).WithAllowUnsafe(true)));
+        await test.RunAsync(TestContext.Current.CancellationToken);
+    }
+
     private static async Task<MetadataReference> BillingReferenceAsync()
     {
         // Compile against the same reference pack used by the semantic harness.

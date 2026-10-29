@@ -57,7 +57,7 @@ def main():
         (billing / "Service.cs").write_text("namespace Billing { public class Service { } }")
         (orders / "Orders.csproj").write_text(
             f'<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>{framework}</TargetFramework>'
-            '<AssemblyName>Orders.Application</AssemblyName>'
+            '<AssemblyName>Orders.Application</AssemblyName><AllowUnsafeBlocks>true</AllowUnsafeBlocks>'
             '</PropertyGroup><ItemGroup><ProjectReference Include="../Billing/Billing.csproj"/>'
             f'<PackageReference Include="ArchitectureGuardian.Analyzers" Version="{version}" PrivateAssets="all"/>'
             '<AdditionalFiles Include="architecture.guardian.compiler.xml"/></ItemGroup></Project>')
@@ -128,6 +128,20 @@ def main():
         snapshot.write_text(snapshot.read_text().replace('infrastructureNamespaces="Billing"',
             'infrastructureNamespaces="Billing" allowedInfrastructureNamespaces="Billing"'))
         assert run(build, root).returncode == 0, "AG006 namespace exception did not restore passing build"
+        # Used function-pointer aliases must expose every signature dependency to the installed analyzer.
+        alias_source = "using unsafe Callback = delegate*<delegate*<Billing.Service[], Billing.Service>, void>; public unsafe class Order { public Callback Value; }"
+        (orders / "Order.cs").write_text(alias_source)
+        snapshot.write_text(policy.replace('<Module id="Orders"/>', '<Module id="Orders" forbiddenNamespaces="Billing"/>')
+            .replace('<Layer id="Application"/>', '<Layer id="Application" infrastructureNamespaces="Billing"/>'))
+        aliases = run(build, root)
+        assert aliases.returncode != 0, "Forbidden XML function-pointer alias passed"
+        for rule in ("AG001", "AG002", "AG004", "AG005", "AG006"):
+            assert f"error {rule}" in aliases.stdout and "Order.cs(1," in aliases.stdout, aliases.stdout
+        for failure in ("CS8032", "CS9057", "AD0001", "AG000", "error CS"):
+            assert failure not in aliases.stdout + aliases.stderr, aliases.stdout
+        (orders / "Order.cs").write_text("using unsafe Callback = delegate*<Billing.Service, void>; public class Order { }")
+        assert run(build, root).returncode == 0, "Unused XML alias produced a finding"
+        (orders / "Order.cs").write_text("public class Order : Billing.Service { }")
         verify_yaml_consumer(root, version, framework, build, run)
         print(f"Analyzer package passed forbidden/allowed and AG005/AG006 builds with SDK {args.sdk}")
 

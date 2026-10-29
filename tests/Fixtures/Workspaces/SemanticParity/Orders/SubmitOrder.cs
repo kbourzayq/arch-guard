@@ -1,6 +1,11 @@
 global using Alias = Legacy.Data.Store;
 global using ArrayAlias = Legacy.Data.Store[];
 global using GenericAlias = System.Collections.Generic.List<Legacy.Data.Store>;
+global using unsafe ParameterCallback = delegate*<Legacy.Data.Store, void>;
+global using unsafe ReturnCallback = delegate*<Legacy.Data.Store>;
+global using unsafe NestedCallback = delegate*<delegate*<System.Collections.Generic.List<Legacy.Data.Store[]>, void>, void>;
+global using unsafe ContractCallback = delegate*<Billing.Contracts.IInvoice, void>;
+global using unsafe UnusedCallback = delegate*<Legacy.Data.Store, void>; // case:unused-function-pointer
 using Legacy.Data;
 using Unused = Legacy.Data.IStore; // case:unused-import
 
@@ -14,6 +19,10 @@ namespace Orders
         public Alias? Aliased; // case:alias
         public ArrayAlias? AliasedArray; // case:array-alias
         public GenericAlias? AliasedList; // case:generic-alias
+        public unsafe ParameterCallback Parameter; // case:function-pointer-parameter
+        public unsafe ReturnCallback Return; // case:function-pointer-return
+        public unsafe NestedCallback Nested; // case:function-pointer-nested
+        public unsafe ContractCallback AllowedCallback; // case:function-pointer-contract
         public System.Collections.Generic.List<Store[]>? Items; // case:generic-array
         public Billing.Contracts.IInvoice? Contract; // case:contract
         public Legacy.DataLike.Store? Lookalike; // case:lookalike
