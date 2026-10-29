@@ -33,6 +33,26 @@ public sealed class DependencyGraphTests
         Assert.Throws<NotSupportedException>(() => ((IList<DependencyNode>)graph.Nodes).Clear());
     }
 
+    /// <summary>Deduplication retains origins which share a fact but differ in symbol or bound reference identity.</summary>
+    [Fact]
+    public void Equal_facts_do_not_collapse_distinct_dependency_origins()
+    {
+        var fact = new DiagnosticEvidence("use: \ud83d\ude00", new("src/Type.cs", 10, 2));
+        var first = new DependencyEvidence("App.csproj", "Library.csproj", fact, "App.A", "Library.Type", targetAssembly: "Library");
+        var second = new DependencyEvidence("App.csproj", "Library.csproj", fact, "App.B", "Library.Type", targetAssembly: "Library");
+        var third = new DependencyEvidence("App.csproj", "Library.csproj", fact, "App.A", "Library.Type", targetAssembly: "Other");
+        var duplicate = new DependencyEvidence("App.csproj", "Library.csproj", new("use: \ud83d\ude00", new("src\\Type.cs", 10, 2)),
+            "App.A", "Library.Type", targetAssembly: "Library");
+        var inputs = new[] { third, duplicate, second, first, duplicate };
+        var edge = new DependencyEdge(Node("A"), Node("B"), inputs);
+        var reversed = new DependencyEdge(Node("A"), Node("B"), inputs.Reverse());
+        Assert.Equal(3, edge.Evidence.Count);
+        Assert.Equal(edge.Evidence, reversed.Evidence);
+        Assert.Contains(first, edge.Evidence);
+        Assert.Contains(second, edge.Evidence);
+        Assert.Contains(third, edge.Evidence);
+    }
+
     /// <summary>Finds strongly connected groups and self loops in a stable order independently of input order.</summary>
     [Fact]
     public void Traversal_and_cycles_are_deterministic_and_keep_direction()

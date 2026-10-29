@@ -25,8 +25,9 @@ public sealed class DependencyGraph
 
         Nodes = CanonicalData.Snapshot(endpoints.Distinct(), node => node.Id);
         Edges = CanonicalData.Snapshot(dependencies.GroupBy(edge => edge.Id, StringComparer.Ordinal)
-            .Select(group => new DependencyEdge(group.First().Source, group.First().Target,
-                group.SelectMany(edge => edge.Evidence))), edge => edge.Id);
+            .Select(group => group.Count() == 1 ? group.First()
+                : new DependencyEdge(group.First().Source, group.First().Target,
+                    group.SelectMany(edge => edge.Evidence))), edge => edge.Id);
         _nodes = Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
         _outgoing = Nodes.ToDictionary(node => node.Id, _ => Array.Empty<DependencyEdge>(), StringComparer.Ordinal);
         _incoming = Nodes.ToDictionary(node => node.Id, _ => Array.Empty<DependencyEdge>(), StringComparer.Ordinal);

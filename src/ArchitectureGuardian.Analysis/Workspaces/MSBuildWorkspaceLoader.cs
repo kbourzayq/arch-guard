@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Analysis.Telemetry;
 using ArchitectureGuardian.Core.Analysis;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
@@ -14,6 +15,10 @@ public sealed class MSBuildWorkspaceLoader
     /// <returns>An owned workspace with completed, incomplete or cancelled loading coverage and actionable issues.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="request"/> is null.</exception>
     public async Task<WorkspaceLoadResult> LoadAsync(WorkspaceLoadRequest request, CancellationToken cancellationToken = default)
+        => await AnalysisTelemetry.MeasureAsync("workspace", () => LoadCoreAsync(request, cancellationToken),
+            result => result.Status, cancellationToken).ConfigureAwait(false);
+
+    private async Task<WorkspaceLoadResult> LoadCoreAsync(WorkspaceLoadRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         MSBuildWorkspace? workspace = null;

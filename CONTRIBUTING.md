@@ -132,6 +132,17 @@ findings, accepted debt, operational failures and retained JSON/SARIF artifacts.
 CI runs this check on all three operating systems. The consumer pipeline templates
 and checkout/restore requirements are documented in [CI quality gates](docs/ci.md).
 
+For performance work, run the .NET [BenchmarkDotNet project](benchmarks/README.md)
+and include its generated Markdown report when updating published measurements.
+The [performance guide](docs/performance.md) describes reproducible inputs, measured
+budgets, memory scope and opt-in local telemetry. The benchmark project has its own
+committed lock file and builds outside the shipping solution. Verify its formatting
+with `dotnet format benchmarks/ArchitectureGuardian.Benchmarks.csproj --verify-no-changes --no-restore`.
+The benchmark entry point handles input preparation and standard report generation;
+no Python benchmarking scripts or custom JSON baseline are required. CI builds,
+formats and discovers the benchmark suite on all three supported operating systems
+without running performance measurements on shared runners.
+
 To validate this checkout with its current analyzer and all six CLI rules after
 locked restore, run `python3 eng/validate-repository.py`. See
 [manual validation](docs/manual-validation.md) for compiler feedback, negative cases
@@ -146,6 +157,8 @@ python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.An
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
+It rejects public-feed fallback for the analyzer and verifies the restored package
+against the supplied artifact by SHA-256.
 CI separately checks compiler consumers with the same pinned SDK on each OS;
 see [host compatibility](docs/compiler-analyzer.md#host-compatibility-and-validation).
 

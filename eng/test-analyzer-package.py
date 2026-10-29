@@ -1,12 +1,12 @@
 """Build a real NuGet consumer with the requested SDK, outside repository build defaults."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
-from xml.sax.saxutils import escape
 import zipfile
 
 from analyzer_yaml_consumer import verify_yaml_consumer
@@ -36,10 +36,16 @@ def main():
     with tempfile.TemporaryDirectory(prefix="archguard-compiler-") as directory:
         root = Path(directory)
         (root / "global.json").write_text(json.dumps({"sdk": {"version": args.sdk, "rollForward": "disable"}}))
-        (root / "NuGet.Config").write_text(
-            '<configuration><packageSources><clear/><add key="local" value="'
-            + escape(str(package.parent), {'"': '&quot;'})
-            + '"/><add key="nuget" value="https://api.nuget.org/v3/index.json"/></packageSources></configuration>')
+        config = ET.Element("configuration")
+        sources = ET.SubElement(config, "packageSources")
+        ET.SubElement(sources, "clear")
+        local = ET.SubElement(sources, "add", key="local", value=str(package.parent))
+        ET.SubElement(sources, "add", key="nuget", value="https://api.nuget.org/v3/index.json")
+        mapping = ET.SubElement(config, "packageSourceMapping")
+        ET.SubElement(mapping, "clear")
+        ET.SubElement(ET.SubElement(mapping, "packageSource", key="local"),
+                      "package", pattern="ArchitectureGuardian.Analyzers")
+        ET.SubElement(ET.SubElement(mapping, "packageSource", key="nuget"), "package", pattern="*")
         framework = "net" + args.sdk.split(".")[0] + ".0"
         billing = root / "Billing"
         orders = root / "Orders"
@@ -65,8 +71,28 @@ def main():
         </ArchitectureGuardian>'''
         snapshot = orders / "architecture.guardian.compiler.xml"
         snapshot.write_text(policy)
-        # Isolate the local analyzer package so repeated runs cannot use a cached older build.
-        assert run(["dotnet", "restore", "Orders/Orders.csproj", "--packages", str(root / "packages"), "-p:NuGetAudit=false", "-m:1", "-nr:false"], root).returncode == 0
+        restore = ["dotnet", "restore", "Orders/Orders.csproj", "--packages", str(root / "packages"),
+                   "-p:NuGetAudit=false", "-m:1", "-nr:false"]
+        # A public package at the same version must never stand in for a missing local artifact.
+        empty_feed = root / "empty-feed"
+        empty_feed.mkdir()
+        local.set("value", str(empty_feed))
+        ET.ElementTree(config).write(root / "NuGet.Config", encoding="utf-8")
+        print("Checking local analyzer isolation (expected restore failure)", flush=True)
+        missing = run(restore, root)
+        assert missing.returncode != 0 and "NU1101" in missing.stdout + missing.stderr, \
+            "Missing local analyzer must fail restore instead of using nuget.org"
+        assert "PackageSourceMapping" in missing.stdout + missing.stderr
+        local.set("value", str(package.parent))
+        ET.ElementTree(config).write(root / "NuGet.Config", encoding="utf-8")
+        assert run(restore, root).returncode == 0
+        assets = json.loads((orders / "obj/project.assets.json").read_text(encoding="utf-8"))
+        library = next(value for name, value in assets["libraries"].items()
+                       if name.split("/")[0].casefold() == "architectureguardian.analyzers")
+        restored = list((root / "packages" / library["path"]).glob("*.nupkg"))
+        assert len(restored) == 1 and hashlib.sha256(restored[0].read_bytes()).digest() == hashlib.sha256(package.read_bytes()).digest(), \
+            "Restored analyzer differs from the package under test"
+        print("Restored analyzer SHA-256 matches the local artifact", flush=True)
         build = ["dotnet", "build", "Orders/Orders.csproj", "--no-restore", "-p:UseSharedCompilation=false", "-m:1", "-nr:false"]
         forbidden = run(build, root)
         assert forbidden.returncode != 0, "Forbidden semantic dependency passed"

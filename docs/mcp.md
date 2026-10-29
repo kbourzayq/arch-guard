@@ -612,3 +612,6 @@ full scans, including imported references between unchanged projects, staged,
 unstaged and untracked source, policy-only changes, removed/renamed projects,
 existing debt, missing refs/shallow history, invalid base policy, failed restore,
 missing inputs and incomplete base/candidate compilation.
+
+For source-development measurements and opt-in local phase/rule metrics, see
+[performance budgets and telemetry](performance.md).

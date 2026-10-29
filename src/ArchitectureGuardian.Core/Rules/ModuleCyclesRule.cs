@@ -30,7 +30,7 @@ public sealed class ModuleCyclesRule : IArchitectureRule<DependencyBuildResult>
         var issues = context.Issues.ToList();
         var nodes = context.Repository.Modules.ToDictionary(module => module.Id,
             module => new DependencyNode(DependencyKind.Module, module.Id, module.Id), StringComparer.Ordinal);
-        var pairs = new Dictionary<(string Source, string Target), HashSet<DependencyEvidence>>();
+        var pairs = new Dictionary<(string Source, string Target), DependencyEvidence>();
         // A reference may occur at several graph levels. Rebuild module edges from its
         // original ownership so direct and aggregated input have identical semantics.
         foreach (var edge in context.Graph.Edges)
@@ -43,19 +43,14 @@ public sealed class ModuleCyclesRule : IArchitectureRule<DependencyBuildResult>
                     continue;
                 }
 
-                var pair = (evidence.SourceProject, target);
-                if (!pairs.TryGetValue(pair, out var facts))
-                {
-                    facts = [];
-                    pairs.Add(pair, facts);
-                }
-
-                facts.Add(evidence);
+                // Topology needs one representative, not a sorted copy of every origin.
+                pairs.TryAdd((evidence.SourceProject, target), evidence);
             }
         }
 
         var edges = new List<DependencyEdge>();
-        foreach (var (pair, facts) in pairs.OrderBy(item => item.Key.Source, StringComparer.Ordinal)
+        var ownership = new Dictionary<(string Source, string Target), (string Source, string Target)>();
+        foreach (var (pair, representative) in pairs.OrderBy(item => item.Key.Source, StringComparer.Ordinal)
             .ThenBy(item => item.Key.Target, StringComparer.Ordinal))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -68,16 +63,40 @@ public sealed class ModuleCyclesRule : IArchitectureRule<DependencyBuildResult>
 
             if (source.ModuleId != target.ModuleId)
             {
-                edges.Add(new(nodes[source.ModuleId], nodes[target.ModuleId], facts));
+                ownership.Add(pair, (source.ModuleId, target.ModuleId));
+                edges.Add(new(nodes[source.ModuleId], nodes[target.ModuleId], [representative]));
             }
         }
 
         var graph = new DependencyGraph(nodes.Values, edges);
-        var violations = new List<RuleViolation>();
-        foreach (var component in graph.FindCycles(DependencyKind.Module, cancellationToken))
+        var paths = graph.FindCycles(DependencyKind.Module, cancellationToken)
+            .Select(component => FindPath(graph, component, cancellationToken)).ToArray();
+        var pathEvidence = paths.SelectMany(path => path)
+            .Select(edge => (Source: edge.Source.Identity, Target: edge.Target.Identity)).Distinct()
+            .ToDictionary(pair => pair, _ => new HashSet<DiagnosticEvidence>());
+        if (pathEvidence.Count > 0)
         {
-            var path = FindPath(graph, component, cancellationToken);
-            var evidence = path.SelectMany(edge => edge.Evidence).Select(item => item.Fact).Distinct()
+            // Only chosen cycle hops need full evidence. Scan once for all components,
+            // retaining facts from every project pair and graph level on those hops.
+            foreach (var edge in context.Graph.Edges)
+            {
+                foreach (var evidence in edge.Evidence)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (evidence.TargetProject is { } target
+                        && ownership.TryGetValue((evidence.SourceProject, target), out var pair)
+                        && pathEvidence.TryGetValue(pair, out var facts))
+                    {
+                        facts.Add(evidence.Fact);
+                    }
+                }
+            }
+        }
+        var violations = new List<RuleViolation>();
+        foreach (var path in paths)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var evidence = path.SelectMany(edge => pathEvidence[(edge.Source.Identity, edge.Target.Identity)]).Distinct()
                 .OrderBy(fact => fact.CanonicalKey, StringComparer.Ordinal).ToArray();
             var names = path.Select(edge => edge.Source.Identity).Append(path[0].Source.Identity);
             violations.Add(new(Descriptor, $"Module dependency cycle: {string.Join(" → ", names)}.",

@@ -154,3 +154,6 @@ The repository's self-scan can return incomplete coverage for known extraction
 and workspace issues. The CLI preserves available findings without claiming a
 gate outcome. See [known analysis limitations](troubleshooting.md#known-analysis-limitations)
 for details; use the [reference examples](m1-demo.md) for reproducible command outcomes.
+
+For source-development measurements and opt-in local phase/rule metrics, see
+[performance budgets and telemetry](performance.md).

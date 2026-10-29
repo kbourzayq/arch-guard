@@ -20,7 +20,9 @@ public sealed class DependencyEdge
 
         Source = source;
         Target = target;
-        Evidence = CanonicalData.Snapshot(evidence, item => item.SortKey).Distinct().ToList().AsReadOnly();
+        ArgumentNullException.ThrowIfNull(evidence);
+        // Equal origins have equal canonical keys; discard duplicates before allocating those keys for sorting.
+        Evidence = CanonicalData.Snapshot(evidence.Distinct(), item => item.SortKey);
         if (Evidence.Count == 0)
         {
             throw new ArgumentException("A dependency must retain origin evidence.", nameof(evidence));
