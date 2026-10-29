@@ -126,7 +126,11 @@ canonical ordinal order. Conflicting node data for the same identity is rejected
 Extraction accumulates distinct origins by endpoint pair before materializing
 immutable edges. An extraction-local cache reuses nodes with identical kind,
 identity, display name and project ownership; conflicting data still reaches graph
-validation. Both structures live for one extraction, with no cross-scan cache.
+validation. Normalized original type definitions, symbol displays and namespace
+names are also cached within that compiler snapshot, using reference identity to
+preserve display distinctions. An assembly-identity index retains every matching
+project so ambiguous ownership still produces an issue. These structures live
+for one extraction, with no cross-scan cache.
 Graph snapshots can reuse immutable edges when no merging is required, and evidence
 is deduplicated before canonical sorting. These allocation reductions preserve
 all origins, ordering, coverage and v1 diagnostic identities.
@@ -150,7 +154,9 @@ are iterative and support cancellation.
 AG003 rebuilds module edges from original project evidence, excludes intra-module
 dependencies and reports one shortest cycle through each cyclic component's
 ordinal-first module. Allowed contract edges participate. Each finding contains the
-closed path and distinct reference/semantic facts for its hops. See the
+closed path and distinct reference/semantic facts for its hops. Cycle paths are
+selected from topology before one evidence pass collects all facts on those hops
+across every selected component. Acyclic inputs avoid that additional pass. See the
 [cycle semantics](rule-catalog.md#ag003-module-cycles).
 
 ## Coverage

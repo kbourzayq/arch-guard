@@ -1,8 +1,8 @@
 # Performance budgets and local telemetry
 
-These development tools require a checkout containing the F29 implementation;
-the original NuGet 0.2.0 release predates them. CLI and MCP share the measured
-workspace, graph and rule pipeline. Compiler-hosted analysis is outside these measurements.
+Benchmarking requires a development checkout. The telemetry examples below use
+the CLI built from that checkout. CLI and MCP share the measured workspace, graph
+and rule pipeline. Compiler-hosted analysis is outside these measurements.
 
 ## Run the .NET benchmarks
 
@@ -38,7 +38,12 @@ scans plus snapshot/restore work and is not directly benchmarked here.
 ## Published reports and budgets
 
 The repository includes the [current BenchmarkDotNet Markdown report](../benchmarks/reports/analysis-macos-arm64.md)
-and [measured budget table](../benchmarks/README.md#current-measured-budgets).
+with a [visual summary](../benchmarks/README.md#latest-results) and
+[measured budget table](../benchmarks/README.md#current-measured-budgets).
+The charts show execution-time means with 99.9% confidence intervals and managed
+allocations for all three inputs. Each input uses its own scale; independently
+measured operations must not be added together. The
+[input descriptions](../benchmarks/README.md#benchmark-inputs) explain the fixture contents.
 BenchmarkDotNet also produces local HTML/CSV reports and detailed logs under
 ignored `artifacts/performance/`. The published Markdown is copied from the
 standard exporter without editing its numbers or hiding warnings.
@@ -47,8 +52,8 @@ For future performance work, rerun the .NET command on comparable hardware and
 review the new report against the published measurements and budgets. Keep
 before/after comparisons with the performance optimization issue and replace the
 repository report with the latest native export. Initial thresholds use measured
-maximum latency or managed allocations plus 50% headroom;
-this allowance is an explicit initial noise margin. There is no custom automated
+maximum latency or managed allocations plus 50% headroom; this allowance is an
+explicit initial noise margin. There is no custom automated
 comparison or performance CI gate. Record the environment and review any budget
 update alongside the code change; do not silently replace measurements to hide a
 regression. Re-measure on a controlled runner before making budgets mandatory in CI.

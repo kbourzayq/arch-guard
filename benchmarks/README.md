@@ -14,14 +14,32 @@ dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configu
 The C# entry point copies the two checked-in reference architectures, generates a
 24-project repository, and restores all inputs using cleared package sources.
 Inputs live in an isolated directory under `artifacts/performance/inputs/` and are
-removed when the run ends. Source fixtures are unchanged. Build/restore and input
-preparation are outside measurement. No Python runner, custom clocks, allocation
-counters, result manifest or JSON baseline is involved.
+removed when the run ends. Source fixtures are unchanged. Building the benchmark
+executable and preparing inputs, including restore, happen outside measurement.
+No Python runner, custom clocks, allocation counters, result manifest or JSON
+baseline is involved.
 
-The generated input is a chain of 24 projects/modules with 40 types per project
-and eight methods per type: 960 source files and 7,680 methods. All three inputs
-select AG001–AG006. The larger case includes implementation-boundary findings;
-completed coverage does not mean that the architecture gate passes.
+## Benchmark inputs
+
+| Input | Projects | Contents |
+| --- | ---: | --- |
+| `CleanArchitecture` | 4 | Domain, application, infrastructure and host projects from the reference solution |
+| `ModularMonolith` | 4 | Billing and Orders, each with contracts and application projects |
+| `Generated24x40` | 24 | One module per project, 40 public classes per project and eight methods per class |
+
+`Generated24x40` contains 960 authored C# files/classes and 7,680 declared methods.
+Projects target .NET 10 and are named `Module000` through `Module023`. Each project
+after the first references its predecessor: `Module023 → Module022 → … → Module000`,
+giving 23 direct project references without cycles. `Module000` methods return
+integer constants; the other projects' methods create and return the preceding
+module's `Type000`. The policy defines 24 modules and one layer. The
+[C# input generator](BenchmarkInputs.cs) defines the complete fixture.
+
+All three inputs select AG001–AG006 and use Release configuration. The larger case
+includes implementation-boundary findings; completed coverage does not mean that
+the architecture gate passes.
+
+## Measured operations
 
 | Method | Measured operation |
 | --- | --- |
@@ -45,6 +63,18 @@ startup. Git comparison's two scans and snapshot/restore work are not directly
 benchmarked. The [performance guide](../docs/performance.md) explains runtime
 telemetry, measurement scope and limitations.
 
+## Latest results
+
+![Latest results for all three inputs: mean execution times with 99.9% confidence intervals and managed allocations for workspace loading, graph construction, rules and full scans. Each input uses its own scale.](reports/analysis-macos-arm64.svg)
+
+The chart summarizes the [latest native report](reports/analysis-macos-arm64.md).
+Time labels are means in milliseconds; whiskers show BenchmarkDotNet's `Error`
+column, the half-width of its 99.9% confidence interval. Allocation labels are
+MiB per operation, converted from the report's KiB (`KB`) values by dividing by
+1,024. Each input uses its own linear scale. Operations are measured separately,
+so phase values are not additive. Exact values, variation and GC counts remain
+available in the native report; [current budgets](#current-measured-budgets) are below.
+
 ## Reports and publication
 
 BenchmarkDotNet writes its standard GitHub Markdown, HTML, CSV and detailed log
@@ -66,9 +96,13 @@ cp artifacts/performance/results/ArchitectureGuardian.Benchmarks.AnalysisBenchma
 ```
 
 On PowerShell use `Copy-Item` with the same source and destination paths. Use a
-separate report filename for another OS/architecture. Publish the Markdown with
-the corresponding code change; leave generated HTML, CSV, logs, build outputs and
-copied inputs ignored. There is no automatic upload or custom regression gate.
+separate report filename for another OS/architecture. Refresh the companion SVG
+from that same report when published measurements change, using its `Mean`, `Error`
+and `Allocated` columns and the units described above. Its metadata records the
+source report's SHA-256 for verification. The SVG is a documentation illustration;
+the benchmark command exports the native measurement reports. Publish the Markdown
+and SVG with the corresponding code change; leave generated HTML, CSV, logs, build
+outputs and copied inputs ignored. There is no automatic upload or custom regression gate.
 CI builds, formats and discovers this project on Linux, Windows and macOS, without collecting timings.
 Compare reports on matching hardware/OS/runtime with heavy background work stopped,
 then review performance changes alongside the normal correctness tests.
