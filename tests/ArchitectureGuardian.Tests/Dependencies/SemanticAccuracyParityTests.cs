@@ -25,7 +25,7 @@ public sealed class SemanticAccuracyParityTests(SemanticWorkspaceFixture fixture
     private static readonly string[] SharedRules = ["AG001", "AG002", "AG004", "AG005", "AG006"];
     private static readonly string[] ForbiddenCases = ["attribute", "base", "interface", "constraint", "alias", "array-alias",
         "generic-alias", "generic-array", "creation", "typeof", "nameof", "cast", "pattern", "member", "extension",
-        "operator-signature", "generated"];
+        "operator-signature", "generated", "function-pointer-parameter", "function-pointer-return", "function-pointer-nested"];
 
     /// <summary>Requires exact expected sets in both engines, including negative cases and overlapping restrictions.</summary>
     /// <param name="configuration">The evaluated build configuration.</param>

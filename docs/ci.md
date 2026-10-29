@@ -12,7 +12,7 @@ replace `Application.slnx` and policy path with your own, authorize its build lo
 and run these as ordinary pipeline steps:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.3.0
 dotnet restore Application.slnx -p:Configuration=Release --locked-mode
 archguard scan Application.slnx --policy architecture.guardian.yaml --configuration Release --trusted --format sarif --output architecture.sarif
 ```

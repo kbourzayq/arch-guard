@@ -146,6 +146,7 @@ def pack(directory):
     print("Rebuilt package payloads are reproducible; wrote SHA256SUMS", flush=True)
 
 
+
 class StdioClient:
     """Exercise the installed stdio command with bounded, line-delimited JSON-RPC requests."""
 
@@ -221,36 +222,57 @@ def smoke(directory):
         cli = tools / ("archguard" + suffix)
         assert run([cli, "--version"], root, env).strip().split("+", 1)[0] == version
         assert "scan" in run([cli, "--help"], root, env)
-        assert "AG001" in run([cli, "explain", "AG001"], root, env)
+        for rule in ("AG001", "AG002", "AG003", "AG004", "AG005", "AG006"):
+            assert rule in run([cli, "explain", rule], root, env)
         run([cli, "explain", "AG999"], root, env, expected=2)
         project = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>{}</Project>'
-        for name in ("App", "Library"):
+        for name in ("App", "Library", "App.Contracts"):
             folder = root / name
             folder.mkdir()
-            reference = '<ItemGroup><ProjectReference Include="../Library/Library.csproj" /></ItemGroup>' if name == "App" else ""
+            target = {"App": "Library", "Library": "App.Contracts"}.get(name)
+            reference = f'<ItemGroup><ProjectReference Include="../{target}/{target}.csproj" /></ItemGroup>' if target else ""
             (folder / f"{name}.csproj").write_text(project.format(reference), encoding="utf-8")
-            source = "namespace App; public class Target : Library.Target { }" if name == "App" else "namespace Library; public class Target { }"
+            source = {"App": "namespace App; public class Target : Library.Target { }",
+                      "Library": "namespace Library; public class Target : App.Contracts.IContract { }",
+                      "App.Contracts": "namespace App.Contracts; public interface IContract { }"}[name]
             (folder / "Class.cs").write_text(source, encoding="utf-8")
         (root / "Application.slnx").write_text(
-            '<Solution><Project Path="App/App.csproj" /><Project Path="Library/Library.csproj" /></Solution>', encoding="utf-8")
+            '<Solution><Project Path="App/App.csproj" /><Project Path="Library/Library.csproj" /><Project Path="App.Contracts/App.Contracts.csproj" /></Solution>', encoding="utf-8")
         policy = root / "architecture.guardian.yaml"
         policy.write_text('''version: 1
 modules:
   - id: App
-    projects: ["App/*.csproj"]
+    projects: ["App/*.csproj", "App.Contracts/*.csproj"]
+    forbiddenNamespaces: [Library]
+    contracts:
+      - id: api
+        projects: ["App.Contracts/*.csproj"]
   - id: Library
     projects: ["Library/*.csproj"]
+    allowedDependencies: [contract:App/api]
 layers:
-  - id: All
-    projects: ["**/*.csproj"]
+  - id: Application
+    projects: ["App/*.csproj", "App.Contracts/*.csproj"]
+    domainInfrastructure:
+      forbiddenNamespaces: [Library]
+  - id: Infrastructure
+    projects: ["Library/*.csproj"]
+    allowedDependencies: [Application]
 rules:
   AG001: error
+  AG002: error
+  AG003: error
+  AG004: error
+  AG005: error
+  AG006: error
 ''', encoding="utf-8")
         run(["dotnet", "restore", "Application.slnx", "-p:Configuration=Release", "--disable-build-servers"], root, env)
         scan = [cli, "scan", "Application.slnx", "--policy", policy, "--configuration", "Release", "--trusted", "--format", "json"]
         blocked = json.loads(run(scan, root, env, expected=1))
         assert blocked["status"] == "completed" and blocked["gateOutcome"] == "failed", blocked
-        assert any(item["ruleId"] == "AG001" for item in blocked["diagnostics"]), blocked
+        assert {item["ruleId"] for item in blocked["diagnostics"]} == {"AG001", "AG002", "AG003", "AG004", "AG005", "AG006"}, blocked
+        broken = json.loads(run([*scan[:2], "Missing.slnx", *scan[3:]], root, env, expected=2))
+        assert broken["status"] != "completed" and broken["gateOutcome"] != "passed", broken
         client = StdioClient(tools / ("archguard-mcp" + suffix), root, env)
         print("CLI scans passed; checking installed MCP initialization, discovery and scans", flush=True)
         try:
@@ -262,14 +284,24 @@ rules:
             assert {tool["name"] for tool in discovered["tools"]} == {
                 "get_architecture", "list_rules", "analyze_solution", "analyze_changes", "explain_violation"}, discovered
             arguments = {"inputPath": "Application.slnx", "policyPath": policy.name, "configuration": "Release"}
+            context = client.request("tools/call", {"name": "get_architecture", "arguments": arguments})
+            assert not context.get("isError") and context["structuredContent"]["status"] == "completed", context
             for outcome in ("failed", "passed"):
                 response = client.request("tools/call", {"name": "analyze_solution", "arguments": arguments})
                 assert not response.get("isError"), response
                 report = response["structuredContent"]
                 assert report["status"] == "completed" and report["gateOutcome"] == outcome, report
                 if outcome == "failed":
-                    policy.write_text(policy.read_text(encoding="utf-8").replace(
-                        "  - id: App\n", "  - id: App\n    allowedDependencies: [module:Library]\n"), encoding="utf-8")
+                    assert {item["ruleId"] for item in report["diagnostics"]} == {"AG001", "AG002", "AG003", "AG004", "AG005", "AG006"}, report
+                    finding = next(item for item in report["diagnostics"] if item["ruleId"] == "AG001")
+                    explained = client.request("tools/call", {"name": "explain_violation", "arguments": {
+                        **arguments, "diagnosticId": finding["id"]}})
+                    assert not explained.get("isError") and explained["structuredContent"]["status"] == "completed", explained
+                    assert explained["structuredContent"]["diagnostic"]["id"] == finding["id"], explained
+                    # The client corrects its fixture source/reference; the server stays read-only and policy is unchanged.
+                    (root / "App/Class.cs").write_text("namespace App; public class Target { }", encoding="utf-8")
+                    (root / "App/App.csproj").write_text(project.format(""), encoding="utf-8")
+                    run(["dotnet", "restore", "Application.slnx", "-p:Configuration=Release", "--disable-build-servers"], root, env)
                     passed = json.loads(run(scan, root, env))
                     assert passed["status"] == "completed" and passed["gateOutcome"] == "passed", passed
         finally:

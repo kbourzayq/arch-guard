@@ -1,3 +1,15 @@
+## v0.3.0 (2026-10-29)
+
+### Feat
+
+- **performance**: add benchmark budgets and opt-in local telemetry
+- **policy**: share YAML and enable repository validation
+- **agents**: add architecture skill and installation-first guides
+
+### Fix
+
+- **analyzers**: inspect function-pointer aliases for MVP release
+
 ## v0.2.0 (2026-10-27)
 
 ### Feat

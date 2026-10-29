@@ -80,11 +80,15 @@ documentation links, tool entry points,
 bundled application/build-host files and the portable analyzer dependency layout.
 Smoke tests use fresh tool installations and package/HTTP caches outside repository
 build defaults, with a local-only tool feed. They run CLI version/help/explanation,
-reject an unknown rule, load a two-project SDK workspace, require a completed
-failing scan, grant the dependency and require a passing scan. MCP initializes over
-stdio, verifies its version and five tools, and performs the same failing/passing
-solution analyses. A real compiler consumer checks forbidden and allowed uses,
+reject an unknown rule, load a three-project SDK workspace, require all six rules
+in a completed failing scan, and check operational exit 2 for a missing input.
+MCP initializes over stdio, verifies its version and five tools, inspects ownership,
+and explains a current diagnostic. The client corrects fixture source and its
+project reference without relaxing policy; independent CLI and MCP scans must then
+pass. A real compiler consumer checks forbidden and allowed uses,
 policy changes, AG005/AG006 and absence of analyzer-load errors.
+It checks function-pointer aliases in YAML and legacy XML, including all five
+compiler rules and unused-import silence.
 The compiler consumer maps `ArchitectureGuardian.Analyzers` exclusively to the
 local feed, checks that a missing local artifact fails restore, and verifies the
 restored package's SHA-256 against the supplied artifact. SDK reference packages
@@ -104,6 +108,9 @@ before the publish job can run. The publish job downloads the original tested
 artifact, checks the tag/version/commit and SHA-256 manifest, then publishes those
 packages to nuget.org without rebuilding them. Normal PR CI also runs package
 validation. A local passing run does not establish that GitHub CI passed.
+
+See the [MVP release sign-off record](release-signoff-0.3.0.md) for candidate evidence,
+the squash-history changelog boundary and the remaining maintainer gates.
 
 ## Prepare a release with Commitizen
 
@@ -131,6 +138,13 @@ release checks, then publish that commit and tag through the maintainer's proces
 The tag starts the verified NuGet workflow. No automatic bump, tag creation or tag
 push runs during PR validation. Review the proposed increment before creating a
 release; ensure prior release tags are available in the local history.
+
+If a reviewed release PR has already synchronized the version using
+`--version-files-only`, do not run `cz bump` again for that candidate. After
+maintainer approval, tag its exact approved merged commit at the prepared version;
+the [0.3.0 sign-off record](release-signoff-0.3.0.md) gives this candidate's
+finalization steps. The ordinary bump workflow above applies to releases whose
+version has not already been prepared.
 
 `CHANGELOG.md` is generated; do not maintain entries manually. Commitizen bump
 creates the versioned heading required by release verification. Use `cz changelog`

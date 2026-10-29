@@ -125,8 +125,33 @@ public sealed class YamlPolicyTests
         Assert.Empty(results[1]);
     }
 
+    /// <summary>YAML selection and severities apply to return, parameter and nested function-pointer aliases.</summary>
+    /// <param name="signature">The alias target.</param>
+    [Theory]
+    [InlineData("delegate*<Billing.Service, void>")]
+    [InlineData("delegate*<Billing.Service>")]
+    [InlineData("delegate*<Billing.Service[], void>")]
+    [InlineData("delegate*<Billing.Service*, void>")]
+    [InlineData("delegate*<System.Collections.Generic.List<Billing.Service[]>, void>")]
+    [InlineData("delegate*<delegate*<Billing.Service, void>, void>")]
+    [InlineData("delegate*<Billing.Service, Billing.Service, Billing.Service>")]
+    public async Task Function_pointer_aliases_use_yaml_rules_and_alias_locations(string signature)
+    {
+        var source = $"using unsafe Callback = {signature}; public unsafe class Order {{ public Callback Value; }}";
+        var diagnostics = await Analyze(Yaml, source: source);
+        Assert.Equal(new[] { "AG001", "AG002", "AG004", "AG005", "AG006" }, diagnostics.Select(item => item.Id).Order());
+        Assert.All(diagnostics, item =>
+        {
+            Assert.Equal(DiagnosticSeverity.Error, item.Severity);
+            Assert.Equal(source.LastIndexOf("Callback", StringComparison.Ordinal), item.Location.SourceSpan.Start);
+            Assert.Equal("Callback".Length, item.Location.SourceSpan.Length);
+        });
+        Assert.Empty(await Analyze(Yaml, source: $"using unsafe Callback = {signature}; public class Order {{ }}"));
+    }
+
     private static async Task<Diagnostic[]> Analyze(string yaml, bool inMemory = true, ReportDiagnostic? setting = null,
-        bool missingContext = false, bool missingReferenceIdentity = false, string? extraPolicy = null, bool omitReferenceMetadata = false)
+        bool missingContext = false, bool missingReferenceIdentity = false, string? extraPolicy = null, bool omitReferenceMetadata = false,
+        string source = "public class Order : Billing.Service { }")
     {
         var references = new[] { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) };
         var billing = CSharpCompilation.Create("Custom.Billing", [CSharpSyntaxTree.ParseText("namespace Billing { public class Service { } }")],
@@ -138,9 +163,10 @@ public sealed class YamlPolicyTests
             Assert.True(billing.Emit(stream, cancellationToken: TestContext.Current.CancellationToken).Success);
             reference = MetadataReference.CreateFromImage(stream.ToArray(), filePath: Path.Combine(Root, "Custom.Billing.dll"));
         }
-        var compilation = CSharpCompilation.Create("Custom.Orders", [CSharpSyntaxTree.ParseText("public class Order : Billing.Service { }", path: Path.Combine(Root, "Order.cs"))],
-            references.Append(reference), new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
+        var compilation = CSharpCompilation.Create("Custom.Orders", [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp12), path: Path.Combine(Root, "Order.cs"))],
+            references.Append(reference), new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true,
                 specificDiagnosticOptions: setting is null ? null : ImmutableDictionary<string, ReportDiagnostic>.Empty.Add("AG001", setting.Value)));
+        Assert.DoesNotContain(compilation.GetDiagnostics(TestContext.Current.CancellationToken), item => item.Severity == DiagnosticSeverity.Error);
         var policy = new TextFile(Path.Combine(Root, "architecture.guardian.yaml"), yaml);
         var project = new TextFile(Path.Combine(Root, "Billing", "UnrelatedFilename.csproj"), null);
         var files = omitReferenceMetadata ? ImmutableArray.Create<AdditionalText>(policy) : ImmutableArray.Create<AdditionalText>(policy, project);

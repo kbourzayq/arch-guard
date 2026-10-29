@@ -215,6 +215,14 @@ public sealed class DependencyAnalyzer : DiagnosticAnalyzer
                 case IPointerTypeSymbol pointer:
                     pending.Push(pointer.PointedAtType);
                     break;
+                case IFunctionPointerTypeSymbol functionPointer:
+                    pending.Push(functionPointer.Signature.ReturnType);
+                    foreach (var parameter in functionPointer.Signature.Parameters)
+                    {
+                        pending.Push(parameter.Type);
+                    }
+
+                    break;
                 case INamedTypeSymbol named:
                     yield return named;
                     foreach (var argument in named.TypeArguments)

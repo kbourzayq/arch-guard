@@ -70,8 +70,8 @@ directory and adjust package-source paths below for subsequent runs:
 
 ```sh
 python3 eng/packages.py pack
-dotnet tool install ArchitectureGuardian.Cli --tool-path artifacts/tools --version 0.2.0 --configfile NuGet.Config --add-source artifacts/packages
-dotnet tool install ArchitectureGuardian.Mcp --tool-path artifacts/tools --version 0.2.0 --configfile NuGet.Config --add-source artifacts/packages
+dotnet tool install ArchitectureGuardian.Cli --tool-path artifacts/tools --version 0.3.0 --configfile NuGet.Config --add-source artifacts/packages
+dotnet tool install ArchitectureGuardian.Mcp --tool-path artifacts/tools --version 0.3.0 --configfile NuGet.Config --add-source artifacts/packages
 artifacts/tools/archguard --version
 artifacts/tools/archguard --help
 artifacts/tools/archguard explain AG001
@@ -118,7 +118,7 @@ From the checkout root after locked restore:
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
 ```
 
-This produces `ArchitectureGuardian.Analyzers.0.2.0.nupkg` with the current source
+This produces `ArchitectureGuardian.Analyzers.0.3.0.nupkg` with the current source
 version. Use `artifacts/analyzers` as a local package source in the consuming
 repository. The analyzer also needs an explicit YAML policy (or legacy XML); installing the package
 alone does not configure architecture checks. Follow the complete

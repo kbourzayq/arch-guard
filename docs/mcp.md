@@ -25,7 +25,7 @@ can execute repository-controlled MSBuild tasks.
 Install the published .NET tool from any terminal with the SDK available:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.3.0
 ```
 
 The machine needs .NET 10 and the SDK required by the repository being loaded.

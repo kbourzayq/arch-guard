@@ -12,7 +12,7 @@ def verify_yaml_consumer(root, version, framework, build, run):
         '</ItemGroup></Project>')
     (root / "Orders/Orders.csproj").write_text(
         f'<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>{framework}</TargetFramework>'
-        '<AssemblyName>Custom.Orders</AssemblyName></PropertyGroup>'
+        '<AssemblyName>Custom.Orders</AssemblyName><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>'
         '<ItemGroup><ProjectReference Include="../Billing/Billing.csproj"/></ItemGroup></Project>')
     (root / "Billing/Billing.csproj").write_text(
         f'<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>{framework}</TargetFramework>'
@@ -50,6 +50,21 @@ rules:
     for failure in ("AG000", "AD0001", "CS8032", "CS9057"):
         assert failure not in result.stdout + result.stderr, result.stdout
 
+    alias_source = "using unsafe Callback = delegate*<delegate*<Billing.Service[], Billing.Service>, void>; public unsafe class Order { public Callback Value; }"
+    (root / "Orders/Order.cs").write_text(alias_source)
+    policy.write_text(denied.replace("    projects: [Orders/*.csproj]", "    projects: [Orders/*.csproj]\n    forbiddenNamespaces: [Billing]", 1)
+        .replace("  - id: Application\n    projects: [Orders/*.csproj]",
+                 "  - id: Application\n    projects: [Orders/*.csproj]\n    domainInfrastructure:\n      forbiddenNamespaces: [Billing]"))
+    aliases = run(build, root)
+    assert aliases.returncode != 0, "Forbidden YAML function-pointer alias passed"
+    for rule in ("AG001", "AG002", "AG004", "AG005", "AG006"):
+        assert f"error {rule}" in aliases.stdout and "Order.cs(1," in aliases.stdout, aliases.stdout
+    for failure in ("AG000", "AD0001", "CS8032", "CS9057", "error CS"):
+        assert failure not in aliases.stdout + aliases.stderr, aliases.stdout
+    (root / "Orders/Order.cs").write_text("using unsafe Callback = delegate*<Billing.Service, void>; public class Order { }")
+    assert run(build, root).returncode == 0, "Unused YAML alias produced a finding"
+    (root / "Orders/Order.cs").write_text(alias_source)
+
     permitted = denied.replace("    projects: [Orders/*.csproj]\n", "    projects: [Orders/*.csproj]\n    allowedDependencies: [module:Billing]\n", 1)
     permitted = permitted.replace("  - id: Application\n    projects: [Orders/*.csproj]",
         "  - id: Application\n    projects: [Orders/*.csproj]\n    allowedDependencies: [Infrastructure]")
@@ -57,6 +72,7 @@ rules:
         "  - id: Billing\n    projects: [Billing/*.csproj]\n    contracts:\n      - id: api\n        projects: [Billing/*.csproj]")
     policy.write_text(permitted)
     assert run(build, root).returncode == 0, "YAML permission/contract update did not restore passing build"
+    (root / "Orders/Order.cs").write_text("public class Order : Billing.Service { }")
 
     # Standard per-file settings override the YAML severity, including suppression.
     (root / "Orders/.editorconfig").write_text(
