@@ -1,0 +1,63 @@
+---
+import { Code } from '@astrojs/starlight/components';
+import policy from '../../../tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml?raw';
+import { github, pagePath } from '../../scripts/site.mjs';
+
+// Verbatim first diagnostic line and completed summary from the committed AG002 fixture.
+const diagnostic = `Shop.Application/Checkout.cs(7,33): error AG002: Layer 'Application' must not depend on layer 'Infrastructure': project 'Shop.Application/Shop.Application.csproj' depends on 'Shop.Infrastructure/Shop.Infrastructure.csproj'.`;
+const capabilities = [
+  ['01', 'Architecture as code', 'Declare modules, layers and allowed dependencies in versioned YAML. Review architecture changes alongside code.', 'policy'],
+  ['02', 'Feedback in your editor', 'Roslyn analyzers check AG001, AG002 and AG004–AG006 in the host compilation. Keep solution scans for module cycles.', 'compiler-analyzer'],
+  ['03', 'A gate for every pipeline', 'Scan locally or in CI. Export JSON or SARIF, and distinguish policy violations from incomplete coverage.', 'ci'],
+  ['04', 'Context for coding agents', 'The read-only MCP server exposes architecture context, solution analysis and guidance for current violations.', 'mcp'],
+  ['05', 'Explicit public contracts', 'Define shared contracts as whole projects. Keep cross-module implementation access behind intentional boundaries.', 'policy'],
+  ['06', 'Diagnostics you can act on', 'Follow source evidence, dependency ownership and remediation guidance to remove or invert the offending edge.', 'rule-catalog'],
+];
+---
+
+<div class="home-content">
+  <section class="example-section" aria-labelledby="policy-in-practice">
+    <div class="section-heading"><p class="eyebrow">01 / Make intent executable</p><h2 id="policy-in-practice">A boundary you can build on.</h2><p>A passing C# build can still violate your architecture. Make the intended direction explicit, then check what the code actually does.</p></div>
+    <div class="example-grid">
+      <div class="example-policy"><div class="panel-label"><span>THE POLICY</span><code>architecture.guardian.yaml</code></div><Code code={policy.trim()} lang="yaml" title="Clean Architecture reference policy" /></div>
+      <div class="example-result">
+        <div class="panel-label"><span>THE FEEDBACK</span><span class="rejected-label">AG002 / error</span></div>
+        <h3>Application reaches into Infrastructure.</h3>
+        <p>The reference fixture compiles. Its Application layer bypasses the Domain port and calls an Infrastructure implementation. The policy allows Application → Domain, so the scan rejects that edge.</p>
+        <Code code={diagnostic} lang="text" title="Actual CLI output · excerpt" />
+        <Code code="Analysis completed: 1 diagnostic(s). Gate failed." lang="text" />
+        <p class="result-remedy"><strong>Repair the dependency.</strong> Depend on the Domain port and keep the Infrastructure implementation behind it.</p>
+        <a class="text-link" href={`${pagePath('getting-started')}#run-the-included-example`}>Run the passing and violating examples <span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="capabilities-section" aria-labelledby="across-your-workflow">
+    <div class="section-heading"><p class="eyebrow">02 / One policy, several checkpoints</p><h2 id="across-your-workflow">From the editor to the merge gate.</h2><p>Architecture testing for Clean Architecture, modular monoliths, and the boundaries your team defines.</p></div>
+    <div class="capability-grid">
+      {capabilities.map(([number, title, description, slug]) => <a class="capability" href={pagePath(slug)}><span class="capability-number">{number} <span aria-hidden="true">↗</span></span><h3>{title}</h3><p>{description}</p></a>)}
+    </div>
+  </section>
+
+  <section class="steps-section" aria-labelledby="prevent-drift">
+    <div class="section-heading"><p class="eyebrow">03 / Close the loop</p><h2 id="prevent-drift">Good architecture is a practice.</h2></div>
+    <ol class="steps">
+      <li><span class="step-number">1</span><h3>Define your architecture</h3><p>Map every project to a module and layer. Declare public contracts and select the rules that express your intent.</p><a href={pagePath('policy')}>Write your policy →</a></li>
+      <li><span class="step-number">2</span><h3>Analyze your code</h3><p>Restore the intended build context, inspect ownership, and scan actual references and semantic dependencies.</p><a href={pagePath('getting-started')}>Run your first scan →</a></li>
+      <li><span class="step-number">3</span><h3>Prevent architectural drift</h3><p>Keep a full solution gate in CI. Review accepted debt with baselines and evaluate new findings against a Git base.</p><a href={pagePath('ci')}>Add a CI gate →</a></li>
+    </ol>
+  </section>
+
+  <section class="agent-section" aria-labelledby="agent-workflow">
+    <div class="agent-intro"><p class="eyebrow">04 / Give agents the map</p><h2 id="agent-workflow">AI moves fast.<br />Keep the boundaries in view.</h2><p>Give your coding agent architecture context before it edits. Validate the result with the same policy you use in CI.</p><a class="text-link" href={pagePath('agent-workflow')}>Set up the agent workflow <span aria-hidden="true">→</span></a></div>
+    <ol class="agent-flow">
+      <li><span>01</span><div><h3>Retrieve the context</h3><p>Discover <code>list_rules</code> and resolve ownership with <code>get_architecture</code> after authorizing and restoring the workspace.</p></div></li>
+      <li><span>02</span><div><h3>Implement within the boundaries</h3><p>Use the retrieved module, layer and contract permissions while making the requested code change.</p></div></li>
+      <li><span>03</span><div><h3>Validate the result</h3><p>Call <code>analyze_solution</code>. Require completed coverage and a passed gate, alongside the normal build and tests.</p></div></li>
+      <li><span>04</span><div><h3>Correct and repeat</h3><p>Use <code>explain_violation</code> with a current diagnostic ID. Repair the dependency, restore when needed, and analyze again.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="home-cta" aria-labelledby="start-with-one-boundary"><div><p class="eyebrow">Make the next change intentional</p><h2 id="start-with-one-boundary">Start with one boundary.</h2><p>Install the tool. Write the policy. Let your code tell you the rest.</p></div><a class="action primary" href={pagePath('installation')}>Get Started <span aria-hidden="true">↗</span></a></section>
+  <footer class="home-footer"><span>Architecture Guardian <span class="footer-note">/ Built for .NET</span></span><nav aria-label="Project links"><a href={pagePath('documentation')}>Documentation</a><a href={pagePath('contributing')}>Contribute</a><a href={`${github}/issues`}>Feedback</a></nav></footer>
+</div>

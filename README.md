@@ -11,6 +11,10 @@ the analyzer complements them with checks in the host compilation.
 [Getting started](docs/getting-started.md) · [Documentation](docs/README.md) ·
 [Local development](docs/installation.md) · [Manual validation](docs/manual-validation.md) · [Contributing](CONTRIBUTING.md)
 
+The [public documentation website](https://kbourzayq.github.io/arch-guard/) presents
+these guides with search and organized navigation. See
+[website development](website/README.md) for local preview and publishing setup.
+
 ## Requirements
 
 | Integration | Requirements |

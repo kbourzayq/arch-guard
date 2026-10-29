@@ -184,6 +184,11 @@ compatibility promises and maintainer configuration needed before publishing.
 
 For documentation-only changes, verify commands, local links, headings and fenced
 examples. Keep published-install examples separate from source-development steps.
+The public Astro/Starlight website reuses these Markdown sources at build time.
+See [website development](website/README.md) for the source-to-page map, Node setup,
+`npm ci` / `npm run build`, browser checks and GitHub Pages settings. Edit the
+authoritative document rather than the ignored generated website copy. Changes to
+mapped Markdown also run website validation in the dedicated docs workflow.
 When moving versioned install examples, update `.cz.toml` `version_files` so
 Commitizen still synchronizes them. Validate the portable
 `skills/architecture-guardian/SKILL.md` against the MCP/CLI contracts when changing

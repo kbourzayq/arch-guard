@@ -1,0 +1,12 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { pagePath } from '../../scripts/site.mjs';
+---
+
+<StarlightPage frontmatter={{
+  title: 'Page not found',
+  description: 'Find the Architecture Guardian documentation you need.',
+  editUrl: false, prev: false, next: false,
+}}>
+  <p>This address does not point to a documentation page. Search for a topic above or <a href={pagePath('installation')}>start with installation</a>.</p>
+</StarlightPage>
