@@ -139,6 +139,13 @@ The tag starts the verified NuGet workflow. No automatic bump, tag creation or t
 push runs during PR validation. Review the proposed increment before creating a
 release; ensure prior release tags are available in the local history.
 
+If a reviewed release PR has already synchronized the version using
+`--version-files-only`, do not run `cz bump` again for that candidate. After
+maintainer approval, tag its exact approved merged commit at the prepared version;
+the [0.3.0 sign-off record](release-signoff-0.3.0.md) gives this candidate's
+finalization steps. The ordinary bump workflow above applies to releases whose
+version has not already been prepared.
+
 `CHANGELOG.md` is generated; do not maintain entries manually. Commitizen bump
 creates the versioned heading required by release verification. Use `cz changelog`
 only when intentionally regenerating notes, and review its output. See Commitizen's

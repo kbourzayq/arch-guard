@@ -14,8 +14,8 @@ with source evidence and remediation guidance.
 For the CLI or MCP server:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.3.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.3.0
 archguard --version
 archguard --help
 ```
@@ -54,7 +54,7 @@ is installed separately from the repository files.
 Reference the analyzer in participating projects:
 
 ```xml
-<PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.2.0" PrivateAssets="all" />
+<PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.3.0" PrivateAssets="all" />
 <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
 ```
 
@@ -64,8 +64,8 @@ Use the same YAML v1 policy as CLI/MCP. Packaged MSBuild targets supply evaluate
 project/assembly metadata. YAML supplies selection and default severities;
 `.editorconfig` can override reporting for selected rules. Missing, duplicate or
 invalid configuration produces AG000. XML remains available for one transition
-release; do not configure both formats. YAML requires a build/release containing
-issue #83; published `0.2.0` still uses the legacy XML setup linked below.
+release; do not configure both formats. Earlier XML-only packages require the
+legacy XML setup linked below.
 
 The analyzer checks AG001, AG002 and AG004–AG006 in each compilation, without
 whole-solution coverage or AG003 cycle checks. Retain an independent CLI gate.

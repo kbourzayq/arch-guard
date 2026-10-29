@@ -26,7 +26,7 @@ with `dotnet --list-sdks` and runtimes with `dotnet --list-runtimes`.
 The exact SDK pinned in **this** repository is required only for
 [developing Architecture Guardian](docs/installation.md#requirements).
 
-Version `0.2.0` is available on NuGet:
+Install a released version from NuGet. The examples below target `0.3.0`:
 
 | Package | What you install |
 | --- | --- |
@@ -43,13 +43,13 @@ Run from a terminal with the .NET SDK available; no Architecture Guardian checko
 is needed:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.2.0
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.3.0
 archguard --version
 archguard --help
 archguard explain AG001
 ```
 
-The version starts with `0.2.0`; help lists `scan`, `inspect`, `load`, `explain`
+The version starts with `0.3.0`; help lists `scan`, `inspect`, `load`, `explain`
 and `baseline`. Ensure the global tool directory is on PATH: `$HOME/.dotnet/tools`
 on macOS/Linux or `%USERPROFILE%\.dotnet\tools` on Windows. Restart your terminal
 or agent after changing PATH. See [troubleshooting](docs/troubleshooting.md#installation-and-command-startup).
@@ -85,7 +85,7 @@ findings in an incomplete scan never mean success. See [CLI reference](docs/cli.
 ## Install the MCP server
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.2.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.3.0
 ```
 
 Find the installed executable with `command -v archguard-mcp` on macOS/Linux or
@@ -123,7 +123,7 @@ In your consuming repository, merge this into a root `Directory.Build.props`:
 ```xml
 <Project>
   <ItemGroup>
-    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.2.0" PrivateAssets="all" />
+    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.3.0" PrivateAssets="all" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
   </ItemGroup>
 </Project>
@@ -143,8 +143,8 @@ Then run `dotnet restore Shop.slnx` and `dotnet build Shop.slnx --no-restore`,
 substituting your solution. Missing or invalid configuration produces AG000.
 Retain a CLI solution scan in CI for complete repository coverage.
 
-YAML support requires a package built from this change or a release containing it;
-published `0.2.0` uses the [legacy XML setup](docs/compiler-analyzer.md#compiler-policy-snapshot).
+This release supports shared YAML. Earlier XML-only packages require the
+[legacy XML setup](docs/compiler-analyzer.md#compiler-policy-snapshot).
 The first minor release with YAML support retains XML for one transition release;
 its removal is planned for the following minor release. See the
 [complete analyzer guide](docs/compiler-analyzer.md) for migration and host limits.
@@ -176,8 +176,8 @@ Instead of `--global`, install into a private directory from your target reposit
 root. Add `.tools/architecture-guardian/` to that repository's `.gitignore`:
 
 ```sh
-dotnet tool install ArchitectureGuardian.Cli --tool-path .tools/architecture-guardian --version 0.2.0
-dotnet tool install ArchitectureGuardian.Mcp --tool-path .tools/architecture-guardian --version 0.2.0
+dotnet tool install ArchitectureGuardian.Cli --tool-path .tools/architecture-guardian --version 0.3.0
+dotnet tool install ArchitectureGuardian.Mcp --tool-path .tools/architecture-guardian --version 0.3.0
 ./.tools/architecture-guardian/archguard --help
 ```
 
@@ -193,8 +193,8 @@ Stop connected MCP clients before updating or removing their server. To select a
 published version, replace the version below consistently across tools and analyzers:
 
 ```sh
-dotnet tool update --global ArchitectureGuardian.Cli --version 0.2.0
-dotnet tool update --global ArchitectureGuardian.Mcp --version 0.2.0
+dotnet tool update --global ArchitectureGuardian.Cli --version 0.3.0
+dotnet tool update --global ArchitectureGuardian.Mcp --version 0.3.0
 ```
 
 Update the analyzer's package version in your project or central package file and

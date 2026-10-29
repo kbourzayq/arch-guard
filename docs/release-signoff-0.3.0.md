@@ -50,18 +50,36 @@ Pinned Commitizen 4.19.3 previews **0.3.0 / MINOR** from main
 repeats the distribution feature: immutable `v0.2.0` points to PR head `30e2249`,
 while main contains squash `b79f714`. Keep the old tag and old package bytes.
 
-After the implementation commit is reviewed, synchronize the candidate files with
-`cz bump --check-consistency --version-files-only --yes`. Generate the new release
-section with the explicit shipped main boundary:
+The candidate files were synchronized with
+`cz bump --check-consistency --version-files-only --yes` after independent review
+of the implementation commit. The new release section was generated with the
+explicit shipped main boundary:
 
 ```sh
 cz changelog --start-rev b79f714df07b1d8a7bf8c6f260111d580ed75533 --unreleased-version v0.3.0 --dry-run
 ```
 
-Use that generator output for the new section, retaining the existing generated
-0.2.0 section. Review the alias fix, YAML/XML migration, performance/local telemetry,
-agent workflow and synchronized examples. A version-files-only preparation does
-not create a release tag or authorize publication.
+The generated output supplies the new section and retains the existing generated
+0.2.0 section verbatim. Notes include the alias fix, shared YAML, performance/local
+telemetry and the agent workflow; synchronized examples use 0.3.0. XML migration
+timing and analyzer release tracking were reviewed above. This files-only
+preparation created no release tag and does not authorize publication.
+
+Do **not** rerun `cz bump` to finalize this candidate: the source version is already
+0.3.0, so another bump would select the following release. After explicit maintainer
+approval, merge the reviewed candidate PR, confirm normal CI and the 0.3.0 files on
+the exact approved merged commit, then create the immutable tag at that commit.
+Replace `APPROVED_COMMIT_SHA` with that reviewed full SHA:
+
+```sh
+git tag v0.3.0 APPROVED_COMMIT_SHA
+git push origin refs/tags/v0.3.0
+```
+
+The existing release workflow validates that exact tagged commit and publishes its
+original tested artifacts. Require the tagged run to succeed, confirm all three
+0.3.0 public feed versions, then record final sign-off. Never move the tag or
+republish an existing version to repair a failure.
 
 ## Evidence required for final approval
 

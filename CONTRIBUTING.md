@@ -153,7 +153,7 @@ For compiler package changes, also build and verify a consumer package:
 
 ```sh
 dotnet pack src/ArchitectureGuardian.Analyzers --configuration Release --no-restore --output artifacts/analyzers
-python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.2.0.nupkg --sdk 10.0.402
+python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.3.0.nupkg --sdk 10.0.402
 ```
 
 The package check requires Python 3 and the exact selected SDK installed locally.
