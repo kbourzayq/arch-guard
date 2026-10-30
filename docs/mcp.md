@@ -298,7 +298,18 @@ for clients without structured-content support. Use `tools/list` to discover eac
 tool's `inputSchema` and `outputSchema`. Response contracts carry `schemaVersion`.
 Successful payloads are never silently truncated. The 65536-byte cap applies to each
 JSON copy; the JSON-RPC envelope includes both copies and SDK framing overhead.
-On a limit error, narrow filters or input/policy scope. There is no pagination.
+Limit errors give recovery advice for the calling tool:
+
+| Tool or mode | Recovery for oversized output |
+| --- | --- |
+| `list_rules` | Narrow the `ruleId` filter or use a smaller complete policy scope. |
+| `get_architecture` | Narrow the `module` or `layer` filter or use a smaller complete input/policy scope. |
+| `analyze_solution`, `analyze_changes` | Use a smaller complete input/policy scope; these tools have no output filters. |
+| Rule-mode `explain_violation` | Use a smaller complete policy scope. |
+| Diagnostic-mode `explain_violation` | Use a smaller complete input/policy scope. Rerun `analyze_solution` for that scope and use its current diagnostic ID. |
+
+There is no pagination. A smaller scope must remain complete for the requested
+analysis; it does not establish coverage or a passing gate for the original scope.
 Collections follow the shared policy/model's ordinal ordering. Filters are exact,
 case-sensitive IDs; unknown IDs are errors.
 

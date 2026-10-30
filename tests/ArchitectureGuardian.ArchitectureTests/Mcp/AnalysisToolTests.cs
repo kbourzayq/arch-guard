@@ -140,8 +140,32 @@ public sealed class AnalysisToolTests
             var oversized = await client.CallToolAsync("analyze_solution", Arguments(), cancellationToken: token);
             Assert.True(oversized.IsError);
             Assert.Null(oversized.StructuredContent);
-            Assert.Contains("65536", Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
+            Assert.Equal("An error occurred invoking 'analyze_solution': Context exceeds 65536 UTF-8 bytes. Use a smaller complete input/policy scope.",
+                Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
         }, root: root, trusted: true);
+    }
+
+    /// <summary>Comparison results retain the same complete-scope advice and explicit oversized failure as full scans.</summary>
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Oversized_changes_suggest_a_smaller_complete_scope_without_filters()
+    {
+        using var fixture = new ChangeInputFiles();
+        await fixture.Initialize();
+        fixture.AddReference();
+        fixture.Write("App/Existing.cs", "public class Existing { " + string.Join(" ", Enumerable.Range(0, 600)
+            .Select(index => $"public Library.Target Field{index};")) + " }");
+        await ToolRegistrationTests.WithServer(async (client, token) =>
+        {
+            var arguments = Arguments();
+            arguments["baseReference"] = "HEAD";
+            arguments["scope"] = "solution";
+            var oversized = await client.CallToolAsync("analyze_changes", arguments, cancellationToken: token);
+            Assert.True(oversized.IsError);
+            Assert.Null(oversized.StructuredContent);
+            Assert.Equal("An error occurred invoking 'analyze_changes': Context exceeds 65536 UTF-8 bytes. Use a smaller complete input/policy scope.",
+                Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
+        }, root: fixture.Root, trusted: true);
     }
 
     /// <summary>Both production entry points observe a pre-cancelled request before any file work.</summary>
