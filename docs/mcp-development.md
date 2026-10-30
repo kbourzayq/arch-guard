@@ -65,6 +65,13 @@ errors, incomplete coverage, bounds and cancellation. Core `ViolationContextTest
 checks evaluator provenance for all six rules, directed cycle order, immutable
 snapshots and preservation of v1 identities.
 
+Oversized-response assertions check the exact recovery advice for architecture,
+analysis and both explanation modes, with tool errors and no partial structured
+content. Rule metadata uses a synthetic oversized catalog at the shared serializer
+boundary because the fixed canonical catalog fits within the cap for valid inputs.
+Serializer tests also verify an intact response at exactly 65536 UTF-8 bytes,
+rejection one byte above it and cancellation before serialization.
+
 `Changes/ChangeAnalysisTests` compares shared/CLI/MCP results against independent
 full scans, including imported references between unchanged projects, staged,
 unstaged and untracked source, policy-only changes, removed/renamed projects,

@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using ArchitectureGuardian.ArchitectureTests.Infrastructure;
 using ArchitectureGuardian.Configuration.Yaml;
@@ -108,7 +109,8 @@ public sealed class ArchitectureToolTests
             var oversized = await client.CallToolAsync("get_architecture", arguments, cancellationToken: token);
             Assert.True(oversized.IsError);
             Assert.Null(oversized.StructuredContent);
-            Assert.Contains("65536", Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
+            Assert.Equal("An error occurred invoking 'get_architecture': Context exceeds 65536 UTF-8 bytes. Narrow the module or layer filter, or use a smaller complete input/policy scope.",
+                Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
             arguments["module"] = "Library";
             using var narrowed = JsonDocument.Parse(await Call(client, "get_architecture", arguments, token));
             Assert.Single(narrowed.RootElement.GetProperty("modules").EnumerateArray());
@@ -154,9 +156,28 @@ public sealed class ArchitectureToolTests
     [Fact]
     public void Output_bounds_and_cancellation_are_enforced()
     {
+        var response = new { text = new string('x', 65_525) };
+        var atLimit = ToolResults.Create(response, CancellationToken.None);
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(atLimit.Content)).Text;
+        Assert.False(atLimit.IsError);
+        Assert.Equal(65_536, Encoding.UTF8.GetByteCount(text));
+        Assert.Equal(text, atLimit.StructuredContent!.Value.GetRawText());
+        Assert.Equal(response.text, atLimit.StructuredContent.Value.GetProperty("text").GetString());
+        Assert.Throws<McpException>(() => ToolResults.Create(new { text = new string('x', 65_526) }, CancellationToken.None));
         Assert.Throws<McpException>(() => ToolResults.Create(new { text = new string('x', 65536) }, CancellationToken.None));
         Assert.Throws<McpException>(() => ToolResults.Create(new { text = new string('é', 32768) }, CancellationToken.None));
         Assert.ThrowsAny<OperationCanceledException>(() => ToolResults.Create(new { text = "small" }, new CancellationToken(true)));
+    }
+
+    /// <summary>The bounded catalog's oversized path recommends only its supported policy and rule selector.</summary>
+    [Fact]
+    public void Oversized_rule_metadata_suggests_only_supported_recovery()
+    {
+        // Canonical metadata currently fits the cap; synthetic growth exercises the same production serializer.
+        var response = new RulesResponse(1, "completed", "policy", "policy.yaml", "not-loaded",
+            [new("AG001", new string('x', 65_536), "https://example.com/AG001", true, "error", "solution", true)]);
+        var error = Assert.Throws<McpException>(() => ToolResults.Create(response, CancellationToken.None));
+        Assert.Equal("Context exceeds 65536 UTF-8 bytes. Narrow the ruleId filter, or use a smaller complete policy scope.", error.Message);
     }
 
     /// <summary>Explicit tool paths reject links under the configured root, including directory links.</summary>

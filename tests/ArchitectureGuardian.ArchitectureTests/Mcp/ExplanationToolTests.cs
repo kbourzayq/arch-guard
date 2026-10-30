@@ -67,7 +67,8 @@ public sealed class ExplanationToolTests
             var oversized = await client.CallToolAsync("explain_violation", RuleArguments("AG005"), cancellationToken: token);
             Assert.True(oversized.IsError);
             Assert.Null(oversized.StructuredContent);
-            Assert.Contains("65536", Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
+            Assert.Equal("An error occurred invoking 'explain_violation': Context exceeds 65536 UTF-8 bytes. Use a smaller complete policy scope.",
+                Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
         }, root: fixture.Root);
     }
 
@@ -169,7 +170,8 @@ public sealed class ExplanationToolTests
             var oversized = await client.CallToolAsync("explain_violation", InstanceArguments(Assert.Single(shared.Diagnostics).Id), cancellationToken: token);
             Assert.True(oversized.IsError);
             Assert.Null(oversized.StructuredContent);
-            Assert.Contains("65536", Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
+            Assert.Equal("An error occurred invoking 'explain_violation': Context exceeds 65536 UTF-8 bytes. Use a smaller complete input/policy scope.",
+                Assert.IsType<TextContentBlock>(Assert.Single(oversized.Content)).Text);
         }, root: fixture.Root, trusted: true);
     }
 

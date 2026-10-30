@@ -16,8 +16,16 @@ internal static class ToolResults
         var bytes = JsonSerializer.SerializeToUtf8Bytes(response, JsonOptions);
         if (bytes.Length > MaxPayloadBytes)
         {
+            var advice = response switch
+            {
+                RulesResponse => "Narrow the ruleId filter, or use a smaller complete policy scope.",
+                ArchitectureResponse => "Narrow the module or layer filter, or use a smaller complete input/policy scope.",
+                ExplanationResponse { Scope: "rule" } => "Use a smaller complete policy scope.",
+                AnalysisResponse or ExplanationResponse => "Use a smaller complete input/policy scope.",
+                _ => "Use a smaller complete scope."
+            };
             throw new McpException(
-                "Context exceeds 65536 UTF-8 bytes. Narrow the module/layer or ruleId filter, or use a smaller policy/input scope.");
+                $"Context exceeds 65536 UTF-8 bytes. {advice}");
         }
 
         var content = JsonSerializer.Deserialize<JsonElement>(bytes);
