@@ -112,7 +112,7 @@ pairs at any graph level, deduplicate facts and preserve upstream status/issues.
 See the [AG001 guide](rule-catalog.md#ag001-module-dependencies),
 [AG002 guide](rule-catalog.md#ag002-layer-dependencies),
 [AG003 guide](rule-catalog.md#ag003-module-cycles),
-[AG004 guide](rule-catalog.md#ag004-implementation-boundaries) and [policy composition example](policy.md#host-composition).
+[AG004 guide](rule-catalog.md#ag004-implementation-boundaries) and [policy composition example](policy-composition.md#host-composition).
 
 ## Stable identities and ordering
 

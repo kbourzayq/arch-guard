@@ -1,71 +1,17 @@
-# Performance budgets and local telemetry
+# Performance and local telemetry
 
-Benchmarking requires a development checkout. The telemetry examples below use
-the CLI built from that checkout. CLI and MCP share the measured workspace, graph
-and rule pipeline. Compiler-hosted analysis is outside these measurements.
-
-## Run the .NET benchmarks
-
-Install the SDK pinned by `global.json`. From the repository root:
-
-```sh
-dotnet restore benchmarks/ArchitectureGuardian.Benchmarks.csproj --locked-mode
-dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore -- --filter '*'
-```
-
-The [benchmark project](../benchmarks/README.md) handles input preparation in C#.
-It copies the Clean Architecture and modular-monolith fixtures, generates a
-24-project/960-file repository, and restores these package-free inputs outside
-measurement. Isolated copies are cleaned up after the run; source fixtures are
-unchanged. All six rules are selected.
-
-BenchmarkDotNet 0.15.8 launches a separate process for each input/method pair,
-warms up and measures workspace loading, graph extraction, rules and full scans.
-The Monitoring job uses three warmups, ten measured iterations and one invocation
-per iteration. Results are validated after every iteration, outside timing.
-MemoryDiagnoser supplies managed allocations per operation and GC counts. It does
-not measure resident memory, retained heap, native allocations or child MSBuild
-memory. No custom benchmark timer, allocation counter, sampler, Python wrapper or
-JSON baseline is used.
-
-These warm, prepared-input measurements exclude startup, policy parsing and report
-rendering. Graph/rules reuse prepared Roslyn context. Short rule iterations can
-still have significant relative timing variation; inspect the generated report's
-statistics before drawing conclusions. Keep the full semantic, cancellation and
-Git comparison tests as correctness checks. Change analysis performs two full
-scans plus snapshot/restore work and is not directly benchmarked here.
-
-## Published reports and budgets
-
-The repository includes the [current BenchmarkDotNet Markdown report](../benchmarks/reports/analysis-macos-arm64.md)
-with a [visual summary](../benchmarks/README.md#latest-results) and
-[measured budget table](../benchmarks/README.md#current-measured-budgets).
-The charts show execution-time means with 99.9% confidence intervals and managed
-allocations for all three inputs. Each input uses its own scale; independently
-measured operations must not be added together. The
-[input descriptions](../benchmarks/README.md#benchmark-inputs) explain the fixture contents.
-BenchmarkDotNet also produces local HTML/CSV reports and detailed logs under
-ignored `artifacts/performance/`. The published Markdown is copied from the
-standard exporter without editing its numbers or hiding warnings.
-
-For future performance work, rerun the .NET command on comparable hardware and
-review the new report against the published measurements and budgets. Keep
-before/after comparisons with the performance optimization issue and replace the
-repository report with the latest native export. Initial thresholds use measured
-maximum latency or managed allocations plus 50% headroom; this allowance is an
-explicit initial noise margin. There is no custom automated
-comparison or performance CI gate. Record the environment and review any budget
-update alongside the code change; do not silently replace measurements to hide a
-regression. Re-measure on a controlled runner before making budgets mandatory in CI.
+Understand your own scan before choosing CI timeouts or attributing cost to a rule.
+CLI and MCP share the solution-analysis pipeline; compiler-hosted feedback has a
+different scope. See [published benchmarks](benchmarks.md) for measured inputs,
+results, methodology and limits.
 
 ## Opt in to local collection
 
 Set `ARCHGUARD_TELEMETRY` to exactly `1` in the CLI or MCP process environment.
-Collection is disabled for every other value and when unset. For a CLI built from
-this checkout:
+Collection is disabled for every other value and when unset. For the installed CLI:
 
 ```sh
-ARCHGUARD_TELEMETRY=1 dotnet src/ArchitectureGuardian.Cli/bin/Release/net10.0/ArchitectureGuardian.Cli.dll scan \
+ARCHGUARD_TELEMETRY=1 archguard scan \
   Shop.slnx --policy architecture.guardian.yaml --trusted --configuration Release --format json \
   > report.json 2> telemetry.jsonl
 ```
@@ -99,21 +45,21 @@ Each local JSON line contains `source`, `instrument`, numeric `value`, `unit` an
 paths, source, diagnostic messages or exception details. Metrics never enter
 JSON/SARIF reports, baselines or diagnostic fingerprints.
 
-## Collect through OpenTelemetry
+## Interpret the measurements
 
-The adapter uses runtime `ActivitySource` and `Meter` APIs, following the
-[.NET tracing guidance](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs)
-and [metrics guidance](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation).
-It adds no runtime packages or exporter configuration. Embedding hosts can use an
-`ActivityListener`/`MeterListener`, or register
-`AddSource("ArchitectureGuardian.Analysis")` and
-`AddMeter("ArchitectureGuardian.Analysis")` in their own OpenTelemetry SDK providers.
-No remote exporter is required or enabled. The environment variable controls the
-built-in local listener; external listeners are the embedding host's separate
-opt-in. With no listeners, instrumentation skips clocks and activity/tag creation.
-Activities use the same phase names/tags and preserve parent spans across awaits.
+Compare the same tool/input/policy/configuration/framework context. The workspace
+phase includes loading and compilation validation; graph extraction and rule
+execution have different costs. Inclusive phases overlap, so summing them double
+counts work. Git comparison includes two scans and snapshot preparation.
 
-Instrumentation does not cache or skip rules, change ordering, alter cancellation
-tokens or narrow comparison contexts. Tests cover metrics, tracing, outcomes,
-cancellation, deterministic reports and instrumented full-scan/Git-comparison
-agreement. The normal semantic and comparison suite remains required.
+Record completion status and gate outcome alongside elapsed time. A fast
+incomplete result does not prove better performance. Use the [benchmark scope](benchmarks.md#what-the-results-mean-for-adoption)
+when comparing allocation traffic with runner memory requirements.
+
+## Privacy and behavior
+
+Local collection writes to stderr and configures no remote exporter. It does not
+modify reports, policies, baselines or diagnostic identities, skip rules or relax
+coverage. With collection disabled and no external listeners, instrumentation
+avoids timing and activity/tag creation. Remove the opt-in environment entry when
+finished. Keep stderr logs separate from protocol/report stdout.

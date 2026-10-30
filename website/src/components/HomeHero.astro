@@ -1,0 +1,30 @@
+---
+import DefaultHero from '@astrojs/starlight/components/Hero.astro';
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro';
+import { pagePath, github } from '../../scripts/site.mjs';
+const home = Astro.locals.starlightRoute.id === '';
+---
+
+{home ? (
+  <section class="home-hero" aria-labelledby="_top">
+    <div class="mobile-home-tools"><a href={pagePath('documentation')}>Documentation <span aria-hidden="true">→</span></a><ThemeSelect /></div>
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="status-dot"></span> Architecture enforcement for .NET</p>
+      <h1 id="_top" data-page-title>Your architecture deserves more than <span>good intentions.</span></h1>
+      <p class="hero-subtitle">Define your architectural boundaries once. Enforce them across your IDE, CI pipeline, and AI coding agents.</p>
+      <div class="hero-actions">
+        <a class="action primary" href={pagePath('installation')}>Get Started <span aria-hidden="true">↗</span></a>
+        <a class="action secondary" href={github}>View on GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+      <p class="hero-footnote">Repository-owned policies. Evidence-backed feedback. Open source.</p>
+    </div>
+    <div class="boundary-map" aria-label="Application may depend on Domain; a reverse dependency is rejected" role="img">
+      <div class="map-header"><span>YOUR ARCHITECTURE</span><span class="map-tag">ENFORCED</span></div>
+      <div class="map-layer"><span class="layer-index">01</span><span>Application</span><code>Checkout.cs</code></div>
+      <div class="map-connect"><span>↓</span><span>declared dependency</span><span class="allowed-label">allowed</span></div>
+      <div class="map-layer domain"><span class="layer-index">02</span><span>Domain</span><code>IOrderStore</code></div>
+      <div class="map-rejected"><span aria-hidden="true">↳</span><span>Domain → Application</span><span class="rejected-label">rejected</span></div>
+      <div class="map-footer"><span class="status-dot"></span> Boundaries are a contract.</div>
+    </div>
+  </section>
+) : <DefaultHero />}

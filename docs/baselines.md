@@ -7,7 +7,7 @@ analysis still exits `2`, regardless of the baseline or available findings.
 
 ## Create or update accepted debt
 
-Install the [CLI](../README.md#install-the-cli). From your target repository root,
+Install the [CLI](install.md#install-the-cli). From your target repository root,
 replace `path/to/...` with the real input, policy and baseline paths. Authorize
 build execution, restore the same configuration, then run an explicit update:
 

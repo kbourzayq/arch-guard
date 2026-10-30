@@ -1,0 +1,33 @@
+trigger:
+  branches:
+    include: [main]
+
+# For Azure Repos PRs, configure a required build-validation branch policy.
+# GitHub-backed repositories can also enable YAML PR triggers.
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    persistCredentials: false
+  - task: UseDotNet@2
+    inputs:
+      packageType: sdk
+      version: 10.0.x
+  - bash: dotnet tool install ArchitectureGuardian.Cli --tool-path "$(Agent.TempDirectory)/archguard" --version 0.3.0
+    displayName: Install the released CLI
+    # Install outside the checkout so its global.json cannot select an older SDK.
+    workingDirectory: $(Agent.TempDirectory)
+  - bash: mkdir -p "$(Agent.TempDirectory)/architecture-reports"
+    displayName: Prepare artifact directory
+  - bash: dotnet restore MyApp.slnx -p:Configuration=Release
+    displayName: Restore the analysis context
+  - bash: |
+      mkdir -p "$(Agent.TempDirectory)/architecture-reports"
+      "$(Agent.TempDirectory)/archguard/archguard" scan MyApp.slnx --policy architecture.guardian.yaml --configuration Release --trusted --format sarif --output "$(Agent.TempDirectory)/architecture-reports/architecture.sarif"
+    displayName: Scan architecture
+  - task: PublishPipelineArtifact@1
+    condition: always()
+    inputs:
+      targetPath: $(Agent.TempDirectory)/architecture-reports
+      artifact: architecture-report

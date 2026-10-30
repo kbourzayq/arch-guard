@@ -1,0 +1,12 @@
+---
+import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro';
+import { pagePath } from '../../scripts/site.mjs';
+---
+
+<a class="docs-link" href={pagePath('documentation')}>Documentation</a>
+<SocialIcons />
+
+<style>
+  .docs-link { color: var(--ag-ink); font-size: .85rem; font-weight: 600; text-decoration: none; }
+  .docs-link:hover { color: var(--ag-accent); text-decoration: underline; }
+</style>

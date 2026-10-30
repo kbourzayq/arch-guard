@@ -7,7 +7,7 @@ Keep independent [CI quality gates](ci.md) and normal build/tests.
 
 ## Install the skill
 
-First install the [CLI or MCP server](../README.md) and configure a complete YAML
+First install the [CLI or MCP server](install.md) and configure a complete YAML
 policy for your target solution. MCP requires a client with local stdio support;
 CLI fallback requires ordinary command execution. Authorize the target's build
 logic before restore or workspace analysis.
@@ -86,29 +86,24 @@ then scans with `analyze_solution`. With CLI it uses `inspect` and `scan --forma
 The agent implements the task through normal file tools, validates, explains actual
 findings, corrects relevant dependencies and rescans.
 
-For a concrete end-to-end case, use the checked-in
-[correction fixture](../tests/Fixtures/AgentCorrection/Correction.slnx) and the
-[MCP correction walkthrough](mcp.md#coding-agent-correction-workflow). The seeded
-consumer depends on another module's implementation. The correction uses the
-existing contract and removes that implementation project reference, leaving
-policy intact. Restore after the project edit, then require completed coverage
-and a passing fresh scan.
-
-CLI fallback can inspect the same fixture from the Architecture Guardian checkout
-root after installing `archguard`:
+Try the [downloadable modular-monolith sample](use-cases.md#modular-monolith-boundaries)
+for an end-to-end correction. From its extracted directory, prepare the seeded
+AG001 context and use CLI fallback or the [MCP workflow](mcp.md#coding-agent-correction-workflow):
 
 ```sh
-dotnet restore tests/Fixtures/AgentCorrection/Correction.slnx -p:Configuration=Release
-archguard inspect tests/Fixtures/AgentCorrection/Correction.slnx --policy tests/Fixtures/AgentCorrection/architecture.guardian.yaml --configuration Release --trusted
-archguard scan tests/Fixtures/AgentCorrection/Correction.slnx --policy tests/Fixtures/AgentCorrection/architecture.guardian.yaml --configuration Release --trusted --format json
+dotnet restore ModularMonolith.slnx -p:Configuration=AG001
+archguard inspect ModularMonolith.slnx --policy architecture.guardian.yaml --configuration AG001 --trusted
+archguard scan ModularMonolith.slnx --policy architecture.guardian.yaml --configuration AG001 --trusted --format json
 archguard explain AG001
 ```
 
-The initial scan completes with a failed gate and one AG001 finding (exit `1`).
-The fixture is intentionally violating: experiment in a disposable copy, preserving
-its complete folder and build files, rather than committing a corrected fixture.
-CLI `explain` provides rule metadata; only MCP `explain_violation` resolves an exact
-current diagnostic ID. Old IDs may become stale after corrections.
+The scan completes with one AG001 finding and exit `1`. Ask the agent to inspect
+its evidence, replace the implementation dependency with an appropriate declared
+contract, remove the implementation project reference, restore and rescan. Keep
+policy and build context stable. Require completed coverage and a passing fresh
+result. Experiment in a copy if you want to retain the original seeded sample.
+CLI `explain` returns rule metadata; MCP `explain_violation` resolves an actual
+current diagnostic ID.
 
 ## Interpret validation honestly
 

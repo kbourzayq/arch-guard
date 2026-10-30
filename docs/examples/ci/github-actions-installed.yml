@@ -1,0 +1,39 @@
+name: Architecture gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          # Add other SDK versions required by the target repository's global.json/projects.
+          dotnet-version: '10.0.x'
+      - name: Install the released CLI
+        # Install outside the checkout so its global.json cannot select an older SDK.
+        working-directory: ${{ runner.temp }}
+        run: dotnet tool install ArchitectureGuardian.Cli --tool-path "$RUNNER_TEMP/archguard" --version 0.3.0
+      - name: Restore the analysis context
+        # Replace MyApp.slnx and use matching configuration/framework in restore and scan.
+        run: dotnet restore MyApp.slnx -p:Configuration=Release
+      - name: Scan architecture
+        run: |
+          mkdir -p "$RUNNER_TEMP/architecture-reports"
+          "$RUNNER_TEMP/archguard/archguard" scan MyApp.slnx --policy architecture.guardian.yaml --configuration Release --trusted --format sarif --output "$RUNNER_TEMP/architecture-reports/architecture.sarif"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: architecture-report
+          path: ${{ runner.temp }}/architecture-reports/
+          if-no-files-found: warn

@@ -5,26 +5,29 @@ An empty diagnostic list alone does not establish complete analysis.
 
 ## Installation and command startup
 
-**The `archguard` command is missing.** Install the [published CLI](../README.md#install-the-cli).
+**The `archguard` command is missing.** Install the [published CLI](install.md#install-the-cli).
 For global tools, add `$HOME/.dotnet/tools` (macOS/Linux) or
 `%USERPROFILE%\.dotnet\tools` (Windows) to PATH and restart the terminal/agent.
 Check `dotnet tool list --global`. For a private tool directory, invoke its full
 path or `./.tools/architecture-guardian/archguard` from the target repository root.
-A source-development publish is a separate option in [local development](installation.md).
 
 **The requested runtime is unavailable.** CLI/MCP target .NET 10. Check
 `dotnet --list-runtimes` and install .NET 10 for your CPU architecture. An installed
 older target SDK alone may not provide the runtime required by the tools.
 
 **The SDK requested by `global.json` is unavailable.** Check `dotnet --list-sdks`
-and install a version permitted by that file. This development checkout pins SDK
-`10.0.402` with roll-forward disabled. Consumer repositories may select a different
-SDK; they do not need this checkout's exact version just to use the packages.
+and install a version permitted by that file. Use your target repository's SDK selection; no Architecture Guardian source-checkout SDK is required.
 A runtime-only installation cannot evaluate MSBuild projects.
+
+**Tool installation selects an older SDK or rejects the package framework.**
+`dotnet tool install` and `update` also honor `global.json` from the current directory
+and its parents. Run them from outside the pinned repository, verify
+`dotnet --version` selects SDK 10, and use an absolute `--tool-path` for local tools.
+Return to the repository for restore and scanning; keep its existing SDK policy.
 
 **NuGet cannot find the package.** Check configured sources and package-source
 mapping; the three `ArchitectureGuardian.*` distribution packages are available
-on nuget.org at the version shown in the [README](../README.md). A private-only
+on nuget.org at the version shown in the [README](install.md). A private-only
 NuGet configuration may need the public feed enabled or an approved mirror.
 Do not replace existing private feeds with a public-only configuration.
 
@@ -95,7 +98,7 @@ such as `generated/PROJECT/GENERATED_FILE_ID/HINT`; these are identities, not pr
 that a file exists there. Compiler locations use the host's paths. Find the generator
 and hint through the project/IDE, then change the generator, its templates/options
 or input model and regenerate. Hand edits to generated output will be overwritten.
-See [evidence paths](dependency-graph.md#stable-identities-and-ordering).
+See [evidence paths](concepts/dependency-analysis.md#stable-identities-and-ordering).
 
 **`source-generator-error`, `source-generator-failed` or missing generated types.**
 Inspect the named project, generator and underlying diagnostics. Restore generator
@@ -158,13 +161,10 @@ to the client's process, whose PATH may differ from your terminal. Provide an
 existing absolute `Workspace:Root` and replace all template markers. Do not rely
 on shell expansion or the client's working directory. Use single-quoted TOML paths
 to preserve Windows backslashes; JSON needs forward slashes or escaped backslashes.
-For a source-development installation, publish first and configure `dotnet` plus
-the absolute published DLL path, keeping its complete directory.
 
 **The client reports invalid protocol output.** Launch the installed server
-executable. For a source build, launch its published DLL with `dotnet` rather than
-`dotnet run`, which can write build output to stdout. The server reserves stdout
-for MCP; inspect stderr for startup diagnostics. See
+executable. Avoid launching a build command as the MCP server: build output can
+corrupt protocol stdout. The server reserves stdout for MCP; inspect stderr for startup diagnostics. See
 [client configuration](mcp.md#configure-your-client).
 
 **An explicit path is rejected.** Tool inputs must exist inside the configured root
@@ -192,8 +192,7 @@ both trees and that MCP `Workspace:Root` contains the Git root. See [change anal
   require separate runs.
 - Intrinsic `notnull`/`unmanaged` constraints and omitted array dimensions are
   recognized as compiler syntax rather than unresolved types. Genuine missing
-  types, missing references and dynamic binding still reduce coverage. The repository
-  [manual validation workflow](manual-validation.md) runs a complete six-rule scan.
+  types, missing references and dynamic binding still reduce coverage. Keep a full selected-rule scan for the contexts your team requires.
 - Compiler analysis checks a narrower bound-name surface and requires an explicit
   configured policy and observed ownership metadata. Legacy XML does not discover missing referenced-assembly mappings
   or check whole-solution cycles. IDE UI behavior is not validated by this repository.
@@ -202,5 +201,5 @@ both trees and that MCP `Workspace:Root` contains the Git root. See [change anal
   [change analysis](changes.md) for supported inputs and offline preparation. CLI
   [baselines](baselines.md) require explicit files and never relax coverage failures.
 
-See [semantic accuracy](semantic-accuracy.md) for the rule-by-rule scope and
-[contributing](../CONTRIBUTING.md#report-a-bug) for a useful issue report.
+See [semantic accuracy](semantic-accuracy.md) for the rule-by-rule scope and include tool version, input/build context, policy, diagnostics and redacted
+operational output when [reporting a problem](https://github.com/kbourzayq/arch-guard/issues/new).

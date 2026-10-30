@@ -1,67 +1,40 @@
 # Workspace loading
 
-CLI and MCP use `MSBuildWorkspaceLoader` to load C# SDK projects from `.csproj`,
-`.sln` or `.slnx` inputs. Referenced projects load from source, including projects
-outside the solution when referenced by its members. Unsupported projects and empty
-solutions cannot establish complete coverage.
+CLI and MCP load a restored C# solution or project in one explicit build context.
+Supported inputs are `.sln`, `.slnx` and `.csproj`. Referenced projects can load from
+source even when they are outside a solution's explicit membership. Unsupported
+projects and empty solutions cannot establish complete coverage.
 
-This reference covers build context, trust and the reusable loading API. Start with
-[tool installation](../README.md#install-the-cli) and the [CLI guide](cli.md) for command-line use.
-The same loading service feeds [repository normalization](repository-model.md),
-[dependency extraction](dependency-graph.md) and solution rule evaluation.
-The command examples below run from the source checkout root.
+Install the [CLI](install.md#install-the-cli). From your repository root, authorize
+its build logic, then replace these input paths with your own:
 
 ```sh
-dotnet restore path/to/Application.slnx
-dotnet run --project src/ArchitectureGuardian.Cli -- load path/to/Application.slnx --trusted
-dotnet run --project src/ArchitectureGuardian.Cli -- load path/to/Application.csproj --trusted --configuration Release --framework net10.0
+dotnet restore MyApp.slnx -p:Configuration=Release
+archguard load MyApp.slnx --trusted --configuration Release
+archguard scan MyApp.slnx --policy architecture.guardian.yaml --trusted --configuration Release
 ```
 
-The API accepts `WorkspaceLoadRequest` and returns an owned `WorkspaceLoadResult`.
-Dispose the result after consuming its Roslyn `Solution`. Roslyn objects remain in
-Analysis; `RepositoryModelBuilder` converts them into neutral Core inputs.
-`WorkspaceLoadResult.InputPath` retains the original absolute input so the builder
-can preserve its policy-relative identity. Loading
-coverage uses Core's status and operational-issue contracts but is separate from rule
-evaluation: a completed load does not mean architecture policy passed.
+`load` checks whether the requested workspace can be analyzed. It does not resolve
+policy or evaluate architecture rules; a successful load is not a passing scan.
+Use `inspect` for ownership and `scan` for selected rules and the severity gate.
+See [dependency analysis](concepts/dependency-analysis.md) for the observed model.
 
 ## Roslyn and MSBuild responsibilities
 
-Analysis uses Roslyn's `Microsoft.CodeAnalysis.Workspaces.MSBuild` and
-`Microsoft.CodeAnalysis.CSharp.Workspaces` packages (both 5.9.0). `MSBuildWorkspace`
-opens solutions/projects; `Project.GetCompilationAsync` supplies C# compilations,
-semantic context and compiler diagnostics. MSBuild evaluates configuration,
-frameworks, source inclusion and references. An additional check compares evaluated
-assembly references with the compilation so unused missing references also prevent
-completion. This evaluation carries the opened workspace's MSBuild globals, including
-`SolutionDir` for solution inputs, and matches the pinned build host's design-time
-defaults. Loading an individual project does not invent a solution directory.
+MSBuild evaluates source inclusion, references, configuration and framework. Roslyn
+provides the resulting C# compilation, bound symbols and compiler diagnostics.
+Workspace validation checks references and generator-reported errors as well as
+bound code, so an unused missing reference can still prevent completion.
 
-Generator-reported errors are collected separately from compiler diagnostics.
-Roslyn 5.9 keeps its workspace generator diagnostics API internal, so the adapter
-runs an additional validation pass through the public C# generator driver with the
-original syntax trees, parse options, additional files and analyzer configuration.
-Previously generated trees are excluded from this pass. Generators may execute again;
-reported errors and generator exceptions make loading incomplete. Ordinary generator
-warnings alone do not prevent completion.
+Source generators can run during compilation and again in a validation pass.
+Generator errors/exceptions prevent complete analysis; ordinary generator warnings
+alone do not. Supply their dependencies, AdditionalFiles and options in the chosen
+context. The tool does not run normal package restore or a full build for you.
 
-SDK discovery first runs `dotnet --version` from the input directory, capturing both
-output streams. `Microsoft.Build.Locator` 1.11.2 then registers that exact SDK before
-the adapter loads MSBuild assemblies. The dependency choices and runtime exclusions
-are recorded in [ADR 0001](architecture/decisions/0001-component-boundaries-and-analysis-engines.md).
-Core has no Roslyn or MSBuild package references.
-
-```csharp
-using ArchitectureGuardian.Analysis.Workspaces;
-
-using var result = await new MSBuildWorkspaceLoader().LoadAsync(
-    new WorkspaceLoadRequest(inputPath, isTrusted: true,
-        configuration: "Release", targetFramework: "net10.0"),
-    cancellationToken);
-```
-
-Inspect `result.Status` and `result.Issues` before consuming `result.Solution`.
-The solution can be partial or null when loading does not complete.
+SDK discovery starts from the input directory and honors its applicable
+`global.json`. It does not require the SDK used to develop Architecture Guardian.
+For solution input, evaluated build context includes its solution directory;
+loading a standalone project does not invent one.
 
 ## Trust and isolation
 
@@ -115,8 +88,7 @@ Prepare the selected context before disconnecting:
 For the same prepared semantic context and policy, rules produce the same diagnostic
 identities, evidence ordering and gate decision. Authored paths are policy-relative;
 generated paths use generator/type/hint identities rather than physical output
-directories. See [repository identities](repository-model.md#identities-and-reproducibility)
-and [graph ordering](dependency-graph.md#stable-identities-and-ordering).
+directories. See [dependency identities and evidence](concepts/dependency-analysis.md#stable-identities-and-ordering).
 Changes to tool/SDK/package versions, conditional sources or generated content can
 change the context. Arbitrary build tasks and generators can depend on time, network,
 environment variables or local files; deterministic evaluation does not neutralize
@@ -149,7 +121,7 @@ and cache-only restore do not sandbox repository-controlled execution.
 
 ## Coverage and errors
 
-| Outcome | API status | CLI exit |
+| Outcome | Loading status | CLI exit |
 | --- | --- | --- |
 | All requested context available, no workspace issues, compiler/generator errors or generator failures | `Completed` | `0` |
 | Untrusted/unsupported/missing input, missing SDK or restore assets, failed restore, unavailable reference, compiler/generator error, generator failure, workspace warning/failure or framework mismatch | `Incomplete` | `2` |
@@ -167,15 +139,6 @@ also produces the underlying workspace/compiler diagnostics. No implicit network
 restore hides failures. Compiler errors conservatively prevent complete coverage,
 including unresolved types and metadata, rather than silently reducing semantic facts.
 
-The fixtures under `tests/Fixtures/Workspaces` cover the three input formats,
-project references, conditional source inclusion and compilation, two frameworks,
-missing SDKs/references, solution-conditioned references, generator diagnostics and
-failed restore. The `ModularMonolith` fixture adds multi-project modules, contract
-references and normalized model identity checks. The generator fixture has its own locked restore
-and builds once through a build-only reference from the test project. Integration tests
-copy inputs to isolated temporary directories and stage generator DLLs with test
-build artifacts without rebuilding them per class: Roslyn's process-lifetime loader can keep those DLLs locked on
-Windows. Fixture restores serialize project restoration, including relocated inputs,
-to avoid competing writes through temporary-directory path aliases. The loader
-validates the current evaluated snapshot; it does not guarantee
-that restore assets are fresh after arbitrary repository edits.
+The loader validates the current evaluated snapshot; it cannot guarantee that
+restore assets remain fresh after edits. Restore again when dependencies or build
+inputs change, then rerun the affected configuration/framework scans.

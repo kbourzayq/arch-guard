@@ -23,11 +23,6 @@ The examples below target version `0.3.0`. No
 Architecture Guardian checkout or source build is required. All three integration
 packages share a [version and compatibility policy](releases.md).
 
-For development builds, [create a local package](installation.md#build-a-local-compiler-analyzer-package)
-and add its output directory as a source in your consuming repository's NuGet
-configuration. Retain its normal public/private feeds. Do not commit a developer's
-absolute package-directory path to shared configuration.
-
 ### 2. Reference the analyzer and policy
 
 In the consuming repository, add the following to a root `Directory.Build.props`
@@ -58,8 +53,7 @@ dotnet restore MyApp.slnx
 dotnet build MyApp.slnx --no-restore
 ```
 
-Restore uses your configured package feeds. For a locally built package, add its
-source first; the [local package guide](installation.md) explains output paths.
+Restore uses your configured package feeds.
 A successful configured build has no AG000 or analyzer-load errors; architecture
 findings follow the severities you select. Package installation alone is not a
 configured check.
@@ -232,7 +226,7 @@ This compiler surface does not walk implicit operations such as overloaded opera
 implicit conversions, target-typed `new`, inferred generic arguments or `foreach`/`await`
 pattern methods. Bound explicit names within those expressions are still checked.
 Use solution scanning for the broader semantic evidence described in the
-[dependency graph guide](dependency-graph.md#semantic-reference-scope).
+[dependency graph guide](concepts/dependency-analysis.md#semantic-reference-scope).
 
 AG001/AG002/AG004 require project ownership from YAML/build metadata or legacy XML. Other references, including framework
 and external package assemblies, are ignored by those ownership rules; AG005 and AG006 check
@@ -261,20 +255,6 @@ it does not extend vendor support for older SDKs or IDEs.
 | Command-line compiler from the SDK pinned in `global.json` | Packaged consumer test in CI and before release publication on Linux, Windows and macOS |
 | Visual Studio UI, Rider and other interactive IDEs | No UI-level validation in this repository; IDEs must supply Roslyn 4.8+ and AdditionalFiles |
 
-The semantic suite covers AG005/AG006 framework/external restrictions and lookalikes, invalid configuration, cancellation, concurrent reuse,
-generated sources and policy permissions. The package test checks the NuGet layout,
-loads the installed analyzer through a real SDK build, requires located AG001/AG002/AG004
-errors for a forbidden dependency, verifies that whole-module permission still yields
-AG004, then declares a public contract through the AdditionalFile and requires a passing build.
-It also adds an AG005 namespace restriction, requires a located diagnostic and checks
-that removing the restriction restores the passing build. It checks an AG006 ban and
-then restores the passing build through an explicit namespace exception. Run it locally with an installed SDK version:
-
-```sh
-python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.3.0.nupkg --sdk 10.0.402
-```
-
-CI results are distinct from local verification; interactive IDE UI behavior remains
-a release validation limitation. The [semantic accuracy and parity guide](semantic-accuracy.md)
-documents shared AG001/AG002/AG004/AG005/AG006 expectations, framework/configuration
-matrix, generated sources, incomplete references and intentional engine differences.
+Use the [engine comparison](semantic-accuracy.md) to decide which solution scans
+to keep alongside compiler feedback. Verify discovery and diagnostics in your own
+IDE before making editor feedback part of the team workflow.
