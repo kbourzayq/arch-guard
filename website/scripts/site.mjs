@@ -7,15 +7,16 @@ export const pagePath = (slug) => `${base}reference/${slug}/`;
 export const groups = [
   { label: 'Getting Started', items: [
     ['docs/README.md', 'documentation', 'Start here · choose your path'],
-    ['README.md', 'installation', 'Installation & introduction'],
+    ['docs/install.md', 'installation', 'Installation'],
     ['docs/getting-started.md', 'getting-started', 'Quick start & first policy'],
-    ['docs/m1-demo.md', 'examples', 'First violations & examples'],
+    ['docs/use-cases.md', 'examples', 'Examples & use cases'],
   ] },
   { label: 'Core Concepts', items: [
-    ['docs/architecture/overview.md', 'architecture', 'Architecture as code'],
-    ['docs/repository-model.md', 'repository-model', 'Modules, layers & ownership'],
-    ['docs/dependency-graph.md', 'dependency-graph', 'Dependency graph'],
-    ['docs/shared-contracts.md', 'shared-contracts', 'Analysis contracts & diagnostics'],
+    ['docs/concepts/architecture-as-code.md', 'architecture', 'Architecture as code'],
+    ['docs/concepts/modules-and-layers.md', 'repository-model', 'Modules, layers & contracts'],
+    ['docs/yaml-guide.md', 'yaml-guide', 'Write a YAML policy'],
+    ['docs/concepts/dependency-analysis.md', 'dependency-graph', 'Dependency analysis'],
+    ['docs/concepts/diagnostics.md', 'shared-contracts', 'Diagnostics & outcomes'],
   ] },
   { label: 'Integrations', items: [
     ['docs/cli.md', 'cli', 'CLI commands & exit codes'],
@@ -27,26 +28,24 @@ export const groups = [
   { label: 'Advanced', items: [
     ['docs/baselines.md', 'baselines', 'Baselines'],
     ['docs/changes.md', 'changes', 'Git change analysis'],
-    ['docs/performance.md', 'performance', 'Performance'],
+    ['docs/benchmarks.md', 'benchmarks', 'Benchmarks'],
+    ['benchmarks/reports/analysis-macos-arm64.md', 'benchmark-results', 'Benchmark results', {
+      title: 'BenchmarkDotNet results',
+      description: 'Published latency, allocation and GC results, with hardware/runtime context and confidence intervals.',
+    }],
+    ['docs/performance.md', 'performance', 'Performance & telemetry'],
     ['docs/workspace-loading.md', 'workspace-loading', 'Workspace loading'],
     ['docs/troubleshooting.md', 'troubleshooting', 'Troubleshooting'],
-    ['docs/installation.md', 'local-development', 'Local .NET development'],
-    ['docs/manual-validation.md', 'manual-validation', 'Repository validation'],
   ] },
   { label: 'Reference', items: [
     ['docs/policy.md', 'policy', 'YAML policies & public contracts'],
     ['docs/rule-catalog.md', 'rule-catalog', 'Rules AG001–AG006'],
     ['docs/reports.md', 'reports', 'JSON & SARIF reports'],
     ['docs/semantic-accuracy.md', 'semantic-accuracy', 'Engine coverage & limitations'],
-    ['docs/architecture/decisions/0001-component-boundaries-and-analysis-engines.md', 'architecture-decision', 'Architecture decision'],
   ] },
   { label: 'Project', items: [
     ['docs/releases.md', 'releases', 'Releases & compatibility'],
     ['CHANGELOG.md', 'changelog', 'Release notes'],
-    ['CONTRIBUTING.md', 'contributing', 'Contributing'],
-    ['AGENT.md', 'coding-conventions', 'Coding conventions'],
-    ['benchmarks/README.md', 'benchmarks', 'Benchmark development'],
-    ['website/README.md', 'website-development', 'Website development'],
   ] },
 ];
 export const pages = groups.flatMap((group) => group.items);

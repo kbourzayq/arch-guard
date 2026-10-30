@@ -20,58 +20,17 @@ the [compiler guide](compiler-analyzer.md) describes shared YAML policy, legacy 
 
 ## How catalog metadata reaches a diagnostic
 
-`RuleCatalog` is compiled C# metadata initialized in memory. Each `RuleDescriptor`
-provides an ID, a title and a documentation URL. The catalog does not fetch a remote
-rule list, read this Markdown file, or contain the executable checking logic.
+Each rule has a stable ID, title and documentation link. A selected rule evaluates
+observed dependency evidence against its corresponding policy constraint. A finding
+then receives its configured severity; completed analysis evaluates the gate.
+The tool uses local compiled rules and does not fetch checking logic or help pages.
 
-AG001–AG006 use this evaluation flow, rendered by CLI `scan` and MCP
-`analyze_solution`, and exported by CLI [JSON/SARIF reports](reports.md):
-
-```mermaid
-flowchart TD
-    subgraph Local["Local analysis — works offline"]
-        Catalog["RuleCatalog — compiled C#<br/>ID, title and documentation URL"]
-        Context["Prepared neutral context<br/>Repository facts and architecture constraints"]
-        Rule["Registered rule implementation<br/>Checks architecture constraints in C#"]
-        Finding["RuleViolation<br/>Descriptor, message and target<br/>Evidence and remediation"]
-        Policy["SeverityPolicy"]
-        Service["AnalysisService"]
-        Diagnostic["Diagnostic<br/>Finding plus severity<br/>Documentation URL from its descriptor"]
-
-        Catalog -->|"Supplies the rule descriptor"| Rule
-        Context --> Rule
-        Rule -->|"When a violation is found"| Finding
-        Finding --> Service
-        Policy --> Service
-        Service --> Diagnostic
-    end
-
-    Diagnostic -.->|"User chooses to open the help URL"| Browser["Browser"]
-    Browser -->|"Fetches the help page"| Documentation["GitHub Markdown documentation"]
-```
-
-A rule implementation uses a descriptor such as
-`RuleCatalog.ModuleDependencies` and attaches it to each finding. `Diagnostic`
-exposes that finding's documentation URL alongside its policy-assigned severity.
-The [analysis service](shared-contracts.md#service-execution-flow) invokes the rule;
-the arrows above show how the resulting data travels.
-
-`RuleCatalog.All` enumerates descriptors. Execution is controlled by the rule
-instances registered with `AnalysisService<TContext>`; a catalog entry does not
-register or run a check. With no registered rules, analysis is incomplete.
-
-Opening the help URL is an optional action in the browser. The analysis process
-makes no network request for it. Editing this page changes guidance, while checking
-logic remains in C# rule implementations. A diagnostic identity includes the URL
-value, not the content served at that URL.
-
-Current catalog URLs point to this repository's `main` branch. Release packaging
-should pin them to documentation matching the released rule implementation.
-The six rule headings below are the published help anchors used by CLI, MCP,
-compiler diagnostics and reports; preserve them when editing the catalog.
-Each example describes that rule's decision only. A passing example can still
-violate another selected rule; full compliance requires completed coverage and
-the configured gate to pass.
+Use `archguard explain AG001` for rule metadata without loading a workspace.
+For a current MCP diagnostic, `explain_violation` can return instance-specific
+evidence and corrective guidance. See [diagnostics and outcomes](concepts/diagnostics.md).
+The six rule headings below are published help anchors used by diagnostics and reports.
+Each example describes that rule's decision; full compliance requires all selected
+checks, completed coverage and a passed gate.
 
 ## AG001: Module dependencies
 
@@ -100,13 +59,6 @@ reject implementation uses. Permissions are not inherited through another module
 
 ### AG001 evidence and limitations
 
-`ModuleDependenciesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
-It evaluates the supplied graph and repository ownership without loading files or
-workspace objects. Register it through `ArchitecturePolicy.SelectRules` and
-`AnalysisService<DependencyBuildResult>` as shown in the
-[policy composition example](policy.md#host-composition).
-
-Each observed project pair is checked through `ResolvedPolicy.AllowsModuleDependency`.
 Same-module dependencies pass. Cross-module dependencies require an outgoing
 `module:ID` permission or the target project's exact `contract:MODULE/ID`
 permission. Permissions are direct and directional; approval for one contract
@@ -161,9 +113,7 @@ cannot repair a layer violation.
 
 ### AG002 evidence and limitations
 
-`LayerDependenciesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
-It checks each observed source/target project pair through
-`ResolvedPolicy.AllowsLayerDependency`. Layer names and the outgoing
+Layer names and the outgoing
 `allowedDependencies` matrix come entirely from policy: no universal Clean
 Architecture layout or special handling of names such as Domain or Infrastructure
 is assumed. For example, Domain → Infrastructure is forbidden when Infrastructure
@@ -190,8 +140,8 @@ an AG002 `dependency-project-unmapped` coverage issue. V1 has no per-rule scope
 selectors. Omit AG002 from `rules` to disable its selection; do not weaken inventory
 validation to exclude projects. Upstream incomplete, failed and cancelled outcomes,
 issues and available findings are preserved. Evaluation cooperates with cancellation.
-Severity and gates apply separately after discovery. See the
-[policy composition example](policy.md#host-composition).
+Severity and gates apply separately after discovery. See
+[policy selection and gates](policy.md#rule-selection-severity-and-gates).
 
 ## AG003: Module cycles
 
@@ -220,12 +170,11 @@ shows a closed representative module path and reference/symbol evidence for its 
 Remove or invert one cross-module edge, or extract the shared contract into an
 independent module whose dependencies do not recreate the cycle. Adding permissions
 or marking more projects as contracts does not remove a module edge. The runnable
-[modular-monolith example](m1-demo.md#run-the-demo) includes a cycle scenario.
+[modular-monolith example](use-cases.md#modular-monolith-boundaries) includes a cycle scenario.
 
 ### AG003 evidence and limitations
 
-`ModuleCyclesRule` in Core implements `IArchitectureRule<DependencyBuildResult>`.
-It rebuilds direct module edges from each fact's original project ownership, so
+AG003 uses each fact's original project ownership, so
 project, semantic and aggregated graphs yield the same results. Repeated edges
 and facts across graph levels are merged. External metadata has no repository
 module and is excluded. The rule computes no transitive closure.
@@ -255,8 +204,8 @@ order supplies the primary location; reference-only cycles have no invented sour
 line. Remediation suggests removing or inverting an edge or extracting a shared
 contract into an independent module.
 
-Rule selection, reporting severity and gates use the existing
-[composition APIs](policy.md#host-composition). The supplied inventory and graph
+Rule selection, reporting severity and gates follow the
+[YAML policy](policy.md#rule-selection-severity-and-gates). The loaded inventory and graph
 define scope; upstream incomplete, failed or cancelled coverage and available
 findings survive evaluation. Unmapped project evidence produces an AG003
 `dependency-project-unmapped` issue and prevents completed coverage. Missing context
@@ -293,7 +242,7 @@ Recheck AG001 permissions and AG002 layers after changing the dependency.
 
 ### AG004 evidence and limitations
 
-`ImplementationBoundariesRule` evaluates semantic evidence in `DependencyBuildResult`.
+AG004 evaluates bound C# uses between owned projects.
 A bound type/member owned by another module must belong to a declared public-contract
 project. Types in non-contract projects remain implementation even when C# declares
 them `public`; namespaces, type names and accessibility do not declare contracts.
@@ -312,13 +261,13 @@ target symbol, preserving distinct source spans and descriptions, including alia
 generic arguments, inheritance and uses in partial/generated declarations. Graph-level
 and aggregate copies are deduplicated without mixing contract evidence into findings.
 The first located fact in canonical order supplies the primary span. Symbol evidence
-comes from the extractor's [semantic reference scope](dependency-graph.md#semantic-reference-scope).
+comes from the extractor's [semantic reference scope](concepts/dependency-analysis.md#semantic-reference-scope).
 
 CLI `scan` runs AG004 when selected in the policy's `rules` mapping. Omit it to disable
 selection; severity and gates remain separate. Upstream coverage/issues and partial
 findings survive evaluation. Unmapped semantic project evidence reports an AG004
 `dependency-project-unmapped` issue and prevents completed coverage. Cancellation is
-cooperative. No workspace or compiler objects enter Core.
+cooperative.
 
 The compiler adapter shares the same ownership predicate, ID, title and help URL,
 reporting one finding per bound name. Its supported references, generated-code behavior
@@ -354,8 +303,7 @@ the bound identity. Evidence retains that identity and the configured restrictio
 
 ### AG005 evidence and limitations
 
-`ForbiddenReferencesRule` checks bound semantic evidence in `DependencyBuildResult`
-against the source module's and layer's `forbiddenAssemblies` and
+AG005 checks bound semantic evidence against the source module's and layer's `forbiddenAssemblies` and
 `forbiddenNamespaces` lists. [Policy configuration](policy.md#forbidden-references-ag005)
 defines exact assembly names and namespace descendant matching. There are no built-in
 technology bans: framework, package, repository and same-project symbols are checked
@@ -373,7 +321,7 @@ The compiler adapter shares Core's matching, validation and metadata, reporting 
 bound name use sites, including target assemblies outside its ownership snapshot.
 Supported compiler forms and broader standalone extraction differ as documented in
 the [compiler scope](compiler-analyzer.md#reporting-and-scope) and
-[semantic graph scope](dependency-graph.md#semantic-reference-scope); counts and
+[semantic graph scope](concepts/dependency-analysis.md#semantic-reference-scope); counts and
 snapshot IDs need not match. Cross-engine tests use the same compilation for aliases,
 framework types, generated sources, lookalikes and same-project namespace references.
 
@@ -415,8 +363,8 @@ are both required.
 
 ### AG006 evidence and limitations
 
-`DomainInfrastructureRule` combines resolved source layer membership with bound
-assembly and namespace identities in `DependencyBuildResult`. A layer opts in through
+AG006 combines resolved source layer membership with bound
+assembly and namespace identities. A layer opts in through
 its [domainInfrastructure configuration](policy.md#domain-infrastructure-ag006),
 independent of its name. No persistence package, framework type or namespace is banned
 by default. Target namespace exceptions apply only to this source layer's AG006 bans;
@@ -442,16 +390,15 @@ redundant reference findings, express a domain technology ban under AG006 and re
 AG005 for other general restrictions; omit rules only when their independent checks
 are not required. Namespace and assembly bans that both match remain independent.
 
-The compiler adapter source-links the same AG006 matching and metadata, emitting a
+The compiler analyzer uses the same AG006 matching and metadata, emitting a
 located diagnostic per bound name and restriction. Framework/external targets need no
 ownership entry. See [compiler scope](compiler-analyzer.md#reporting-and-scope) for
 explicit-name coverage and broader standalone semantic extraction. Cross-engine tests
 exercise aliases, generic arguments, generated sources, framework identities, scoped
 exceptions and lookalikes against the same compilation.
 
-Severity is applied separately through `SeverityPolicy`. Rule metadata contains no
-quality-gate decision. Compiler-hosted checks must observe the scope constraints in
-[ADR 0001](architecture/decisions/0001-component-boundaries-and-analysis-engines.md).
+Severity is assigned separately from discovery. A rule's metadata does not decide
+the quality gate; see [analysis outcomes](concepts/diagnostics.md).
 
 ## Compiler scope
 

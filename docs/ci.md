@@ -1,184 +1,108 @@
 # Independent CI quality gates
 
-Run the published CLI as a normal process, then upload its JSON/SARIF files as build
-artifacts. The gate uses process exit codes and needs no code-scanning service,
-paid security feature, MCP server or compiler analyzer. Artifact storage and runner
-quotas still follow your CI provider's plan.
+Install the released CLI on your runner, restore the build context, and let its
+process exit code decide the architecture gate. No Architecture Guardian source
+build, MCP server or code-scanning service is required.
 
 ## Gate with the installed CLI
 
-Provision .NET 10 and the SDKs required by your target repository. From its root,
-replace `Application.slnx` and policy path with your own, authorize its build logic,
-and run these as ordinary pipeline steps:
+First [install the CLI](install.md#install-the-cli) from a directory selecting
+SDK 10. Then run from your repository root after authorizing its build logic. Replace
+`MyApp.slnx` and the policy path with your own:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.3.0
-dotnet restore Application.slnx -p:Configuration=Release --locked-mode
-archguard scan Application.slnx --policy architecture.guardian.yaml --configuration Release --trusted --format sarif --output architecture.sarif
+dotnet restore MyApp.slnx -p:Configuration=Release
+archguard scan MyApp.slnx --policy architecture.guardian.yaml --configuration Release --trusted --format sarif --output architecture.sarif
 ```
 
-Commit NuGet lock files before using `--locked-mode`. Ensure the global tool shim
-is on the runner's PATH, or install into a private tool directory and use its
-absolute executable path. Do not ignore nonzero scan exits: `1` rejects policy and
-`2` rejects unreliable analysis. Upload reports/logs with an always-run artifact
-step. For complete preparation, both report formats and retained failure artifacts,
-use the source-based templates below.
+Provision .NET 10 for the tool plus all SDKs/reference packs required by your input.
+The target repository's `global.json` applies to restore and workspace loading.
+Use the same configuration/framework in preparation and scan. If you maintain
+NuGet lock files, add `--locked-mode` to restore. Do not add it without first
+creating and committing the required lock files.
 
-## Complete source-based pipeline examples
+## Complete pipeline examples
 
-Copy and customize one complete example:
+Copy an installed-package template and adapt its input/policy/context:
 
-- [GitHub Actions](examples/ci/github-actions.yml): copy into `.github/workflows/architecture.yml`.
-- [Azure Pipelines](examples/ci/azure-pipelines.yml): copy into `azure-pipelines.yml`.
-  The artifact task targets Azure DevOps Services; on Azure DevOps Server use
-  [Publish Build Artifacts](https://learn.microsoft.com/en-us/azure/devops/pipelines/tasks/reference/publish-build-artifacts-v1?view=azure-pipelines)
-  instead of `PublishPipelineArtifact@1`.
+- [GitHub Actions](examples/ci/github-actions-installed.yml): save as `.github/workflows/architecture.yml`.
+- [Azure Pipelines](examples/ci/azure-pipelines-installed.yml): save as `azure-pipelines.yml`.
 
-Both examples intentionally build the CLI from a separate tool checkout. The
-shared runner accepts a published DLL path through `--cli`; it does not accept an
-installed `archguard` shim. Replace
-`Application.slnx`, policy and configuration with your repository's paths/context.
-Pin `GUARDIAN_REF`/`guardianRef` to a reviewed Architecture Guardian commit or tag
-containing these examples before adopting a required gate; `main` demonstrates the
-source-installation flow. Keep the tool checkout, published CLI, restored base
-worktree and report directory outside the repository being scanned. Git comparison
-includes non-ignored untracked files, so nesting another checkout can break capture.
-Install Python 3, Git, the tool's exact SDK from `global.json`, and every SDK/reference
-pack required by **both** target trees. Extend the SDK installation steps when
-base and candidate select different versions. The examples install `10.0.402`.
+Both install the CLI from and into the runner's temporary directory so a target
+`global.json` cannot select an older SDK during tool installation. Restore and
+scan still run in the target checkout. Both scan all selected findings and preserve
+SARIF after a failed gate. Add any target SDKs beyond .NET 10.
+They use Linux runners; choose an appropriate executable path when adapting to Windows.
+The templates authorize repository MSBuild logic with `--trusted`; use runners
+permitted to execute the inputs. Keep secrets and privileged access out of untrusted PR builds.
 
-## Checkout, comparison and restore
-
-The examples use full history (`fetch-depth: 0` / `fetchDepth: 0`) and an explicit
-base, with no implicit merge-base selection:
-
-- GitHub compares the checked-out PR merge result against the event's exact target
-  SHA, `github.event.pull_request.base.sha`. Use `pull_request`, with read-only
-  repository access. Do not run untrusted PR builds with privileged secrets.
-- Azure PR validation fetches `System.PullRequest.TargetBranch` and resolves it once
-  to a commit. This compares the checked-out merge result against that fetched
-  target snapshot, which can be newer than the PR event. The read-scoped checkout
-  credential permits private-base fetching. For Azure Repos, YAML `pr` does not
-  enable PR validation: configure this pipeline as a required **build validation**
-  branch policy. GitHub-backed Azure pipelines use the YAML `pr` trigger.
-- Azure manual runs use the explicitly configured `gateBaseRef`. Set it to the
-  intended earlier commit/ref. Comparing a branch with its own current tip only
-  checks for changes relative to that tip; it does not gate existing architecture debt.
-
-GitHub checkout fetches the base history; Azure fetches its selected ref explicitly.
-If you reduce fetch depth, ensure the selected base commit and its full tree are
-locally available. A missing base is an operational failure, never a passing gate.
-Input and policy must exist at the same repository-relative paths in both trees.
-See [change analysis](changes.md) for capture, rename and unsupported-input semantics.
-
-The preparation step creates a detached base worktree and runs an explicit locked
-restore in **each** tree with the scan's configuration. Run each restore from its
-own tree so its `global.json`, NuGet configuration and build inputs apply. Commit
-package lock files and provide feed credentials through the CI provider when
-needed. Both trees' packages must populate the same NuGet global cache used by the
-CLI. If a repository overrides package/cache paths, configure a shared cache for
-preparation and snapshots. For a selected framework, pass `--framework <tfm>` to
-the runner and use matching restore properties for both trees.
-
-Comparison preparation is cache-only and cannot download missing packages. Normal
-scans require prior restore as well. A restore failure stops preparation and fails
-the job; the artifact step still retains available preparation logs. There can be
-no analysis report when the CLI has not reached an analysis result.
-`--trusted` explicitly authorizes repository-controlled build logic in both trees;
-run these examples only on agents permitted to execute those inputs.
+For Azure Repos, enable a required build-validation branch policy. YAML `pr` alone
+does not enable Azure Repos PR validation. The artifact task targets Azure DevOps
+Services; Azure DevOps Server uses its Publish Build Artifacts task instead.
 
 ## Choose the accepted-debt policy explicitly
 
-The supplied examples use `--base <commit>`: only **new** findings at the candidate
-policy's `gate.failOn` threshold block the gate. Existing findings remain visible.
-They neither read nor create an accepted-debt file.
+| Gate mode | Scan option | What blocks the gate |
+| --- | --- | --- |
+| Full architecture gate | No baseline/base option | Every finding at or above the policy threshold |
+| Reviewed accepted debt | `--baseline architecture.baseline.json` | New findings at or above the threshold |
+| Explicit Git comparison | `--base <commit>` | Findings newly introduced relative to that complete base context |
 
-For a reviewed, committed debt inventory, replace `--base "$BASE_REF"` (GitHub) or
-`--base "$base_commit"` (Azure) with `--baseline architecture.baseline.json` in the
-runner invocation. Keep candidate restore; remove the base fetch/worktree/restore
-and the Azure base-commit read, which are unnecessary for this mode. Missing or
-invalid baseline files fail operationally. Never run `baseline update` in a gate:
-review and commit updates separately using the [baseline workflow](baselines.md).
-The two options are mutually exclusive.
+The templates use the full gate. For baseline mode, create and review the baseline
+outside CI, commit it, then add the option to the scan. Never run `baseline update`
+automatically to make a pipeline pass. Missing/invalid baselines fail operationally.
+Use one independently reviewed baseline per gated build context.
 
-To gate **all** findings without accepted debt, use `--all-findings` instead, keeping
-candidate restore and removing base preparation as above. Require this full scan
-for release approval alongside normal build/tests: a new-finding comparison can
-pass while existing errors remain. Scans do not alter policy, baseline or source.
+For Git comparison, prepare the base as described below before adding `--base`.
+`--base` and `--baseline` are mutually exclusive. A passing new-finding gate can
+retain existing errors; keep a full scan for release approval and alongside normal
+build/tests. See [baselines](baselines.md) and [change analysis](changes.md).
+
+## Checkout, comparison and restore
+
+A Git comparison needs an explicit base commit and both trees' complete build
+requirements. It does not fetch history or download missing packages for you.
+
+1. Fetch sufficient history for the intended base. On GitHub Actions,
+   `fetch-depth: 0` is one simple choice; resolve an explicit target SHA, such as
+   the PR event's `github.event.pull_request.base.sha`.
+2. Prepare both base and candidate in the same intended configuration/framework.
+   Run restore from each tree so its SDK, NuGet configuration and build inputs apply.
+3. Ensure both restores populate the package cache used by the CLI snapshots.
+   Install both trees' SDKs/reference packs and supply feed credentials during preparation.
+4. Keep preparation worktrees, installed tools and report outputs outside the scanned
+   repository. Comparison includes non-ignored untracked files.
+5. Invoke `scan --base <resolved-commit>` from the candidate tree. Require completed
+   coverage for both trees and a passed new-finding gate.
+
+Input and policy must exist at the same repository-relative paths in both trees.
+Cache-only snapshot restore cannot repair a missing SDK, unavailable base or empty
+package cache. Those conditions return exit `2`, not an approved comparison.
+For full/baseline scans, only the candidate context needs preparation.
 
 ## Outcomes and retained artifacts
 
-The shared [runner](../eng/run-quality-gate.py) invokes the standalone CLI twice,
-once per encoding, using the same input, configuration and comparison. Keep inputs
-stable until both scans finish. It requires an explicit `--base`, `--baseline` or
-`--all-findings` choice and a fresh `--output-directory` on each invocation.
-
-| Exit | CI result and log message |
+| Exit | Pipeline meaning |
 | --- | --- |
-| `0` | `PASSED`: both scans completed and passed the selected gate. |
-| `1` | `POLICY FAILURE`: analysis completed with blocking findings. The step and job fail. |
-| `2` | `OPERATIONAL FAILURE`: missing/unreliable workspace coverage, invalid arguments/policy/baseline, launch/report failure, or inconsistent scan exits. The step and job fail without approval. |
+| `0` | Analysis completed and the selected gate passed |
+| `1` | Analysis completed with blocking architecture findings |
+| `2` | Input, coverage, cancellation, launch or reporting failure; compliance remains unresolved |
 
-Both formats are attempted before the runner returns failure. Operational failures
-take precedence over policy failures. The runner never uses `continue-on-error`,
-accepts a nonzero code as success, or refreshes debt. A previously used output
-directory is rejected to prevent stale reports from masking a failed invocation.
+Let either nonzero exit fail the step/job. Avoid `continue-on-error`, ignored exits
+or scripts that end with a successful command after a failed scan. Configure artifact
+upload with an always-run condition; logs remain useful when failure occurs before
+a report can be emitted. Ensure an output file's parent directory exists and use
+fresh output paths to avoid mistaking an old report for the current result.
 
-The `architecture-gate` artifact contains preparation logs and a `reports/` folder:
-
-- `architecture.json` and `architecture.sarif`, when emitted by the CLI.
-- Per-format stdout/stderr logs, including failures before reports exist.
-- `summary.json` with the aggregate exit/outcome and each raw CLI exit/report path.
-
-Both upload steps run with `always()`, so a failed scan does not skip artifact
-publication. Agent loss, job cancellation/timeouts or storage/upload failures can
-still prevent publication. An incomplete/failed analysis retains available findings
-with a `notEvaluated` gate outcome; invalid policy or arguments can produce only
-logs. Read the summary and [report status](reports.md), not just finding counts.
+Use `--format json` instead for JSON v1. If exporting both formats through separate
+scans, keep the inputs unchanged and check each scan's exit code. Neither encoding
+changes gate semantics. See [report contracts](reports.md).
 
 ## Optional platform code scanning
 
-The artifact gate is complete on its own. If GitHub code scanning is enabled and
-your repository is eligible, you may add this step **after** artifact upload and
-grant that job `security-events: write` in addition to `contents: read`:
-
-```yaml
-- name: Detect optional SARIF report
-  id: sarif
-  if: always()
-  shell: bash
-  run: |
-    if test -f "$RUNNER_TEMP/architecture-gate/reports/architecture.sarif"; then
-      echo 'available=true' >> "$GITHUB_OUTPUT"
-    fi
-- name: Optional SARIF code-scanning upload
-  uses: github/codeql-action/upload-sarif@v4
-  if: ${{ always() && steps.sarif.outputs.available == 'true' }}
-  continue-on-error: true
-  with:
-    sarif_file: ${{ runner.temp }}/architecture-gate/reports/architecture.sarif
-    checkout_path: repository
-    category: architecture-guardian
-```
-
-SARIF locations are relative to the policy directory: adjust `checkout_path` if
-your policy lives below the repository root. Availability and fork-token permissions
-can prevent platform ingestion; this does not change the CLI gate or downloaded
-artifacts. Azure users can download SARIF/JSON directly; no security extension is
-required. See GitHub's [SARIF upload instructions](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github)
-and Azure's [PR validation requirements](https://learn.microsoft.com/en-us/azure/devops/pipelines/repos/azure-repos-git?view=azure-devops#pr-triggers).
-
-## Verify the integration locally
-
-After the required Release solution build, run:
-
-```sh
-python3 eng/test-quality-gate.py
-```
-
-This executes real CLI processes against a temporary package-free Git repository,
-checking clean comparison, new blocking findings, accepted debt, full severity
-gating, unavailable base, invalid policy and stale-output refusal. It checks both
-report formats and retained logs/summary on failures. Repository CI runs this check
-on Linux, Windows and macOS; hosted template execution still requires your target
-repository's SDKs, permissions, paths and branch-policy setup.
+SARIF can also be uploaded to a compatible code-scanning service. That ingestion is
+separate from the process-exit gate and depends on provider features, permissions
+and fork-token policy. Downloadable SARIF/JSON artifacts work without it.
+SARIF locations are relative to the policy directory; configure the platform's
+checkout/source root accordingly. Keep [coverage and gate outcomes](concepts/diagnostics.md)
+visible even when the platform displays individual findings.

@@ -19,11 +19,11 @@ const capabilities = [
   <section class="example-section" aria-labelledby="policy-in-practice">
     <div class="section-heading"><p class="eyebrow">01 / Make intent executable</p><h2 id="policy-in-practice">A boundary you can build on.</h2><p>A passing C# build can still violate your architecture. Make the intended direction explicit, then check what the code actually does.</p></div>
     <div class="example-grid">
-      <div class="example-policy"><div class="panel-label"><span>THE POLICY</span><code>architecture.guardian.yaml</code></div><Code code={policy.trim()} lang="yaml" title="Clean Architecture reference policy" /></div>
+      <div class="example-policy"><div class="panel-label"><span>THE POLICY</span><code>architecture.guardian.yaml</code></div><Code code={policy.trim()} lang="yaml" title="Clean Architecture sample policy" /></div>
       <div class="example-result">
         <div class="panel-label"><span>THE FEEDBACK</span><span class="rejected-label">AG002 / error</span></div>
         <h3>Application reaches into Infrastructure.</h3>
-        <p>The reference fixture compiles. Its Application layer bypasses the Domain port and calls an Infrastructure implementation. The policy allows Application → Domain, so the scan rejects that edge.</p>
+        <p>The sample application compiles. Its Application layer bypasses the Domain port and calls an Infrastructure implementation. The policy allows Application → Domain, so the scan rejects that edge.</p>
         <Code code={diagnostic} lang="text" title="Actual CLI output · excerpt" />
         <Code code="Analysis completed: 1 diagnostic(s). Gate failed." lang="text" />
         <p class="result-remedy"><strong>Repair the dependency.</strong> Depend on the Domain port and keep the Infrastructure implementation behind it.</p>
@@ -59,5 +59,5 @@ const capabilities = [
   </section>
 
   <section class="home-cta" aria-labelledby="start-with-one-boundary"><div><p class="eyebrow">Make the next change intentional</p><h2 id="start-with-one-boundary">Start with one boundary.</h2><p>Install the tool. Write the policy. Let your code tell you the rest.</p></div><a class="action primary" href={pagePath('installation')}>Get Started <span aria-hidden="true">↗</span></a></section>
-  <footer class="home-footer"><span>Architecture Guardian <span class="footer-note">/ Built for .NET</span></span><nav aria-label="Project links"><a href={pagePath('documentation')}>Documentation</a><a href={pagePath('contributing')}>Contribute</a><a href={`${github}/issues`}>Feedback</a></nav></footer>
+  <footer class="home-footer"><span>Architecture Guardian <span class="footer-note">/ Built for .NET</span></span><nav aria-label="Project links"><a href={pagePath('documentation')}>Documentation</a><a href={`${github}/blob/main/CONTRIBUTING.md`}>Contribute on GitHub</a><a href={`${github}/issues`}>Feedback</a></nav></footer>
 </div>

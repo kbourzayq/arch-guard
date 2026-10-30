@@ -2,7 +2,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import path, { resolve, relative, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse } from 'parse5';
-import { base, site } from './site.mjs';
+import { base, site, pages } from './site.mjs';
 
 export function isWithinDirectory(directory, target, paths = path) {
   const relativePath = paths.relative(directory, target);
@@ -30,7 +30,7 @@ export function inspectHtml(html) {
   return { ids, links, headings };
 }
 
-export async function checkLinks(directory) {
+export async function checkLinks(directory, { expectedPages } = {}) {
   const documents = new Map();
   async function collect(path) {
     for (const item of await readdir(path, { withFileTypes: true })) {
@@ -42,6 +42,11 @@ export async function checkLinks(directory) {
   await collect(directory);
   if (!documents.size) throw new Error('No built HTML documents found');
   const errors = [];
+  if (expectedPages) {
+    const expected = new Set(expectedPages.map((file) => resolve(directory, file)));
+    for (const file of documents.keys()) if (!expected.has(file)) errors.push(`Unexpected published page: ${relative(directory, file)}`);
+    for (const file of expected) if (!documents.has(file)) errors.push(`Missing published page: ${relative(directory, file)}`);
+  }
   for (const [file, { links, headings }] of documents) {
     const page = `${site}${base}${relative(directory, file).replaceAll('\\', '/').replace(/index\.html$/, '')}`;
     if (headings.filter((level) => level === 1).length !== 1) errors.push(`${file}: expected one h1`);
@@ -69,5 +74,7 @@ export async function checkLinks(directory) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  await checkLinks(resolve(dirname(fileURLToPath(import.meta.url)), '../dist'));
+  await checkLinks(resolve(dirname(fileURLToPath(import.meta.url)), '../dist'), {
+    expectedPages: ['index.html', '404.html', ...pages.map(([, slug]) => `reference/${slug}/index.html`)],
+  });
 }

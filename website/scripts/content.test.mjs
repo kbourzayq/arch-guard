@@ -5,6 +5,30 @@ import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import { transformDocument } from './sync-docs.mjs';
 import { checkLinks, isWithinDirectory } from './check-links.mjs';
+import { createExampleArchive, examples } from './examples.mjs';
+import { unzipSync, strFromU8 } from 'fflate';
+import { pages } from './site.mjs';
+
+test('public sources exclude contributor and development documents', () => {
+  const excluded = /^(CONTRIBUTING\.md|AGENT\.md|website\/|benchmarks\/README\.md|docs\/(installation|manual-validation|release-process|policy-composition|.*-development|.*-validation)\.md|docs\/architecture\/)/;
+  for (const [source] of pages) assert.equal(excluded.test(source), false, `Contributor source published: ${source}`);
+});
+
+test('example downloads are reproducible, self-contained and exclude build artifacts', async () => {
+  for (const example of examples) {
+    const archive = await createExampleArchive(example);
+    assert.deepEqual(archive, await createExampleArchive(example));
+    const files = unzipSync(archive);
+    const prefix = `${example.directory}/`;
+    assert.ok(files[`${prefix}${example.directory}.slnx`]);
+    assert.ok(files[`${prefix}architecture.guardian.yaml`]);
+    assert.match(strFromU8(files[`${prefix}Directory.Build.props`]), /TargetFramework>net10.0/);
+    assert.match(strFromU8(files[`${prefix}Directory.Packages.props`]), /ManagePackageVersionsCentrally>false/);
+    assert.match(strFromU8(files[`${prefix}README.md`]), /archguard scan/);
+    assert.ok(Object.keys(files).every((name) => name.startsWith(prefix) && !/\/(bin|obj)\//.test(name)));
+    assert.ok(Object.keys(files).some((name) => name.endsWith('.cs')));
+  }
+});
 
 test('output containment handles native paths on POSIX and Windows', () => {
   assert.equal(isWithinDirectory('/site/dist', '/site/dist/guide/index.html', posix), true);
@@ -45,6 +69,24 @@ test('synchronization rejects missing sources, image targets and repository esca
   await assert.rejects(transformDocument('No title', 'test.md'), /leading level-one title/);
 });
 
+test('published measurement reports keep their source with explicit page metadata', async () => {
+  const source = '```\nMeasured runtime context\n```\n\n| Operation | Mean |\n| --- | ---: |\n| FullScan | 3.8 s |\n';
+  const result = await transformDocument(source, 'benchmarks/reports/result.md', undefined, undefined, {
+    title: 'Benchmark results', description: 'Measured results and runtime context.',
+  });
+  assert.match(result.content, /title: "Benchmark results"/);
+  assert.match(result.content, /description: "Measured results and runtime context\."/);
+  assert.match(result.content, /Measured runtime context/);
+  assert.match(result.content, /\| FullScan\s*\| 3\.8 s\s*\|/);
+});
+
+test('canonical download links stay on the current site origin in previews', async () => {
+  const source = '# Examples\n\n[Download](https://kbourzayq.github.io/arch-guard/examples/clean-architecture.zip)\n\n[External](https://github.com/kbourzayq/arch-guard)\n';
+  const result = await transformDocument(source, 'test.md');
+  assert.ok(result.content.includes('[Download](/arch-guard/examples/clean-architecture.zip)'));
+  assert.ok(result.content.includes('[External](https://github.com/kbourzayq/arch-guard)'));
+});
+
 test('Mermaid diagrams get a validated preview, expandable view and preserved source', async () => {
   const result = await transformDocument('# Title\n\n## Execution\n\n```mermaid\nflowchart TD\nA --> B\n```', 'test.md');
   assert.match(result.content, /class="guardian-diagram"/);
@@ -73,4 +115,8 @@ test('production validation checks base paths, anchors, encoded assets and headi
     await writeFile(join(root, 'index.html'), html);
     await assert.rejects(checkLinks(root), error);
   }
+  await writeFile(join(root, 'index.html'), good);
+  await checkLinks(root, { expectedPages: ['index.html', 'guide/index.html'] });
+  await writeFile(join(root, 'internal.html'), '<h1>Internal development</h1>');
+  await assert.rejects(checkLinks(root, { expectedPages: ['index.html', 'guide/index.html'] }), /Unexpected published page: internal.html/);
 });

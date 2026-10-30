@@ -12,7 +12,8 @@ the analyzer complements them with checks in the host compilation.
 [Local development](docs/installation.md) · [Manual validation](docs/manual-validation.md) · [Contributing](CONTRIBUTING.md)
 
 The [public documentation website](https://kbourzayq.github.io/arch-guard/) presents
-these guides with search and organized navigation. See
+consumer guides with search and organized navigation. Contributor and local
+development instructions remain in this repository. See
 [website development](website/README.md) for local preview and publishing setup.
 
 ## Requirements
@@ -43,8 +44,11 @@ Keep package versions aligned when comparing integrations. See
 
 ## Install the CLI
 
-Run from a terminal with the .NET SDK available; no Architecture Guardian checkout
-is needed:
+Run installation and updates from a directory where `dotnet --version` selects
+.NET SDK 10. A repository's `global.json` can select an older or unavailable SDK
+even when .NET 10 is installed. In that case, change to a directory outside that
+repository before installing either CLI or MCP; keep the repository's SDK selection
+for its own restore and analysis. No Architecture Guardian checkout is needed:
 
 ```sh
 dotnet tool install --global ArchitectureGuardian.Cli --version 0.3.0
@@ -176,16 +180,17 @@ The skill complements your normal build, tests and independent CI gate.
 
 ## Install tools only for one repository
 
-Instead of `--global`, install into a private directory from your target repository
-root. Add `.tools/architecture-guardian/` to that repository's `.gitignore`:
+Instead of `--global`, install into a private directory. Run installation from a
+directory selecting SDK 10, and replace the marker below with your target
+repository's **absolute path**. Add `.tools/architecture-guardian/` to that
+repository's `.gitignore`:
 
 ```sh
-dotnet tool install ArchitectureGuardian.Cli --tool-path .tools/architecture-guardian --version 0.3.0
-dotnet tool install ArchitectureGuardian.Mcp --tool-path .tools/architecture-guardian --version 0.3.0
-./.tools/architecture-guardian/archguard --help
+dotnet tool install ArchitectureGuardian.Cli --tool-path "<FULL_PATH_TO_YOUR_REPOSITORY>/.tools/architecture-guardian" --version 0.3.0
+dotnet tool install ArchitectureGuardian.Mcp --tool-path "<FULL_PATH_TO_YOUR_REPOSITORY>/.tools/architecture-guardian" --version 0.3.0
 ```
 
-Use `./.tools/architecture-guardian/archguard` in place of `archguard` in scan
+Then return to the target repository root. Use `./.tools/architecture-guardian/archguard` in place of `archguard` in scan
 commands (`archguard.exe` on Windows). For MCP, resolve the full path to the
 `archguard-mcp` shim in that directory. Keep the complete tool directory, including
 its hidden package store. [Local development](docs/installation.md) covers source
@@ -193,7 +198,8 @@ builds and installation from locally built packages.
 
 ## Update or remove
 
-Stop connected MCP clients before updating or removing their server. To select a
+Stop connected MCP clients before updating or removing their server. Run tool
+updates from a directory selecting SDK 10, as for installation. To select a
 published version, replace the version below consistently across tools and analyzers:
 
 ```sh
@@ -203,7 +209,8 @@ dotnet tool update --global ArchitectureGuardian.Mcp --version 0.3.0
 
 Update the analyzer's package version in your project or central package file and
 restore. For repository-local tools, replace `--global` with
-`--tool-path .tools/architecture-guardian`. Reconnect MCP after an update.
+`--tool-path "<FULL_PATH_TO_YOUR_REPOSITORY>/.tools/architecture-guardian"`, using
+the repository's absolute path. Reconnect MCP after an update.
 
 To uninstall global tools:
 
@@ -248,5 +255,6 @@ See [release notes](CHANGELOG.md) and the [roadmap](https://github.com/kbourzayq
 build context, relevant policy and diagnostic output. Remove credentials and private
 source details before sharing. Available under the [MIT license](LICENSE).
 
-For source-development measurements and opt-in local phase/rule metrics, see
-[performance budgets and telemetry](docs/performance.md).
+Measure your scans with [performance and telemetry](docs/performance.md), and
+read the [published benchmarks](docs/benchmarks.md). Contributor instrumentation
+notes remain in [telemetry development](docs/telemetry-development.md).

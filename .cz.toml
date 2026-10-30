@@ -17,5 +17,9 @@ version_files = [
   "docs/ci.md",
   "CONTRIBUTING.md:ArchitectureGuardian.Analyzers.",
   "docs/compiler-analyzer.md",
+  "docs/analyzer-validation.md",
   "docs/installation.md",
+  "docs/install.md",
+  "docs/examples/ci/github-actions-installed.yml",
+  "docs/examples/ci/azure-pipelines-installed.yml",
 ]

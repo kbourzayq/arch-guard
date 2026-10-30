@@ -1,7 +1,7 @@
 # CLI commands
 
 Use the CLI to scan architecture, inspect resolved ownership, explain rules and
-validate workspace coverage. Install the [CLI package](../README.md#install-the-cli) first. Examples use the
+validate workspace coverage. Install the [CLI package](install.md#install-the-cli) first. Examples use the
 installed `archguard` command from your target repository root. Replace
 `path/to/...` with your actual input and policy paths; quote paths containing spaces.
 
@@ -11,10 +11,8 @@ archguard scan --help
 archguard --version
 ```
 
-No arguments also prints help. For a source build, substitute
-`dotnet artifacts/cli/ArchitectureGuardian.Cli.dll` after
-[publishing locally](installation.md#install-from-source). For development, `dotnet run --project src/ArchitectureGuardian.Cli -- <arguments>`
-uses the same commands.
+No arguments also prints help. Commands below run in your repository after installing
+the CLI.
 
 ## Command reference
 
@@ -148,12 +146,9 @@ available. It reports workspace coverage without policy resolution or architectu
 evaluation, returns 0 for complete loading and 2 for incomplete, failed or cancelled
 loading. See [workspace loading](workspace-loading.md) for the adapter contract.
 
-## Current repository scan limitation
+## Interpreting operational failures
 
-The repository's self-scan can return incomplete coverage for known extraction
-and workspace issues. The CLI preserves available findings without claiming a
-gate outcome. See [known analysis limitations](troubleshooting.md#known-analysis-limitations)
-for details; use the [reference examples](m1-demo.md) for reproducible command outcomes.
-
-For source-development measurements and opt-in local phase/rule metrics, see
-[performance budgets and telemetry](performance.md).
+Exit `2` means the selected context could not establish reliable compliance.
+Keep its issues visible, fix the reported input/build problem and rerun. See
+[known limitations](troubleshooting.md#known-analysis-limitations),
+[engine coverage](semantic-accuracy.md) and [performance and telemetry](performance.md).

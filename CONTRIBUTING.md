@@ -24,6 +24,12 @@ organization, dependency direction and the two analysis engines are described in
 the [architecture overview](docs/architecture/overview.md).
 [AGENT.md](AGENT.md) contains the repository's coding and validation conventions.
 
+Contributor implementation notes remain in GitHub: [policy composition](docs/policy-composition.md),
+[workspace internals](docs/workspace-development.md), [MCP internals](docs/mcp-development.md),
+[semantic regression coverage](docs/analysis-validation.md), [report validation](docs/report-validation.md),
+and [release engineering](docs/release-process.md). Public website guides focus on
+using the packages, concepts, integration contracts, operational behavior and benchmarks.
+
 Use a focused semantic branch such as `fix/123-handle-missing-reference` or
 `docs/improve-installation`. Preserve unrelated local changes. Do not commit
 published outputs, test results, personal settings, credentials or local tool indexes.
@@ -179,7 +185,7 @@ These checks enforce package metadata, the source version and release notes,
 dependency boundaries and reproducible payloads, then install the tools into an
 isolated local-feed environment and run real CLI/MCP workspace and analyzer builds.
 CI runs package consumers on all three operating systems. The
-[release policy](docs/releases.md) describes the tagged workflow, checksum checks,
+[release process](docs/release-process.md) describes the tagged workflow, checksum checks,
 compatibility promises and maintainer configuration needed before publishing.
 
 For documentation-only changes, verify commands, local links, headings and fenced
@@ -240,7 +246,7 @@ cz check --rev-range origin/main..HEAD
 `.cz.toml` configures Conventional Commits, SemVer, synchronized .NET/package-example
 versions and generated release notes. Use `cz bump --check-consistency --dry-run --yes`
 to preview a release; actual release commits and tags follow the
-[maintainer release process](docs/releases.md#prepare-a-release-with-commitizen).
+[maintainer release process](docs/release-process.md#prepare-a-release-with-commitizen).
 
 In the pull request, describe the problem and resulting behavior, link the issue
 when applicable, and record the checks actually run. Include relevant limitations,

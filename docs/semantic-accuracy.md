@@ -23,7 +23,7 @@ The solution extractor additionally follows inferred types, overloaded operators
 conversions and foreach/await pattern bindings. Neither engine resolves reflection,
 runtime dependency injection or concrete virtual dispatch targets. See the
 [compiler semantic surface](compiler-analyzer.md#reporting-and-scope) and
-[solution semantic surface](dependency-graph.md#semantic-reference-scope).
+[solution semantic surface](concepts/dependency-analysis.md#semantic-reference-scope).
 
 These are executable regression expectations, not population-level precision or
 recall percentages. A passing fixture does not establish soundness for arbitrary
@@ -33,79 +33,30 @@ remain unvalidated.
 
 ## Shared cases and intentional differences
 
-`tests/Fixtures/Workspaces/SemanticParity` models Orders consuming Billing contracts
-and persistence. The engines consume the same YAML document. Legacy XML remains in focused
-compatibility cases during the transition release. Source lines labeled
-`// case:...` identify positive and negative architectural decisions.
-
-`SemanticAccuracyParityTests` evaluates the same loaded compilations with both
-engines across Debug/Release and net10.0/netstandard2.1, loading the explicit
-`SemanticParity.slnx` that lists all four projects. For every shared rule it
-compares the complete expected set of `(rule, case, restriction)` decisions with
-each engine's observed set and with the other engine. Solution observations expand
-**all evidence locations**, rather than only each finding's primary location.
-Restriction identity retains scope, kind and name, catching missing overlapping
-AG005 restrictions as well as unexpected findings on allowed cases.
-
-Cases cover attributes, inheritance/interfaces, constraints, aliases (including
-arrays, constructed generics and function-pointer return/parameter types with nested
-signatures), generic arguments, creation, `typeof`, `nameof`,
-casts, patterns, members, extension calls, partial/generated declarations, allowed
-contracts, namespace lookalikes, unused imports, literals and AG006 exceptions.
-The expected cases change with the active configuration/framework. Inactive branches
-contribute no findings. Existing rule and analyzer suites additionally cover
-same-module access, whole-module permissions, external/framework symbols, exact-name
-matching, severity selection, deterministic identities and cancellation.
-Base-class and interface uses have separate labeled lines. The cast case returns
-`object` so a forbidden return type cannot mask loss of cast-expression coverage.
-
-Parity compares architectural decisions on the shared surface. It does not require
-identical raw diagnostic counts, messages, IDs, symbol display strings or spans:
-solution evidence can include constructor/inference observations and wider syntax
-spans, while compiler diagnostics locate individual names. Case labels map those
-different spans to the same source decision. Unlabeled declarations and
-`implicit-operator` are outside the shared comparison. The latter has a separate
-assertion requiring all five rules in solution evidence and no compiler finding
-on that operation. AG001/AG002 separately assert reference evidence without an
-invented source location. Existing AG005/AG006 parity suites assert bound symbols
-and generated-source spans directly.
-
-| Context | Explicit outcome |
+| Context | How to interpret it |
 | --- | --- |
-| Multi-target input without `--framework` | Solution `Incomplete`, `framework-required`, gate cannot pass; compiler sees only its current compilation. |
-| Selected framework and configuration | Only evaluated references, files and active preprocessor branches participate. Run each supported combination separately; no aggregate coverage claim. |
-| Direct multi-target project input | Loading this fixture's `Orders.csproj` directly for `netstandard2.1` produced unmatched project/metadata reference warnings and `Incomplete` coverage with SDK 10.0.301 / Roslyn 5.0, reproduced with SDK 10.0.402 / Roslyn 5.9. The validated shared matrix uses the explicit `.slnx`; warnings are never suppressed to claim completion. |
-| Generated source | Both engines include `.g.cs` partials and actual source-generator trees supplied by Roslyn. Solution locations use portable `generated/...` identities; compiler paths are host supplied. |
-| Missing references / unresolved types | Solution remains `Incomplete`, retains bound findings and issues, and fails the gate. Compiler retains host compilation errors, reports still-bound violations and does not invent a dependency for unresolved names. Empty architecture diagnostics cannot establish coverage. |
-| Implicit overloaded operator | Solution observes the selected operator and reports applicable rules. The compiler's explicit-name callbacks do not report the implicit operator itself. |
-| Unused forbidden project reference | AG001/AG002 solution evidence includes it; compiler reports no dependency without a bound use. AG004–AG006 require semantic uses in both engines. |
+| Multi-target input without a selected framework | CLI/MCP remain incomplete; compiler feedback covers only its current compilation |
+| Selected configuration/framework | Only that context's references, files, generators and active preprocessor branches participate |
+| Generated source | Both engines analyze generated C# supplied by Roslyn; solution locations use logical identities and compiler locations use host paths |
+| Missing references or unresolved types | Resolve compiler/workspace issues; still-bound findings may be useful but an empty result does not establish coverage |
+| Implicit operators, conversions or pattern methods | Solution analysis can observe bindings beyond the compiler analyzer's explicit-name callbacks |
+| Unused forbidden project reference | AG001/AG002 solution evidence can report it; compiler callbacks require a bound use |
+| Different diagnostic counts | Compare rule, ownership, restriction and bound use rather than IDs or counts; solution findings aggregate evidence |
 
-## Reproduce and extend
+If direct multi-target project loading reports unmatched project/metadata reference
+warnings, try the explicit solution containing referenced projects, still selecting
+the framework and mapping the complete scope. Keep warnings visible and require
+completed coverage. See [workspace preparation](workspace-loading.md) and
+[troubleshooting](troubleshooting.md#multi-targeting-and-configurations).
 
-Use the SDK pinned by `global.json` and the committed NuGet lock files:
+## Choose your enforcement checkpoints
 
-```sh
-dotnet restore ArchitectureGuardian.slnx --locked-mode
-dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
-dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj --configuration Release --no-build --no-restore --filter FullyQualifiedName~SemanticAccuracyParityTests
-```
+Use compiler feedback for early correction of supported explicit uses. Retain
+CLI/MCP solution scans for broader semantic evidence, unused reference checks and
+AG003 cycles. Cover every context required by CI through separate runs. A successful
+compiler build does not establish whole-solution architecture compliance.
 
-The test fixture copies inputs to a fresh temporary directory, restores both target
-frameworks, stages source generators and loads projects with explicit configuration
-and framework. No fixture package additions or network calls occur during analysis;
-restore may use the configured package feeds. Shared rules use policy-relative
-source paths; normalized decisions ignore checkout directories and ordering.
-
-For AG001/AG002/AG004, reproduce a decision with the labeled project pair and the shared YAML
-policy and evaluated build metadata. For AG005, also retain each source module/layer restriction;
-for AG006, retain the source layer and allowed namespace exceptions. For AG003,
-retain the complete selected solution graph and run the module-cycle regression
-suite; one compiler invocation cannot reproduce a solution cycle. In every case
-record SDK, framework, configuration and generated inputs. Changing any of those
-changes the evaluated context.
-
-When extending coverage, add a labeled source case and its independently specified
-expected rules/restrictions. Add explicit assertions for intentional engine
-differences rather than deleting a failing case or weakening coverage status.
-Run the full solution checks before publishing; CI repeats them on Linux, Windows
-and macOS and separately validates packaged compiler hosts.
+Runtime reflection, dependency-injection choices and concrete virtual dispatch
+targets remain outside the static model. Follow the [rule catalog](rule-catalog.md)
+for individual constraints and [diagnostics](concepts/diagnostics.md) for coverage
+and gate meaning.

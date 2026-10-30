@@ -8,25 +8,26 @@ import remarkStringify from 'remark-stringify';
 import { visit } from 'unist-util-visit';
 import { toString } from 'mdast-util-to-string';
 import GithubSlugger from 'github-slugger';
-import { base, github, pages, pagePath } from './site.mjs';
+import { base, github, pages, pagePath, site } from './site.mjs';
 import { prepareDiagrams } from './diagrams.mjs';
+import { buildExamples } from './examples.mjs';
 
 export const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = resolve(websiteRoot, '..');
 const markdown = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, { fences: true });
 
 // Exported for fixture tests: never consult or mutate a generated page as source.
-export async function transformDocument(source, file, root = repositoryRoot, mapping = new Map(pages.map(([path, slug]) => [path, slug]))) {
+export async function transformDocument(source, file, root = repositoryRoot, mapping = new Map(pages.map(([path, slug]) => [path, slug])), metadata = {}) {
   const tree = markdown.parse(source);
   const heading = tree.children[0];
   const hasTitle = heading?.type === 'heading' && heading.depth === 1;
-  if (!hasTitle && file !== 'CHANGELOG.md') {
+  if (!hasTitle && file !== 'CHANGELOG.md' && !metadata.title) {
     throw new Error(`${file}: expected a leading level-one title`);
   }
-  const title = hasTitle ? toString(heading) : 'Release notes';
+  const title = hasTitle ? toString(heading) : (metadata.title ?? 'Release notes');
   const titleAnchor = new GithubSlugger().slug(title);
   const paragraph = tree.children.find((node) => node.type === 'paragraph');
-  const description = toString(paragraph ?? heading).replace(/\s+/g, ' ').slice(0, 180);
+  const description = metadata.description ?? toString(paragraph ?? heading).replace(/\s+/g, ' ').slice(0, 180);
   const assets = new Set();
   const references = [];
   const imageDefinitions = new Set();
@@ -38,6 +39,12 @@ export async function transformDocument(source, file, root = repositoryRoot, map
   });
 
   async function rewrite(url, image = false) {
+    if (/^https?:/i.test(url)) {
+      const target = new URL(url);
+      if (target.origin === site && target.pathname.startsWith(base)) {
+        return `${target.pathname}${target.search}${target.hash}`;
+      }
+    }
     if (/^(?:[a-z][\w+.-]*:|\/\/|#)/i.test(url)) return url;
     const match = /^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(url);
     if (!match) throw new Error(`${file}: malformed link ${url}`);
@@ -50,7 +57,7 @@ export async function transformDocument(source, file, root = repositoryRoot, map
     let info;
     try { info = await stat(target); }
     catch { throw new Error(`${file}: missing link target: ${url}`); }
-    if (image) {
+    if (image || /\.(svg|png|jpe?g|gif|webp)$/i.test(path)) {
       if (!info.isFile()) throw new Error(`${file}: image is not a file: ${url}`);
       assets.add(path);
       return `${base}source-assets/${path.split('/').map(encodeURIComponent).join('/')}${query}${hash}`;
@@ -90,11 +97,11 @@ export async function syncDocs() {
   const slugs = new Set();
   // Validate all inputs before replacing the previous generated content.
   const documents = [];
-  for (const [file, slug] of pages) {
+  for (const [file, slug, , metadata] of pages) {
     if (files.has(file) || slugs.has(slug)) throw new Error(`Duplicate content mapping: ${file} / ${slug}`);
     files.add(file);
     slugs.add(slug);
-    documents.push({ slug, ...await transformDocument(await readFile(resolve(repositoryRoot, file), 'utf8'), file) });
+    documents.push({ slug, ...await transformDocument(await readFile(resolve(repositoryRoot, file), 'utf8'), file, undefined, undefined, metadata) });
   }
   await rm(destination, { recursive: true, force: true });
   await rm(assetDirectory, { recursive: true, force: true });
@@ -107,7 +114,8 @@ export async function syncDocs() {
       await cp(resolve(repositoryRoot, asset), output);
     }
   }
-  console.log(`Synchronized ${documents.length} authoritative documents.`);
+  await buildExamples();
+  console.log(`Synchronized ${documents.length} authoritative documents and two runnable example downloads.`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await syncDocs();

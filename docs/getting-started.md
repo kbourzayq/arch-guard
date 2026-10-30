@@ -1,8 +1,8 @@
 # Getting started
 
-Install the [published CLI](../README.md#install-the-cli), then use this guide from
+Install the [published CLI](install.md#install-the-cli), then use this guide from
 **your repository root** to define policy and run your first architecture gate.
-A source checkout is needed only for the optional reference example below.
+The downloadable example below works with the installed CLI too.
 
 ## Check your own repository
 
@@ -97,7 +97,7 @@ produce a passing scan. See [troubleshooting](troubleshooting.md).
 ## Add a CI gate
 
 Provision the SDKs required by both the tool and your target repository and
-install the [CLI package](../README.md#install-the-cli). Restore the target in
+install the [CLI package](install.md#install-the-cli). Restore the target in
 the intended configuration, then invoke `archguard` as a normal pipeline step:
 
 ```sh
@@ -115,17 +115,17 @@ feedback, use the [compiler analyzer](compiler-analyzer.md) alongside the soluti
 
 ## Run the included example
 
-For a local demonstration, obtain a [development checkout](installation.md#install-from-source)
-and run the commands below from its root with the installed `archguard`. A source
-build can substitute `dotnet artifacts/cli/ArchitectureGuardian.Cli.dll` for that
-command after publishing. This checkout requires its pinned SDK.
+Download and extract the [Clean Architecture sample](https://kbourzayq.github.io/arch-guard/examples/clean-architecture.zip).
+It contains four package-free projects and a complete policy. Use an installed
+.NET 10 SDK and CLI, review the build logic, and run these commands from the
+extracted `CleanArchitecture` directory.
 
 The Clean Architecture example contains Domain, Application, Infrastructure and
 Host projects with a committed policy. Restore the same configuration you will scan:
 
 ```sh
-dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=Compliant
-archguard scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration Compliant --trusted
+dotnet restore CleanArchitecture.slnx -p:Configuration=Compliant
+archguard scan CleanArchitecture.slnx --policy architecture.guardian.yaml --configuration Compliant --trusted
 ```
 
 Expect a completed scan with zero diagnostics, `Gate passed` and exit code `0`.
@@ -135,10 +135,10 @@ For other inputs, make that trust decision before restoring or loading their pro
 Now select a committed configuration that makes Application depend on Infrastructure:
 
 ```sh
-dotnet restore tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx -p:Configuration=AG002
-archguard scan tests/Fixtures/ReferenceSolutions/CleanArchitecture/CleanArchitecture.slnx --policy tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml --configuration AG002 --trusted
+dotnet restore CleanArchitecture.slnx -p:Configuration=AG002
+archguard scan CleanArchitecture.slnx --policy architecture.guardian.yaml --configuration AG002 --trusted
 ```
 
 Expect one AG002 finding, source evidence, remediation, `Gate failed` and exit
 code `1`. The input still compiles; the architecture policy rejects its dependency.
-For module permissions and cycles, see the [modular-monolith examples](m1-demo.md).
+For module permissions and cycles, see the [examples and use cases](use-cases.md).
