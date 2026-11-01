@@ -10,13 +10,15 @@ public sealed class WorkspaceLoadResult : IDisposable
 {
     private readonly MSBuildWorkspace? _workspace;
 
-    internal WorkspaceLoadResult(MSBuildWorkspace? workspace, string inputPath, AnalysisStatus status, IEnumerable<AnalysisIssue> issues)
+    internal WorkspaceLoadResult(MSBuildWorkspace? workspace, string inputPath, AnalysisStatus status, IEnumerable<AnalysisIssue> issues,
+        IEnumerable<WorkspaceProjectContext>? contexts = null)
     {
         _workspace = workspace;
         InputPath = inputPath;
         var coverage = new AnalysisResult(status, issues: issues.Distinct());
         Status = coverage.Status;
         Issues = coverage.Issues;
+        Contexts = Array.AsReadOnly((contexts ?? []).OrderBy(context => context.ProjectPath, StringComparer.Ordinal).ToArray());
     }
 
     /// <summary>Gets the absolute solution or project input path; normalization makes it policy-relative.</summary>
@@ -27,6 +29,9 @@ public sealed class WorkspaceLoadResult : IDisposable
 
     /// <summary>Gets deterministically ordered operational issues explaining any missing coverage.</summary>
     public IReadOnlyList<AnalysisIssue> Issues { get; }
+
+    /// <summary>Gets evaluated project contexts, including partial work; inspect coverage before relying on them.</summary>
+    public IReadOnlyList<WorkspaceProjectContext> Contexts { get; }
 
     /// <summary>Gets the available, possibly partial solution; null means no workspace was created.</summary>
     public Solution? Solution => _workspace?.CurrentSolution;

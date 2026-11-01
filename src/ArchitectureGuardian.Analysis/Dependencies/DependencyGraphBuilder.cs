@@ -38,27 +38,46 @@ public sealed class DependencyGraphBuilder
             return new(normalized.Model, null, normalized.Status, normalized.Issues);
         }
 
-        var extraction = new Extraction(solution, repository, Path.GetFullPath(policyDirectory), normalized.Issues,
-            cancellationToken);
+        var result = await ExtractAsync(solution, new RepositoryInventory(repository.Id, repository.Projects),
+            policyDirectory, normalized.Status, normalized.Issues, cancellationToken).ConfigureAwait(false);
+        return new(repository, result.Graph?.Aggregate(repository), result.Status, result.Issues);
+    }
+
+    /// <summary>Extracts the same semantic evidence without policy ownership or architectural permissions.</summary>
+    /// <param name="workspace">Workspace and explicit loading coverage.</param>
+    /// <param name="root">Root for portable input, project and source paths.</param>
+    /// <param name="cancellationToken">Cooperative normalization and extraction cancellation.</param>
+    /// <returns>Available declarations, unaggregated evidence and combined coverage.</returns>
+    public async Task<DependencyInventoryResult> BuildInventoryAsync(WorkspaceLoadResult workspace, string root,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = await new RepositoryModelBuilder().BuildInventoryAsync(workspace, root, cancellationToken).ConfigureAwait(false);
+        if (normalized.Inventory is not { } inventory || workspace.Solution is not { } solution)
+        {
+            return new(normalized.Inventory, null, normalized.Status, normalized.Issues);
+        }
+        return await ExtractAsync(solution, inventory, root, normalized.Status, normalized.Issues, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<DependencyInventoryResult> ExtractAsync(Solution solution, RepositoryInventory inventory,
+        string root, AnalysisStatus status, IEnumerable<AnalysisIssue> issues, CancellationToken cancellationToken)
+    {
+        var extraction = new Extraction(solution, inventory, Path.GetFullPath(root), issues, cancellationToken);
         try
         {
             await extraction.RunAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            return new(repository, extraction.Graph(), normalized.Status == AnalysisStatus.Failed
-                ? AnalysisStatus.Failed
-                : extraction.Issues.Count == 0
-                    ? AnalysisStatus.Completed
-                    : AnalysisStatus.Incomplete, extraction.Issues);
+            return new(inventory, extraction.Graph(), status == AnalysisStatus.Failed ? AnalysisStatus.Failed
+                : extraction.Issues.Count == 0 ? AnalysisStatus.Completed : AnalysisStatus.Incomplete, extraction.Issues);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return new(repository, extraction.Graph(), AnalysisStatus.Cancelled, extraction.Issues);
+            return new(inventory, extraction.Graph(), AnalysisStatus.Cancelled, extraction.Issues);
         }
         catch (Exception exception)
         {
-            extraction.Issues.Add(new("dependency-extraction-failed",
-                $"{exception.GetType().Name}: {exception.Message}"));
-            return new(repository, extraction.Graph(), AnalysisStatus.Failed, extraction.Issues);
+            extraction.Issues.Add(new("dependency-extraction-failed", $"{exception.GetType().Name}: {exception.Message}"));
+            return new(inventory, extraction.Graph(), AnalysisStatus.Failed, extraction.Issues);
         }
     }
 
@@ -66,7 +85,7 @@ public sealed class DependencyGraphBuilder
     private sealed class Extraction
     {
         private readonly Solution _solution;
-        private readonly RepositoryModel _repository;
+        private readonly RepositoryInventory _repository;
         private readonly string _root;
         private readonly CancellationToken _cancellationToken;
         private readonly List<DependencyNode> _nodes = [];
@@ -75,7 +94,7 @@ public sealed class DependencyGraphBuilder
         private readonly Dictionary<ProjectId, Context> _contexts = [];
         private readonly Dictionary<AssemblyIdentity, List<Context>> _assemblies = [];
 
-        internal Extraction(Solution solution, RepositoryModel repository, string root,
+        internal Extraction(Solution solution, RepositoryInventory repository, string root,
             IEnumerable<AnalysisIssue> issues,
             CancellationToken cancellationToken)
         {
@@ -99,7 +118,7 @@ public sealed class DependencyGraphBuilder
         internal HashSet<AnalysisIssue> Issues { get; }
 
         internal DependencyGraph Graph() => new DependencyGraph(_nodes,
-            _edges.Select(pair => new DependencyEdge(pair.Key.Source, pair.Key.Target, pair.Value))).Aggregate(_repository);
+            _edges.Select(pair => new DependencyEdge(pair.Key.Source, pair.Key.Target, pair.Value)));
 
         internal async Task RunAsync()
         {

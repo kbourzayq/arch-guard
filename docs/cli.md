@@ -23,10 +23,14 @@ the CLI.
 | `inspect` | `<input> --policy <path>` | List resolved ownership and policy constraints |
 | `load` | `<input>` | Validate workspace coverage without rule evaluation |
 | `explain` | `<rule-id>` | Print local rule metadata without loading a workspace |
+| `init` (development source; next feature release) | `--discover <input-or-directory>` | Write review-only policy intentions and a separate discovery report |
 
 `scan`, `baseline update`, `inspect` and `load` also accept `--trusted`, `--configuration` (default
 `Debug`) and `--framework`. Full scans do not restore automatically; change
-comparison prepares temporary snapshots with cache-only restore. There is no policy discovery.
+comparison prepares temporary snapshots with cache-only restore. Development-source
+`init --discover` is documented in [discovery and policy proposals](discovery.md);
+it is not in the published 0.3.0 CLI. Trusted discovery requires explicit
+`--configuration`, accepts `--framework` and `--output-directory`, and never adopts policy.
 
 ## Scan a solution or project
 

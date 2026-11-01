@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kbourzayq/arch-guard/blob/main/docs/schema/discovery.v1.schema.json",
+  "title": "Architecture Guardian discovery report v1",
+  "description": "Verified observations are separate from review-only inferences. Completed coverage describes only exploredContexts. proposedPolicy follows the existing policy v1 schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "status", "proposalOutcome", "reviewRequired", "adoption", "requested", "exploredContexts", "staticInventory", "observations", "candidateOwnership", "inferences", "unresolvedQuestions", "configurationValidation", "proposedPolicy", "compliance"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "architecture-discovery" },
+    "status": { "$ref": "#/$defs/status" },
+    "proposalOutcome": { "enum": ["readyForReview", "unresolved"] },
+    "reviewRequired": { "const": true },
+    "adoption": { "const": "manual" },
+    "requested": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input", "configuration", "framework"],
+      "properties": {
+        "input": { "type": "string" },
+        "configuration": { "type": "string" },
+        "framework": { "type": ["string", "null"] }
+      }
+    },
+    "exploredContexts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "configuration", "framework", "declaredFrameworks"],
+        "properties": {
+          "project": { "type": "string" },
+          "configuration": { "type": "string" },
+          "framework": { "type": "string" },
+          "declaredFrameworks": { "$ref": "#/$defs/strings" }
+        }
+      }
+    },
+    "staticInventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "projects", "issues"],
+      "properties": {
+        "status": { "const": "unevaluated" }, "projects": { "$ref": "#/$defs/strings" },
+        "issues": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inventory", "graph", "status", "issues"],
+      "properties": {
+        "inventory": { "type": ["object", "null"] },
+        "graph": { "type": ["object", "null"] },
+        "status": { "$ref": "#/$defs/status" },
+        "issues": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "candidateOwnership": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["projectPath", "module", "layer", "contract"],
+        "properties": {
+          "projectPath": { "type": "string" }, "module": { "type": "string" },
+          "layer": { "type": "string" }, "contract": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "inferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "subject", "confidence", "evidence"],
+        "properties": {
+          "kind": { "type": "string" }, "subject": { "type": "string" },
+          "confidence": { "enum": ["low", "medium", "high"] }, "evidence": { "$ref": "#/$defs/strings" }
+        }
+      }
+    },
+    "unresolvedQuestions": { "$ref": "#/$defs/strings" },
+    "configurationValidation": { "enum": ["valid", "notAvailable"] },
+    "proposedPolicy": { "type": ["object", "null"] },
+    "compliance": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "gateOutcome", "diagnostics", "issues"],
+          "properties": {
+            "status": { "$ref": "#/$defs/status" },
+            "gateOutcome": { "enum": ["passed", "failed", "notEvaluated"] },
+            "diagnostics": { "type": "array", "items": { "type": "object" } },
+            "issues": { "type": "array", "items": { "type": "object" } }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "status": { "enum": ["completed", "incomplete", "failed", "cancelled"] },
+    "strings": { "type": "array", "items": { "type": "string" } }
+  }
+}

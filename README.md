@@ -11,6 +11,10 @@ the analyzer complements them with checks in the host compilation.
 [Getting started](docs/getting-started.md) · [Documentation](docs/README.md) ·
 [Local development](docs/installation.md) · [Manual validation](docs/manual-validation.md) · [Contributing](CONTRIBUTING.md)
 
+Development-source users can [discover a review-only architecture policy](docs/discovery.md)
+before manual adoption. This command is intended for the next feature release;
+the published 0.3.0 CLI uses the manual policy workflow.
+
 The [public documentation website](https://kbourzayq.github.io/arch-guard/) presents
 consumer guides with search and organized navigation. Contributor and local
 development instructions remain in this repository. See

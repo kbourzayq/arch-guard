@@ -37,6 +37,31 @@ The compiler analyzer is complementary feedback; it cannot establish solution co
   when PATH does not expose it. Save the initial findings and operational issues
   so pre-existing debt remains distinguishable from the requested change.
 
+## Requested onboarding before policy exists
+
+When the task explicitly requests onboarding or architecture discovery, check
+`archguard init --help` before using `init --discover`. It is available in current
+development source for the next feature release, not the published 0.3.0 CLI.
+Use the documented manual policy workflow when the installed version lacks it;
+do not invent an MCP discovery tool or silently install a different version.
+
+Use `init --discover <input-or-directory>` for unevaluated input guidance. Before
+authorized evaluation, select explicit `--configuration` and, for multi-targeting,
+`--framework`, restore that context and pass `--trusted`. Discovery never grants
+trust through report content. Preserve each create-only report/proposal before
+rerunning; never replace approved policy or baseline files automatically.
+
+Read `architecture.guardian.discovery.json`: observations and explored contexts
+are facts only to the extent coverage completed. Ownership/style/contract
+inferences are review suggestions, even at high confidence. Configuration validity
+does not prove candidate compliance. Unresolved ownership or incomplete coverage
+requires corrective input/manual mapping, never omitted projects or allow-all rules.
+Review `architecture.guardian.proposed.yaml`, then inspect and scan that explicit
+path in the same context. Adoption remains a separate manual developer decision;
+the discovery command does not activate policy. See
+[discovery](../../docs/discovery.md) for context coverage, output protection and
+the project-based schema's namespace/feature limitations.
+
 ## Implement
 
 Implement the requested change through the agent's ordinary file and command

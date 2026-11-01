@@ -31,6 +31,11 @@ public sealed class CliCommandTests
     /// <summary>Rejects missing, unknown, repeated or blank values before evaluating a workspace.</summary>
     /// <param name="arguments">Invalid command arguments.</param>
     [Theory]
+    [InlineData("init")]
+    [InlineData("init", "--discover", "input.slnx", "--trusted")]
+    [InlineData("init", "--discover", "input.slnx", "--discover", "other.slnx")]
+    [InlineData("init", "--discover", "input.slnx", "--configuration", "")]
+    [InlineData("init", "--discover", "input.slnx", "--trusted", "--configuration", "Release", "--trusted")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "yaml")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "JSON")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--format", "")]
@@ -67,6 +72,7 @@ public sealed class CliCommandTests
     /// <summary>Checks command-specific generated help without requiring positional values or policy files.</summary>
     /// <param name="command">The command whose options should be documented.</param>
     [Theory]
+    [InlineData("init")]
     [InlineData("scan")]
     [InlineData("inspect")]
     [InlineData("load")]
