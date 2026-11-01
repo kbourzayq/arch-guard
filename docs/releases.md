@@ -38,6 +38,12 @@ obsolete hosts. Pin the same package version when comparing engines.
 
 ## Upgrade deliberately
 
+The public documentation website follows the latest published stable release.
+Development documentation in the repository can describe unreleased behavior;
+merging it does not make those commands available in installed packages. The site
+shows its content version and reads guides/examples from the corresponding release
+tag after verifying the matching packages on NuGet.
+
 Pin the same published version across integrations. Read [release notes](../CHANGELOG.md),
 update tools/package references, reconnect MCP clients and rerun full scans in the
 contexts you gate. Revisit a baseline only after reviewing any changed findings.

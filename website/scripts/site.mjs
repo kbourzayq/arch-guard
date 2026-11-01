@@ -1,10 +1,14 @@
 // Shared by synchronization, configuration and production validation.
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { content } from './release-source.mjs';
+
 export const site = 'https://kbourzayq.github.io';
 export const base = '/arch-guard/';
 export const github = 'https://github.com/kbourzayq/arch-guard';
 export const pagePath = (slug) => `${base}reference/${slug}/`;
 
-export const groups = [
+export const sourceGroups = [
   { label: 'Getting Started', items: [
     ['docs/README.md', 'documentation', 'Start here · choose your path'],
     ['docs/install.md', 'installation', 'Installation'],
@@ -49,4 +53,15 @@ export const groups = [
     ['CHANGELOG.md', 'changelog', 'Release notes'],
   ] },
 ];
+
+// These legacy published sources predate the website's consumer-guide split.
+const legacySources = { 'docs/install.md': 'README.md', 'docs/use-cases.md': 'docs/m1-demo.md' };
+export function contentGroups(root, released = false) {
+  if (!released) return sourceGroups;
+  return sourceGroups.map((group) => ({ ...group, items: group.items.flatMap(([file, ...rest]) => {
+    const source = existsSync(resolve(root, file)) ? file : legacySources[file];
+    return source && existsSync(resolve(root, source)) ? [[source, ...rest]] : [];
+  }) })).filter((group) => group.items.length > 0);
+}
+export const groups = contentGroups(content.root, content.kind === 'release');
 export const pages = groups.flatMap((group) => group.items);

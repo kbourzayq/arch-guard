@@ -11,13 +11,14 @@ import GithubSlugger from 'github-slugger';
 import { base, github, pages, pagePath, site } from './site.mjs';
 import { prepareDiagrams } from './diagrams.mjs';
 import { buildExamples } from './examples.mjs';
+import { content as sourceContext } from './release-source.mjs';
 
 export const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = resolve(websiteRoot, '..');
 const markdown = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, { fences: true });
 
 // Exported for fixture tests: never consult or mutate a generated page as source.
-export async function transformDocument(source, file, root = repositoryRoot, mapping = new Map(pages.map(([path, slug]) => [path, slug])), metadata = {}) {
+export async function transformDocument(source, file, root = repositoryRoot, mapping = new Map(pages.map(([path, slug]) => [path, slug])), metadata = {}, sourceRef = 'main') {
   const tree = markdown.parse(source);
   const heading = tree.children[0];
   const hasTitle = heading?.type === 'heading' && heading.depth === 1;
@@ -64,7 +65,7 @@ export async function transformDocument(source, file, root = repositoryRoot, map
     }
     const slug = mapping.get(path);
     if (slug) return `${pagePath(slug)}${query}${hash}`;
-    return `${github}/${info.isDirectory() ? 'tree' : 'blob'}/main/${path.split('/').map(encodeURIComponent).join('/')}${query}${hash}`;
+    return `${github}/${info.isDirectory() ? 'tree' : 'blob'}/${sourceRef}/${path.split('/').map(encodeURIComponent).join('/')}${query}${hash}`;
   }
 
   for (const { node, image } of references) node.url = await rewrite(node.url, image);
@@ -84,7 +85,7 @@ export async function transformDocument(source, file, root = repositoryRoot, map
   if (hasTitle) tree.children[0] = { type: 'html', value: `<span id="${titleAnchor}"></span>` };
   const frontmatter = {
     title, description,
-    editUrl: `${github}/edit/main/${file}`,
+    editUrl: `${github}/${sourceRef === 'main' ? 'edit' : 'blob'}/${sourceRef}/${file}`,
   };
   const header = Object.entries(frontmatter).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n');
   return { content: `---\n${header}\n---\n\n${markdown.stringify(tree)}`, assets };
@@ -101,7 +102,7 @@ export async function syncDocs() {
     if (files.has(file) || slugs.has(slug)) throw new Error(`Duplicate content mapping: ${file} / ${slug}`);
     files.add(file);
     slugs.add(slug);
-    documents.push({ slug, ...await transformDocument(await readFile(resolve(repositoryRoot, file), 'utf8'), file, undefined, undefined, metadata) });
+    documents.push({ slug, ...await transformDocument(await readFile(resolve(sourceContext.root, file), 'utf8'), file, sourceContext.root, undefined, metadata, sourceContext.sourceRef) });
   }
   await rm(destination, { recursive: true, force: true });
   await rm(assetDirectory, { recursive: true, force: true });
@@ -111,10 +112,11 @@ export async function syncDocs() {
     for (const asset of assets) {
       const output = resolve(assetDirectory, asset);
       await mkdir(dirname(output), { recursive: true });
-      await cp(resolve(repositoryRoot, asset), output);
+      await cp(resolve(sourceContext.root, asset), output);
     }
   }
   await buildExamples();
+  await writeFile(resolve(websiteRoot, 'public/release.json'), JSON.stringify({ kind: sourceContext.kind, tag: sourceContext.tag, version: sourceContext.version, commit: sourceContext.commit }, null, 2) + '\n');
   console.log(`Synchronized ${documents.length} authoritative documents and two runnable example downloads.`);
 }
 

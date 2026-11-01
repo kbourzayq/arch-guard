@@ -34,6 +34,21 @@ the build. External websites are not network-checked; repository-relative source
 targets must exist before they can become GitHub links.
 
 Use `npm run sync` to regenerate content alone and `npm test` for fixture tests.
+These default commands preview development documentation with an unreleased notice.
+To build published content locally after fetching its tag:
+
+```sh
+git fetch origin --tags
+DOCS_RELEASE_TAG=v0.3.0 npm run build
+```
+
+In PowerShell, set `$env:DOCS_RELEASE_TAG = 'v0.3.0'` before the build and remove it
+afterward with `Remove-Item Env:DOCS_RELEASE_TAG`. Release builds materialize tagged
+Git content under ignored `artifacts/docs-source/` without switching the checkout.
+The version banner and generated `public/release.json` identify the content tag,
+version and commit. Missing/mismatched tags fail without substituting main's text.
+Deployment additionally verifies public package availability.
+
 No .NET runtime is needed to build the website. Dependencies and their lock file
 live here, independently of the solution and NuGet setup. Set the optional
 `ASTRO_TELEMETRY_DISABLED=1` environment variable to disable Astro's build telemetry;
@@ -45,6 +60,14 @@ CI already does. The website itself has no visitor telemetry.
 the repository source path, stable slug, navigation label and optional metadata
 for generated reports without a source title. Each source appears
 once. The groups reuse whole guides instead of duplicating their sections:
+
+Public builds read guides, assets, the homepage sample policy and example ZIPs from
+the selected released tag. Absent guides are omitted from navigation, pages, search
+and sitemap; mixed guides such as the CLI reference use released contents. Releases
+predating the website explicitly map the tagged root README to installation and
+`docs/m1-demo.md` to examples. Source links stay pinned to the release. The renderer,
+theme and navigation labels come from main; homepage feature claims must remain
+compatible with the supported published release.
 
 | Source | Website route or role |
 | --- | --- |
@@ -147,11 +170,19 @@ One time, a repository administrator must:
 3. If the `github-pages` environment has protection rules, permit `main` and
    satisfy any required maintainer approval.
 
-`.github/workflows/docs.yml` runs `npm ci` and full production validation for
-relevant pull requests. PR jobs have only `contents: read` and cannot deploy.
-Relevant pushes to `main` build and upload a Pages artifact; a separate job uses
-`configure-pages` and `deploy-pages` with `pages: write` and `id-token: write`.
-Manual runs deploy only when the selected ref is `main`. The npm cache keys off
+`.github/workflows/docs.yml` validates both development previews and published-release
+builds for relevant PRs. PR jobs have only `contents: read` and cannot deploy.
+Public builds select GitHub's latest published stable release and verify all three
+matching NuGet versions before rendering tagged content. Drafts, prereleases,
+missing packages and unavailable release metadata stop deployment and retain the
+previous site. There is no development-content fallback.
+
+Relevant pushes to main, stable GitHub release publication, successful completion
+of the repository's tag-triggered NuGet release workflow, and manual runs on main
+can refresh Pages. The renderer comes from main, including for older tags without
+a website; the uploaded artifact always contains released content. Production
+updates are serialized. Separate deployment uses `configure-pages`/`deploy-pages`
+with `pages: write` and `id-token: write`. The npm cache keys off
 `website/package-lock.json`; path filters include mapped sources, website inputs,
 the published benchmark report/illustration, and all reference-example inputs.
 
@@ -160,6 +191,14 @@ the published benchmark report/illustration, and all reference-example inputs.
 destination. When changing it, update these constants and absolute edit links,
 then repeat the build and browser checks.
 
-Creating the workflow does not enable Pages settings or deploy a feature branch.
-Deployment happens after merge and repository setup. Verify the Actions deployment
-result before claiming the site is live.
+Merging a feature updates source documentation and its preview; public content
+advances after the corresponding stable release and packages are published. Theme
+and renderer fixes can deploy while retaining released content. If a release event
+precedes NuGet propagation, rerun the docs job after all three versions are visible.
+GitHub loads [release-triggered workflow definitions](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#release)
+from the release tag. When
+publishing a legacy/backport tag without `.github/workflows/docs.yml`, manually run
+the docs workflow on main after publication; checking out main within a job cannot
+create a missing trigger. The main push introducing this workflow repairs the
+current site using the latest verified release even when that release predates it.
+Verify the Actions deployment result before claiming the site is updated.

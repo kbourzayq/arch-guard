@@ -4,3 +4,4 @@ dist/
 src/content/docs/reference/
 public/source-assets/
 public/examples/
+public/release.json

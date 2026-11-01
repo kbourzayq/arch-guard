@@ -68,6 +68,30 @@ validation. A local passing run does not establish that GitHub CI passed.
 See the [MVP release sign-off record](release-signoff-0.3.0.md) for candidate evidence,
 the squash-history changelog boundary and the remaining maintainer gates.
 
+## Publish matching documentation
+
+GitHub Pages follows published stable releases independently of development docs
+on main. After the tagged NuGet workflow succeeds, verify all three package versions
+and publish the GitHub release for the same tag. Documentation refreshes on stable
+GitHub release publication and successful completion of the repository's tag-triggered
+NuGet workflow; a manual docs run on main can retry it.
+
+[Release events](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#release)
+load workflow definitions from their tagged commit. For a
+legacy/backport tag that lacks `.github/workflows/docs.yml`, explicitly run the
+documentation workflow on main after publishing the release and packages. This
+also provides the retry path for releases predating the website; a job's checkout
+of main cannot bootstrap a workflow missing from the event's tag.
+
+The docs job selects GitHub's latest stable release, verifies all three NuGet versions,
+and reads guides, assets and example inputs from that exact tag using the current
+website renderer. `release.json` records the content version, tag and commit.
+Missing release/package metadata stops deployment rather than publishing main's
+unreleased commands. Wait for feed propagation and rerun when needed. PRs validate
+both preview and released builds. See [website development](../website/README.md)
+for local release builds, legacy mappings and Pages setup. Documentation deployment
+does not publish code or packages; release approval and tagging remain separate.
+
 ## Prepare a release with Commitizen
 
 Use `cz commit` to create Conventional Commits and `cz check --rev-range

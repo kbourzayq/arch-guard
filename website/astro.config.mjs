@@ -2,6 +2,9 @@ import { defineConfig } from 'astro/config';
 import { unified } from '@astrojs/markdown-remark';
 import starlight from '@astrojs/starlight';
 import { base, github, groups, site } from './scripts/site.mjs';
+import { repositoryRoot } from './scripts/release-source.mjs';
+
+process.env.DOCS_REPOSITORY_ROOT = repositoryRoot;
 
 export default defineConfig({
   site,
