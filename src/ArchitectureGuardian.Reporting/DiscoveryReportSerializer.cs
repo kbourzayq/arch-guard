@@ -13,6 +13,7 @@ public static class DiscoveryReportSerializer
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        NewLine = "\n",
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 

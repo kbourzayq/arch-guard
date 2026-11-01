@@ -24,6 +24,8 @@ public sealed class DiscoveryReportTests
         var proposal = new PolicyProposalBuilder().Build(observations, TestContext.Current.CancellationToken);
         var result = new DiscoveryResult("App.slnx", "Release", null, [], [], observations, proposal);
         var text = DiscoveryReportSerializer.Serialize(result);
+        Assert.EndsWith("\n", text);
+        Assert.DoesNotContain("\r", text);
         using var report = JsonDocument.Parse(text);
         Assert.Equal(expected, report.RootElement.GetProperty("status").GetString());
         Assert.Equal("unresolved", report.RootElement.GetProperty("proposalOutcome").GetString());
