@@ -112,17 +112,19 @@ nested implementation helpers stay with their owner.
 | Core | `Policies` | Architecture declarations, loading port, matching, resolution, permissions, severity and gate policy |
 | Core | `Repositories` | Immutable repository, project, assembly, namespace, type, module, contract and layer data and build coverage |
 | Core | `Dependencies` | Immutable evidence graphs, aggregation, traversal, cyclic components and extraction coverage |
+| Core | `Discovery` | Neutral discovery contracts and pure, evidence-backed review intentions, separate from observations |
 | Core | `Canonicalization` | Internal deterministic encoding, hashing and collection ordering |
 | Analysis | `Orchestration` | Reusable analysis service implementation |
 | Analysis | `Repositories` | Workspace-to-Core normalization and policy ownership composition |
 | Analysis | `Dependencies` | Evaluated reference and semantic dependency extraction with source evidence |
+| Analysis | `Discovery` | Static input guidance, policy-independent verified inventory and independent candidate compliance |
 | Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
 | Policy | `Documents` / project root | Portable parsing, validation and source positions |
-| Configuration | `Yaml` | File loading and Core adaptation |
+| Configuration | `Yaml` | File loading, Core adaptation and validated review-only proposal serialization |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | Analyzers | `Policies` / project root | YAML / legacy XML validation and observed ownership / compilation-local semantic diagnostics |
 | MCP | `Hosting` / `Tools` / project root | SDK registration and workspace options / bounded architecture, rule and analysis schemas and tools / host bootstrap |
-| Reporting | Project root | JSON/SARIF serialization and atomic report-file publication |
+| Reporting | Project root | Scan JSON/SARIF and separate discovery JSON serialization, with scan report-file publication |
 | CLI | Project root | Namespaced process entry point, arguments, console output and exit codes |
 
 Unit tests use `Analysis`, `Dependencies`, `Diagnostics`, `Policies`, `Repositories`, `Rules` and `Workspaces` folders and

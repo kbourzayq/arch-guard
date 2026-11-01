@@ -21,8 +21,34 @@ public sealed class RepositoryModelBuilder
     public async Task<RepositoryBuildResult> BuildAsync(WorkspaceLoadResult workspace, string policyDirectory,
         ArchitecturePolicy policy, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(policy);
+        var result = await BuildInventoryAsync(workspace, policyDirectory, cancellationToken).ConfigureAwait(false);
+        if (result.Inventory is not { } inventory) { return new(null, result.Status, result.Issues); }
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new(new RepositoryModel(inventory.Id, policy, inventory.Projects), result.Status, result.Issues);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new(null, AnalysisStatus.Cancelled, result.Issues);
+        }
+        catch (ArgumentException exception)
+        {
+            return new(null, result.Status == AnalysisStatus.Failed ? AnalysisStatus.Failed : AnalysisStatus.Incomplete,
+                result.Issues.Append(new AnalysisIssue("repository-mapping-invalid", exception.Message)));
+        }
+    }
+
+    /// <summary>Normalizes verified declarations without requiring or fabricating architecture policy.</summary>
+    /// <param name="workspace">Owned workspace and its explicit coverage.</param>
+    /// <param name="policyDirectory">Root for portable project and source identities.</param>
+    /// <param name="cancellationToken">Cooperative normalization cancellation.</param>
+    /// <returns>Available declarations and combined coverage, without ownership inference.</returns>
+    public async Task<RepositoryInventoryResult> BuildInventoryAsync(WorkspaceLoadResult workspace, string policyDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
         ArgumentException.ThrowIfNullOrWhiteSpace(policyDirectory);
         var root = Path.GetFullPath(policyDirectory);
         var issues = workspace.Issues.ToList();
@@ -66,7 +92,7 @@ public sealed class RepositoryModelBuilder
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            var model = new RepositoryModel(inputPath, policy, projects);
+            var model = new RepositoryInventory(inputPath, projects);
             cancellationToken.ThrowIfCancellationRequested();
             var status = workspace.Status == AnalysisStatus.Failed ? AnalysisStatus.Failed
                 : issues.Count == 0 ? AnalysisStatus.Completed : AnalysisStatus.Incomplete;

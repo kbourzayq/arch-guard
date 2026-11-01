@@ -595,3 +595,28 @@ unresolved types; extraction skips only those syntax/semantic sentinels while
 retaining element types, escaped user-defined names, genuine missing types and
 operation-based dependency evidence. Analyzer release files are supplied once by
 the upstream authoring targets. Package author metadata is Khalid BOURZAYQ.
+
+## F39: policy-independent discovery and reviewed proposals
+
+Analysis now normalizes `RepositoryInventory` and extracts unaggregated dependency
+evidence without requiring `ArchitecturePolicy`. Approved scans retain strict
+ownership resolution through `RepositoryModel`; both paths reuse the same source
+normalizer and semantic extractor. No allow-all intermediate policy is constructed.
+Workspace contexts retain actual evaluated configuration/framework values and
+declared framework choices, independently of completion coverage.
+
+Core owns neutral discovery contracts and the pure conservative proposal planner.
+Analysis's `DiscoveryService` separates static, unevaluated input hints from trusted
+workspace evidence, and evaluates candidate compliance through the existing rules.
+Configuration serializes proposed v1 YAML and validates it with the shared reader;
+Reporting projects a separate versioned discovery JSON envelope. CLI guides input
+selection, requires explicit trusted build context and writes create-only artifacts.
+No production project/package/dependency boundary changes are introduced.
+
+Observed dependencies cannot create permissions. Missing/ambiguous project ownership
+or noncompleted inventory yields questions instead of YAML. A valid candidate can
+fail its independent compliance scan. Proposals never overwrite approved policies,
+source, references or baselines; review, validation and manual adoption remain
+distinct steps. Namespace/feature slices remain report limitations under project-based
+schema v1. See [discovery](../../discovery.md) for released-version availability,
+determinism, contexts, report schema and the complete workflow.

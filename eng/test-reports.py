@@ -19,10 +19,15 @@ CLI = ROOT / "src/ArchitectureGuardian.Cli/bin/Release/net10.0/ArchitectureGuard
 SAMPLES = ROOT / "tests/Fixtures/Reports/bin/Release/net10.0/ArchitectureGuardian.ReportSamples.dll"
 SCHEMA = json.loads((ROOT / "docs/schema/report.v1.schema.json").read_text(encoding="utf-8"))
 SARIF = json.loads((ROOT / "docs/schema/sarif-2.1.0.schema.json").read_text(encoding="utf-8"))
+DISCOVERY = json.loads((ROOT / "docs/schema/discovery.v1.schema.json").read_text(encoding="utf-8"))
+POLICY = json.loads((ROOT / "docs/schema/architecture.guardian.v1.schema.json").read_text(encoding="utf-8"))
 Draft202012Validator.check_schema(SCHEMA)
 Draft4Validator.check_schema(SARIF)
 JSON_VALIDATOR = Draft202012Validator(SCHEMA, format_checker=FormatChecker())
 SARIF_VALIDATOR = Draft4Validator(SARIF, format_checker=FormatChecker())
+Draft202012Validator.check_schema(DISCOVERY)
+DISCOVERY_VALIDATOR = Draft202012Validator(DISCOVERY)
+POLICY_VALIDATOR = Draft202012Validator(POLICY)
 
 
 def run(*arguments, expected=0, label=None):
@@ -101,6 +106,50 @@ def validate_samples(directory):
     print("Validated 20 serialization samples against JSON, SARIF and properties schemas.", flush=True)
 
 
+def validate_discovery(directory):
+    discovery = directory / "discovery"
+    discovery.mkdir()
+    roles = ("Domain", "Application", "Infrastructure")
+    for role in roles:
+        project = discovery / f"Shop.{role}"
+        project.mkdir()
+        references = ('<ItemGroup><ProjectReference Include="../Shop.Infrastructure/Shop.Infrastructure.csproj" />'
+                      '</ItemGroup>' if role == "Application" else '')
+        (project / f"Shop.{role}.csproj").write_text(
+            '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework>'
+            f'<AssemblyName>Output.{role}</AssemblyName></PropertyGroup>{references}</Project>', encoding="utf-8")
+        (project / "Contract.cs").write_text(
+            f'namespace Shop.{role}; public class Contract {{ }}' +
+            (' public class Consumer : Shop.Infrastructure.Contract { }' if role == "Application" else ''), encoding="utf-8")
+    solution = discovery / "Input.slnx"
+    solution.write_text('<Solution>' + ''.join(
+        f'<Project Path="Shop.{role}/Shop.{role}.csproj" />' for role in roles) + '</Solution>', encoding="utf-8")
+    report = discovery / "architecture.guardian.discovery.json"
+    proposal = discovery / "architecture.guardian.proposed.yaml"
+    run(CLI, "init", "--discover", solution, expected=2, label="Untrusted static discovery")
+    untrusted = json.loads(report.read_text(encoding="utf-8"))
+    DISCOVERY_VALIDATOR.validate(untrusted)
+    assert untrusted["status"] == "incomplete" and not proposal.exists()
+    assert not untrusted["exploredContexts"] and untrusted["proposedPolicy"] is None
+    report.unlink()
+    run("restore", solution, "--source", directory, "--disable-parallel", "--disable-build-servers", label="Restore discovery fixture")
+    run(CLI, "init", "--discover", solution, "--configuration", "Release", "--trusted", label="Trusted discovery")
+    raw = report.read_bytes()
+    envelope = json.loads(raw)
+    DISCOVERY_VALIDATOR.validate(envelope)
+    POLICY_VALIDATOR.validate(envelope["proposedPolicy"])
+    assert envelope["status"] == "completed" and envelope["configurationValidation"] == "valid"
+    assert envelope["compliance"]["gateOutcome"] == "failed"
+    assert {item["framework"] for item in envelope["exploredContexts"]} == {"net10.0"}
+    assert {item["configuration"] for item in envelope["exploredContexts"]} == {"Release"}
+    assert b"\r" not in raw and not raw.startswith(b"\xef\xbb\xbf")
+    assert str(discovery).encode() not in raw
+    common = (solution, "--policy", proposal, "--configuration", "Release", "--trusted")
+    run(CLI, "inspect", *common, label="Validate proposed YAML independently")
+    run(CLI, "scan", *common, expected=1, label="Confirm forbidden edge remains forbidden")
+    print("Validated discovery v1 and proposed policy v1 schemas; independent YAML inspection and failing compliance scan.", flush=True)
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="archguard-report-schema-") as temporary:
         directory = Path(temporary)
@@ -148,6 +197,7 @@ rules:
             data = path.read_bytes()
             assert data == first.stdout.encode("utf-8")
             validate(data.decode("utf-8"), format_name)
+        validate_discovery(directory)
     print("JSON v1, SARIF 2.1.0 and versioned SARIF properties validated; 4 real CLI scans.")
 
 

@@ -114,7 +114,8 @@ CI caches NuGet's global packages using the committed lock files as its cache ke
 locked restore still runs on every build.
 
 For reporting changes, also validate serializer samples and real exports against
-the JSON v1 and vendored OASIS SARIF 2.1.0 schemas (CI runs this on each OS):
+the JSON v1, discovery v1, proposed policy v1 and vendored OASIS SARIF 2.1.0 schemas
+(CI runs this on each OS):
 
 ```sh
 python3 -m pip install jsonschema==4.26.0

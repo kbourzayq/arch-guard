@@ -9,6 +9,7 @@ findings, and share a policy across your editor, CI pipeline and coding agents.
 | I want to… | Start here |
 | --- | --- |
 | Run my first architecture check | [Install the CLI](install.md#install-the-cli), then follow the [quick start](getting-started.md) |
+| Explore ownership before writing policy | [Discovery and review-only proposals](discovery.md) (development source; next feature release) |
 | Understand the model before writing YAML | [Architecture as code](concepts/architecture-as-code.md), then [modules, layers and contracts](concepts/modules-and-layers.md) |
 | Learn the configuration language | [Write a YAML policy](yaml-guide.md), then use the [complete reference](policy.md) |
 | Get IDE/build feedback | [Install the Roslyn analyzer](compiler-analyzer.md#install-and-distribute-policy) |

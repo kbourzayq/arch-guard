@@ -1,5 +1,10 @@
 # Machine-readable reports
 
+Development-source `init --discover` writes a separate
+[discovery v1 report](discovery.md#report-contract-and-determinism), with observations,
+review intentions and candidate compliance. It does not use the scan report format
+below. Its command is intended for the next feature release, after 0.3.0.
+
 CLI `scan` supports `--format json` and `--format sarif`, including scans with an
 explicit `--baseline` or Git `--base`. The default is `--format text`. Arguments
 are case-sensitive; `inspect`, `load`, `explain` and `baseline update` do not export

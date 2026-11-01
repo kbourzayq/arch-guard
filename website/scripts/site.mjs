@@ -9,6 +9,7 @@ export const groups = [
     ['docs/README.md', 'documentation', 'Start here · choose your path'],
     ['docs/install.md', 'installation', 'Installation'],
     ['docs/getting-started.md', 'getting-started', 'Quick start & first policy'],
+    ['docs/discovery.md', 'discovery', 'Discover & review policy proposals'],
     ['docs/use-cases.md', 'examples', 'Examples & use cases'],
   ] },
   { label: 'Core Concepts', items: [

@@ -23,6 +23,7 @@ public sealed class MSBuildWorkspaceLoader
         ArgumentNullException.ThrowIfNull(request);
         MSBuildWorkspace? workspace = null;
         var issues = new List<AnalysisIssue>();
+        var contexts = new List<WorkspaceProjectContext>();
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -87,7 +88,7 @@ public sealed class MSBuildWorkspaceLoader
                     continue;
                 }
 
-                WorkspaceProjectValidator.Validate(project.FilePath, request, workspace.Properties, compilation, issues);
+                contexts.Add(WorkspaceProjectValidator.Validate(project.FilePath, request, workspace.Properties, compilation, issues));
                 await WorkspaceGeneratorValidator.ValidateAsync(project, compilation, issues, cancellationToken).ConfigureAwait(false);
                 foreach (var diagnostic in compilation.GetDiagnostics(cancellationToken).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
                 {
@@ -97,19 +98,19 @@ public sealed class MSBuildWorkspaceLoader
 
             cancellationToken.ThrowIfCancellationRequested();
             AddWorkspaceIssues(workspace, issues);
-            return new(workspace, request.InputPath, issues.Count == 0 ? AnalysisStatus.Completed : AnalysisStatus.Incomplete, issues);
+            return new(workspace, request.InputPath, issues.Count == 0 ? AnalysisStatus.Completed : AnalysisStatus.Incomplete, issues, contexts);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             AddWorkspaceIssues(workspace, issues);
-            return new(workspace, request.InputPath, AnalysisStatus.Cancelled, issues);
+            return new(workspace, request.InputPath, AnalysisStatus.Cancelled, issues, contexts);
         }
         catch (Exception exception)
         {
             // Preserve partial projects and diagnostics; a loading exception never establishes clean coverage.
             AddWorkspaceIssues(workspace, issues);
             issues.Add(new("workspace-load-failed", $"{request.InputPath}: {exception.GetType().Name}: {exception.Message}"));
-            return new(workspace, request.InputPath, AnalysisStatus.Incomplete, issues);
+            return new(workspace, request.InputPath, AnalysisStatus.Incomplete, issues, contexts);
         }
     }
 

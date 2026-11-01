@@ -9,7 +9,7 @@ internal static class WorkspaceProjectValidator
 {
     // Keep MSBuild-dependent JIT compilation behind SDK registration.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void Validate(string projectPath, WorkspaceLoadRequest request, IReadOnlyDictionary<string, string> workspaceProperties,
+    internal static WorkspaceProjectContext Validate(string projectPath, WorkspaceLoadRequest request, IReadOnlyDictionary<string, string> workspaceProperties,
         Microsoft.CodeAnalysis.Compilation compilation, List<AnalysisIssue> issues)
     {
         // MSBuildWorkspace adds solution globals during opening; retain them along with caller properties.
@@ -80,5 +80,7 @@ internal static class WorkspaceProjectValidator
                 issues.Add(new("reference-unavailable", $"{projectPath}: assembly reference '{reference.EvaluatedInclude}' is unavailable in the compilation."));
             }
         }
+        return new(projectPath, project.GetPropertyValue("Configuration"), project.GetPropertyValue("TargetFramework"),
+            Array.AsReadOnly(frameworks.Order(StringComparer.Ordinal).ToArray()));
     }
 }

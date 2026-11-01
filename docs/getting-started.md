@@ -19,6 +19,10 @@ ownership and selectors matching nothing are configuration errors.
 
 ### 2. Write a policy
 
+Development-source users can first [discover a review-only proposal](discovery.md)
+from verified inventory. The published 0.3.0 CLI uses the manual workflow below.
+Discovery requires developer review and validation before manual adoption.
+
 For a repository with this layout:
 
 ```text
