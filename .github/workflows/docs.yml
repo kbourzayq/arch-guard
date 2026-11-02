@@ -15,17 +15,28 @@ on:
     branches: [main]
     paths: *docs-paths
   workflow_dispatch:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ['Release NuGet packages']
+    types: [completed]
 
 permissions:
   contents: read
 
 concurrency:
-  group: docs-${{ github.event.pull_request.number || github.ref }}
+  group: docs-${{ github.event.pull_request.number || 'published' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
     name: Validate documentation website
+    if: >-
+      (github.event_name != 'release' || !github.event.release.prerelease) &&
+      (github.event_name != 'workflow_run' ||
+        (github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.event == 'push' &&
+         github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -37,21 +48,34 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # Older releases predate the renderer. Only the verified tag supplies content.
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version-file: website/.node-version
           cache: npm
           cache-dependency-path: website/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - name: Validate development documentation preview
+        run: npm run build
+      - name: Select a published release and verify all NuGet packages
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-source.mjs select
+      - name: Build published-release documentation
+        env:
+          DOCS_RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: npm run build
       - uses: actions/upload-pages-artifact@v4
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.event_name == 'release' || github.event_name == 'workflow_run')
         with:
           path: website/dist
 
   deploy:
     name: Deploy documentation to GitHub Pages
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.event_name == 'release' || github.event_name == 'workflow_run')
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

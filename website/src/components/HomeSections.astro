@@ -1,7 +1,10 @@
 ---
 import { Code } from '@astrojs/starlight/components';
-import policy from '../../../tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml?raw';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { content } from '../../scripts/release-source.mjs';
 import { github, pagePath } from '../../scripts/site.mjs';
+const policy = readFileSync(resolve(content.root, 'tests/Fixtures/ReferenceSolutions/CleanArchitecture/architecture.guardian.yaml'), 'utf8');
 
 // Verbatim first diagnostic line and completed summary from the committed AG002 fixture.
 const diagnostic = `Shop.Application/Checkout.cs(7,33): error AG002: Layer 'Application' must not depend on layer 'Infrastructure': project 'Shop.Application/Shop.Application.csproj' depends on 'Shop.Infrastructure/Shop.Infrastructure.csproj'.`;
