@@ -14,6 +14,7 @@ internal static class CliApplication
         var renderer = new ConsoleRenderer(output, error);
         var root = new RootCommand("Architecture Guardian for .NET — archguard\nRestore inputs before loading; MSBuild may execute repository tasks.");
         root.Add(DiscoveryCommand.Create(output, error));
+        root.Add(DoctorCommand.Create(output));
         root.Add(WorkspaceCommand("scan", "Evaluate selected architecture rules and the severity gate.", renderer));
         var baseline = new Command("baseline", "Manage explicitly accepted architecture findings.");
         baseline.Add(WorkspaceCommand("update", "Replace a baseline with findings from completed analysis.", renderer));

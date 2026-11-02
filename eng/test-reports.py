@@ -28,6 +28,9 @@ SARIF_VALIDATOR = Draft4Validator(SARIF, format_checker=FormatChecker())
 Draft202012Validator.check_schema(DISCOVERY)
 DISCOVERY_VALIDATOR = Draft202012Validator(DISCOVERY)
 POLICY_VALIDATOR = Draft202012Validator(POLICY)
+DOCTOR = json.loads((ROOT / "docs/schema/doctor.v1.schema.json").read_text(encoding="utf-8"))
+Draft202012Validator.check_schema(DOCTOR)
+DOCTOR_VALIDATOR = Draft202012Validator(DOCTOR)
 
 
 def run(*arguments, expected=0, label=None):
@@ -182,6 +185,18 @@ rules:
 '''
         policy.write_text(policy_text, encoding="utf-8")
         run("restore", input_path, "--source", directory, "--disable-parallel", "--disable-build-servers", label="Restore CLI fixture")
+        doctor = [CLI, "doctor", input_path, "--policy", policy, "--configuration", "Release", "--format", "json"]
+        static = run(*doctor, expected=2, label="Static doctor schema")
+        static_report = json.loads(static.stdout)
+        DOCTOR_VALIDATOR.validate(static_report)
+        assert static_report["status"] == "incomplete" and static_report["workspaceStatus"] is None
+        trusted = run(*doctor, "--trusted", label="Trusted doctor schema")
+        health = json.loads(trusted.stdout)
+        DOCTOR_VALIDATOR.validate(health)
+        assert health["exitCode"] == 0 and health["status"] == "completed" and health["compliance"] == "notEvaluated"
+        assert len(health["exploredContexts"]) == 2
+        repeated = run(*doctor, "--trusted", label="Doctor byte repeatability")
+        assert trusted.stdout == repeated.stdout
         validate_samples(directory)
         common = [input_path, "--policy", policy, "--trusted"]
         for format_name in ("json", "sarif"):

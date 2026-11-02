@@ -24,4 +24,6 @@ public sealed class WorkspaceProjectContext
     public string TargetFramework { get; }
     /// <summary>Gets immutable declared choices, independently of explored coverage.</summary>
     public IReadOnlyList<string> DeclaredFrameworks { get; }
+
+    internal WorkspaceProjectInstallation? Installation { get; init; }
 }
