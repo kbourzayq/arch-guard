@@ -221,7 +221,9 @@ def smoke(directory):
         suffix = ".exe" if os.name == "nt" else ""
         cli = tools / ("archguard" + suffix)
         assert run([cli, "--version"], root, env).strip().split("+", 1)[0] == version
-        assert "scan" in run([cli, "--help"], root, env)
+        help_text = run([cli, "--help"], root, env)
+        assert "scan" in help_text and "doctor" in help_text
+        assert "--workflow" in run([cli, "doctor", "--help"], root, env)
         for rule in ("AG001", "AG002", "AG003", "AG004", "AG005", "AG006"):
             assert rule in run([cli, "explain", rule], root, env)
         run([cli, "explain", "AG999"], root, env, expected=2)
@@ -267,6 +269,12 @@ rules:
   AG006: error
 ''', encoding="utf-8")
         run(["dotnet", "restore", "Application.slnx", "-p:Configuration=Release", "--disable-build-servers"], root, env)
+        doctor = [cli, "doctor", "Application.slnx", "--policy", policy, "--configuration", "Release", "--format", "json"]
+        untrusted = json.loads(run(doctor, root, env, expected=2))
+        assert untrusted["status"] == "incomplete" and untrusted["compliance"] == "notEvaluated", untrusted
+        health = json.loads(run([*doctor, "--trusted"], root, env))
+        assert health["schemaVersion"] == 1 and health["status"] == "completed" and health["exitCode"] == 0, health
+        assert health["compliance"] == "notEvaluated" and health["exploredContexts"], health
         scan = [cli, "scan", "Application.slnx", "--policy", policy, "--configuration", "Release", "--trusted", "--format", "json"]
         blocked = json.loads(run(scan, root, env, expected=1))
         assert blocked["status"] == "completed" and blocked["gateOutcome"] == "failed", blocked

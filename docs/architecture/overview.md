@@ -14,7 +14,7 @@ records the decisions and constraints behind them.
 | --- | --- | --- |
 | Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG006 module/layer/cycle/implementation/reference evaluation | Extended rules |
 | Analysis | `AnalysisService<TContext>` over prepared contexts; shared CLI/MCP `SolutionAnalysisService`; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization, dependency extraction and full-context Git comparison | Additional input adapters |
-| CLI | System.CommandLine help/version, `scan`, `baseline update`, `inspect`, `explain` and trusted `load`; JSON/SARIF output; installable `archguard` tool | Additional commands |
+| CLI | System.CommandLine help/version, `scan`, `baseline update`, `inspect`, `explain` and trusted `load`; development-source `init`/`doctor`; JSON/SARIF and doctor JSON output; installable `archguard` tool | Additional commands |
 | Policy | Portable strict YAML v1 parsing, declaration positions and source-shared selectors/contracts | Additional policy features |
 | Configuration | File loading through `IPolicyLoader` and adaptation from portable policy documents into Core | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, shared YAML / legacy XML, build metadata and labeled cross-engine parity | Extended rules |
@@ -119,6 +119,7 @@ nested implementation helpers stay with their owner.
 | Analysis | `Dependencies` | Evaluated reference and semantic dependency extraction with source evidence |
 | Analysis | `Discovery` | Static input guidance, policy-independent verified inventory and independent candidate compliance |
 | Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
+| Analysis | `Doctor` | Reusable static installation diagnostics and trusted loading/ownership/compiler-setting checks; no rule evaluation or repairs |
 | Policy | `Documents` / project root | Portable parsing, validation and source positions |
 | Configuration | `Yaml` | File loading, Core adaptation and validated review-only proposal serialization |
 | Configuration | `Validation` | Configuration error contracts with source positions |

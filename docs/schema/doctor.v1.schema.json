@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kbourzayq/arch-guard/blob/main/docs/schema/doctor.v1.schema.json",
+  "title": "Architecture Guardian doctor report v1",
+  "description": "Installation/configuration checks with explicit trust and coverage. Health never certifies architecture compliance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "status", "workspaceStatus", "exitCode", "compliance", "requested", "exploredContexts", "checks"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "architecture-doctor" },
+    "status": { "$ref": "#/$defs/coverage" },
+    "workspaceStatus": { "anyOf": [{ "$ref": "#/$defs/coverage" }, { "type": "null" }] },
+    "exitCode": { "enum": [0, 2] },
+    "compliance": { "const": "notEvaluated" },
+    "requested": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input", "policy", "workflow", "trusted", "configuration", "framework"],
+      "properties": {
+        "input": { "type": "string" },
+        "policy": { "type": "string" },
+        "workflow": { "enum": ["scan", "compiler", "mcp", "ci"] },
+        "trusted": { "type": "boolean" },
+        "configuration": { "type": "string", "minLength": 1 },
+        "framework": { "type": ["string", "null"] }
+      }
+    },
+    "exploredContexts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "configuration", "framework", "declaredFrameworks"],
+        "properties": {
+          "project": { "type": "string" },
+          "configuration": { "type": "string" },
+          "framework": { "type": "string" },
+          "declaredFrameworks": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "scope", "mode", "status", "required", "message", "remediation"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "scope": { "type": "string" },
+          "mode": { "enum": ["static", "evaluated"] },
+          "status": { "enum": ["passed", "informational", "warning", "blocked", "notRun"] },
+          "required": { "type": "boolean" },
+          "message": { "type": "string" },
+          "remediation": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "coverage": { "enum": ["completed", "incomplete", "failed", "cancelled"] }
+  }
+}

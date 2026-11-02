@@ -32,6 +32,12 @@ public sealed class CliCommandTests
     /// <param name="arguments">Invalid command arguments.</param>
     [Theory]
     [InlineData("init")]
+    [InlineData("doctor")]
+    [InlineData("doctor", "input.slnx", "--policy", "policy.yaml", "--trusted")]
+    [InlineData("doctor", "input.slnx", "--policy", "policy.yaml", "--format", "sarif")]
+    [InlineData("doctor", "input.slnx", "--policy", "policy.yaml", "--workflow", "unknown")]
+    [InlineData("doctor", "input.slnx", "--policy", "policy.yaml", "--configuration", "")]
+    [InlineData("doctor", "input.slnx", "--policy", "policy.yaml", "--format", "json", "--format", "text")]
     [InlineData("init", "--discover", "input.slnx", "--trusted")]
     [InlineData("init", "--discover", "input.slnx", "--discover", "other.slnx")]
     [InlineData("init", "--discover", "input.slnx", "--configuration", "")]
@@ -73,6 +79,7 @@ public sealed class CliCommandTests
     /// <param name="command">The command whose options should be documented.</param>
     [Theory]
     [InlineData("init")]
+    [InlineData("doctor")]
     [InlineData("scan")]
     [InlineData("inspect")]
     [InlineData("load")]
