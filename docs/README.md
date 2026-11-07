@@ -16,6 +16,7 @@ findings, and share a policy across your editor, CI pipeline and coding agents.
 | Get IDE/build feedback | [Install the Roslyn analyzer](compiler-analyzer.md#install-and-distribute-policy) |
 | Check pull requests in CI | [Add an independent quality gate](ci.md) |
 | Give an AI agent architecture context | [Configure MCP](mcp.md#configure-your-client), then [use the agent workflow](agent-workflow.md) |
+| Review first-time architecture adoption with an agent | [Install the onboarding skill](onboarding.md) |
 | Evaluate cost and coverage | [Benchmarks](benchmarks.md), [engine differences](semantic-accuracy.md) and [known limitations](troubleshooting.md#known-analysis-limitations) |
 
 ## Your first architecture gate

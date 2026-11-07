@@ -5,6 +5,7 @@ on:
     paths: &docs-paths
       - 'website/**'
       - 'docs/**'
+      - 'skills/**'
       - 'README.md'
       - 'CHANGELOG.md'
       - 'benchmarks/reports/**'

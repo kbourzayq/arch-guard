@@ -5,6 +5,11 @@ inspect policy before editing and validate its corrections afterward. The skill
 uses existing MCP/CLI APIs; it adds no rule engine or automatic enforcement.
 Keep independent [CI quality gates](ci.md) and normal build/tests.
 
+For first-time discovery or intentional policy review, install the separate
+[architecture-guardian-onboarding skill](onboarding.md). It reviews ownership,
+validates a separate proposal and requires an explicit adoption decision before
+writing active policy. The development skill below handles ongoing approved-policy work.
+
 ## Install the skill
 
 First install the [CLI or MCP server](install.md) and configure a complete YAML

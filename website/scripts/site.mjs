@@ -28,6 +28,7 @@ export const sourceGroups = [
     ['docs/compiler-analyzer.md', 'compiler-analyzer', 'Roslyn analyzers'],
     ['docs/mcp.md', 'mcp', 'MCP server'],
     ['docs/agent-workflow.md', 'agent-workflow', 'AI agent workflow'],
+    ['docs/onboarding.md', 'onboarding', 'Reviewed agent onboarding'],
     ['docs/ci.md', 'ci', 'CI/CD quality gates'],
   ] },
   { label: 'Advanced', items: [

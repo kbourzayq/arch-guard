@@ -52,6 +52,9 @@ jobs:
         run: python eng/test-reports.py
       - name: Verify independent CI gates and failure artifacts
         run: python eng/test-quality-gate.py
+      - name: Verify portable onboarding skill and bundled YAML
+        # Interface scenarios run in the test assemblies above and in unit-tests.
+        run: python eng/test-onboarding.py --portable-only
       - uses: actions/upload-artifact@v4
         if: always()
         with:

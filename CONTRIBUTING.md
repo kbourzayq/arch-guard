@@ -201,8 +201,13 @@ authoritative document rather than the ignored generated website copy. Changes t
 mapped Markdown also run website validation in the dedicated docs workflow.
 When moving versioned install examples, update `.cz.toml` `version_files` so
 Commitizen still synchronizes them. Validate the portable
-`skills/architecture-guardian/SKILL.md` against the MCP/CLI contracts when changing
-the agent workflow; test completion and gate handling separately. Runtime tests are unnecessary unless the documented behavior changes.
+`skills/architecture-guardian/SKILL.md` and the separate
+`skills/architecture-guardian-onboarding/` against the MCP/CLI contracts when changing
+the agent workflows; test completion and gate handling separately. After a Release
+build, run `python3 eng/test-onboarding.py` for portable copied-directory checks and
+scripted CLI/MCP onboarding scenarios. See [the verification record](docs/onboarding.md#verification-record)
+for the distinction from actual authenticated harness execution.
+Runtime tests are unnecessary for other documentation-only changes unless behavior changes.
 Keep machine-specific paths out of committed examples and label any replacement values.
 
 ## Change dependencies deliberately
