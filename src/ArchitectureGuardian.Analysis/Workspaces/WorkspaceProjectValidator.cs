@@ -80,7 +80,15 @@ internal static class WorkspaceProjectValidator
                 issues.Add(new("reference-unavailable", $"{projectPath}: assembly reference '{reference.EvaluatedInclude}' is unavailable in the compilation."));
             }
         }
+        var analyzer = project.GetItems("PackageReference").Where(item => item.EvaluatedInclude.Equals("ArchitectureGuardian.Analyzers", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var versions = project.GetItems("PackageVersion").Where(item => item.EvaluatedInclude.Equals("ArchitectureGuardian.Analyzers", StringComparison.OrdinalIgnoreCase)).ToArray();
         return new(projectPath, project.GetPropertyValue("Configuration"), project.GetPropertyValue("TargetFramework"),
-            Array.AsReadOnly(frameworks.Order(StringComparer.Ordinal).ToArray()));
+            Array.AsReadOnly(frameworks.Order(StringComparer.Ordinal).ToArray()))
+        {
+            Installation = new(assetsPath, project.GetPropertyValue("DirectoryBuildPropsPath"), project.GetPropertyValue("DirectoryPackagesPropsPath"),
+                project.GetPropertyValue("ManagePackageVersionsCentrally").Equals("true", StringComparison.OrdinalIgnoreCase),
+                analyzer.Length, analyzer.FirstOrDefault()?.GetMetadataValue("Version") ?? "", analyzer.FirstOrDefault()?.GetMetadataValue("PrivateAssets") ?? "",
+                versions.Length, project.GetPropertyValue("RunAnalyzers"), project.GetPropertyValue("RunAnalyzersDuringBuild")),
+        };
     }
 }

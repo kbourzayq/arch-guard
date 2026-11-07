@@ -24,6 +24,7 @@ the CLI.
 | `load` | `<input>` | Validate workspace coverage without rule evaluation |
 | `explain` | `<rule-id>` | Print local rule metadata without loading a workspace |
 | `init` (development source; next feature release) | `--discover <input-or-directory>` | Write review-only policy intentions and a separate discovery report |
+| `doctor` (development source; next feature release) | `<input> --policy <path>` | Diagnose installation/configuration health without certifying architecture compliance |
 
 `scan`, `baseline update`, `inspect` and `load` also accept `--trusted`, `--configuration` (default
 `Debug`) and `--framework`. Full scans do not restore automatically; change
@@ -31,6 +32,103 @@ comparison prepares temporary snapshots with cache-only restore. Development-sou
 `init --discover` is documented in [discovery and policy proposals](discovery.md);
 it is not in the published 0.3.0 CLI. Trusted discovery requires explicit
 `--configuration`, accepts `--framework` and `--output-directory`, and never adopts policy.
+
+## Diagnose installation and policy health
+
+`doctor` is available in development source and the next feature release; it is not
+in the published 0.3.0 CLI. Choose an explicit solution/project and policy:
+
+```sh
+archguard doctor path/to/Application.slnx --policy path/to/architecture.guardian.yaml
+archguard doctor path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release --framework net10.0 --format json
+```
+
+Without `--trusted`, doctor only reads paths, YAML and literal XML, runs the .NET
+host's `--version`/`--list-runtimes` metadata queries, and checks executable presence
+on PATH. SDK selection honors `global.json` at the input directory. Root
+`Directory.Build.props`/`Directory.Packages.props` and default `obj/project.assets.json`
+paths are **unevaluated hints**: imports, conditions and custom asset paths can
+change them. Literal inactive/missing references are warnings, not asserted owners
+or required restore failures. Missing SDK/runtime and invalid YAML have concrete
+remediation. No project is evaluated, no generator runs, and no restore/install is
+performed. Evaluated checks are marked `notRun`, coverage is incomplete, and exit is 2.
+
+After reviewing repository build logic, `--trusted` authorizes the existing workspace
+loader, including MSBuild tasks and source generators. It requires explicit
+`--configuration`; multi-targeting requires `--framework`. Repeat doctor separately
+for each relevant context. Doctor still never requests restore or tool installation.
+Repository-controlled build logic can have side effects; trust is not isolation.
+
+Evaluated checks retain partial contexts and original workspace issues/status. They
+use the existing ownership resolver for unmatched/stale selectors and projects with
+missing/ambiguous module, layer or contract ownership, relative to the policy directory.
+The resolver reports its first mapping error; fix it and rerun for subsequent errors.
+No policy is synthesized or adopted. A discovery hint never grants permissions.
+
+`--workflow scan` is the default. `--workflow compiler` requires a loaded analyzer
+package, valid CPM/non-CPM registration, enabled `RunAnalyzers`/`RunAnalyzersDuringBuild`,
+and exactly one readable policy input from the compiler's actual post-target
+AdditionalFiles. YAML must match `--policy` and include package build-target project
+metadata. Supported [legacy XML wiring](compiler-analyzer.md#compiler-policy-snapshot) is accepted, with a separate optional
+`legacy-policy-validation: notRun` check: XML schema, assembly mappings and parity
+with the explicit YAML require an independent compiler build. XML mode selects all
+supported compiler rules with warning defaults, then applies host overrides.
+The evaluated imported props/package paths
+help find nested props that hide root installation. `--workflow mcp` additionally
+requires `archguard-mcp` on this process's PATH; clients using an absolute executable
+or manifest must expose it on PATH for this check. The server is never launched and
+client connectivity is not tested. `--workflow ci` reports the same workspace
+prerequisites as scan, plus CI preparation guidance. Checkout completeness, private
+feed credentials and asset freshness require independent CI preparation.
+Missing optional integrations are informational. An analyzer that is present but
+has broken policy wiring is a blocker even outside the compiler workflow.
+
+Doctor lists selected YAML rules, solution severities and gate threshold. For each
+available source tree it reports the compiler's effective rule override through
+the same Roslyn options provider the analyzer uses, including `none` suppression
+(`suppress` in output), warnings/errors and omitted inactive rules. AG003 remains
+solution-only. Compiler warning promotion can further affect build reporting.
+The analyzer API floor is Roslyn 4.8 / .NET Standard 2.0; doctor cannot inspect an
+interactive IDE's host version. CLI/MCP need .NET 10. SDK selection alone does not
+certify SDK/workload/compiler compatibility; trusted loading tests the chosen context.
+
+Text and `--format json` report the same checks on stdout, including blockers;
+stderr is reserved for argument/startup failures. JSON has the
+[doctor v1 schema](schema/doctor.v1.schema.json), with:
+
+| Field | Meaning |
+| --- | --- |
+| `schemaVersion`, `kind` | `1`, `architecture-doctor` |
+| `status` | `completed`, `incomplete`, `failed` or `cancelled` diagnostic coverage |
+| `workspaceStatus` | Original workspace status, or `null` when evaluation did not run |
+| `exitCode` | `0` for completed coverage without required blockers/not-run checks; otherwise `2` |
+| `compliance` | Always `notEvaluated`; never a gate pass |
+| `requested` | Absolute input/policy, workflow, trust, configuration and nullable framework |
+| `exploredContexts` | Actual project/configuration/framework and declared framework choices; partial work is retained |
+| `checks` | Ordered checks containing `id`, `scope`, `mode`, `status`, `required`, `message`, `remediation` |
+
+Check `mode` is `static` or `evaluated`; check `status` is `passed`, `informational`,
+`warning`, `blocked` or `notRun`. `id` plus `scope` identifies a check; multiple
+workspace issues can share these values and retain distinct messages. Consumers
+should accept new IDs and display remediation rather than parse message text.
+Checks sort ordinally by ID, scope and message; contexts sort by project path. JSON
+uses LF with a final newline and no timestamps/timings, so repeated runs over the
+same input/environment are stable. Reports contain local paths and host diagnostics;
+redact them before sharing. Doctor writes no report file or source/policy/baseline.
+Redirect stdout to a separate report location when needed.
+
+Cancellation during diagnosis retains a `cancelled` report and exit 2. Parsing or
+cancellation before command execution can return stderr and exit 2 without JSON.
+Exit 1 is reserved for a completed **scan** whose architecture gate failed.
+A completed diagnostic report can contain blockers; always inspect `exitCode` and
+required checks as well as coverage.
+
+Environment/configuration health does not imply architecture compliance. Establish
+that separately after explicit restore, using the same input and context:
+
+```sh
+archguard scan path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release --framework net10.0
+```
 
 ## Scan a solution or project
 

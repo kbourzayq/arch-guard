@@ -114,7 +114,7 @@ CI caches NuGet's global packages using the committed lock files as its cache ke
 locked restore still runs on every build.
 
 For reporting changes, also validate serializer samples and real exports against
-the JSON v1, discovery v1, proposed policy v1 and vendored OASIS SARIF 2.1.0 schemas
+the JSON v1, discovery v1, proposed policy v1, doctor v1 and vendored OASIS SARIF 2.1.0 schemas
 (CI runs this on each OS):
 
 ```sh
@@ -127,6 +127,9 @@ uses the build-only `tests/Fixtures/Reports` executable to generate 20 JSON/SARI
 samples in one process, covering completion, severities, baseline states, failure,
 cancellation and located/unlocated evidence. It then restores isolated package-free
 inputs once and performs four real CLI scans for stdout/file equivalence and repeatability.
+Static and trusted doctor reports also validate the doctor v1 schema and repeated
+trusted output. Doctor regression tests use isolated CPM/non-CPM packaged consumers
+and a build sentinel to protect the untrusted boundary; diagnostic health never replaces scan validation.
 The sample executable is built in the same configuration as the architecture tests;
 run the full Release solution build above before the script. File failures and
 baseline/coverage host behavior remain covered by the normal xUnit suite. No new

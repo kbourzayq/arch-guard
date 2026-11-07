@@ -8,6 +8,17 @@ internal static class SdkDiscovery
     /// <summary>Resolves the input directory's SDK while capturing diagnostics and honoring cancellation.</summary>
     internal static async Task<Version> ResolveAsync(string workingDirectory, CancellationToken cancellationToken)
     {
+        var sdkVersion = (await QueryAsync("--version", workingDirectory, cancellationToken).ConfigureAwait(false)).Trim();
+        if (!Version.TryParse(sdkVersion.Split('-')[0], out var version))
+        {
+            throw new InvalidOperationException("The input's .NET SDK version could not be read. Install the SDK required by global.json.");
+        }
+        return version;
+    }
+
+    /// <summary>Queries host metadata only; never invokes project evaluation, restore or build.</summary>
+    internal static async Task<string> QueryAsync(string argument, string workingDirectory, CancellationToken cancellationToken)
+    {
         var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
         {
             WorkingDirectory = workingDirectory,
@@ -16,7 +27,7 @@ internal static class SdkDiscovery
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
-        start.ArgumentList.Add("--version");
+        start.ArgumentList.Add(argument);
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start .NET SDK discovery.");
@@ -46,13 +57,13 @@ internal static class SdkDiscovery
             throw;
         }
 
-        var sdkVersion = (await output.ConfigureAwait(false)).Trim();
+        var response = await output.ConfigureAwait(false);
         var diagnostics = await error.ConfigureAwait(false);
-        if (process.ExitCode != 0 || !Version.TryParse(sdkVersion.Split('-')[0], out var version))
+        if (process.ExitCode != 0)
         {
-            throw new InvalidOperationException($"The input's .NET SDK is unavailable. Install the SDK required by global.json. {diagnostics} {sdkVersion}".Trim());
+            throw new InvalidOperationException($"The input's .NET host/SDK is unavailable. Install the SDK required by global.json. {diagnostics} {response}".Trim());
         }
 
-        return version;
+        return response;
     }
 }

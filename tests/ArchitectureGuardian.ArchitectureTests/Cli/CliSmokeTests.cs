@@ -21,6 +21,7 @@ public sealed class CliSmokeTests
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Usage:", result.Output);
         Assert.Contains("scan", result.Output);
+        Assert.Contains("doctor", result.Output);
         Assert.Contains("inspect", result.Output);
         Assert.Contains("explain", result.Output);
         Assert.Empty(result.Error);
