@@ -161,7 +161,12 @@ The first minor release with YAML support retains XML for one transition release
 its removal is planned for the following minor release. See the
 [complete analyzer guide](docs/compiler-analyzer.md) for migration and host limits.
 
-## Install the optional agent skill
+## Install the optional agent skills
+
+For first-time discovery and reviewed policy adoption, use the separate
+[architecture-guardian-onboarding skill](skills/architecture-guardian-onboarding/SKILL.md).
+It proposes ownership and policy from evidence, validates a separate candidate and
+requires an explicit adoption decision. See [onboarding installation and workflow](docs/onboarding.md).
 
 The portable [architecture-guardian skill](skills/architecture-guardian/SKILL.md)
 guides inspect → implement → validate → correct → report using MCP or CLI. It keeps

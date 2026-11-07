@@ -9,6 +9,8 @@ installed version before using these commands.
 Discovery separates verified facts, candidate architectural intentions,
 configuration validity and architecture compliance. It requires no approved policy
 and never activates a proposal automatically.
+The optional [onboarding agent skill](onboarding.md) guides ownership review and
+adoption with discovery when installed, or manual proposals with current tools.
 
 ## Explore and select a context
 
