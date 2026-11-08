@@ -10,7 +10,7 @@ that removing the restriction restores the passing build. It checks an AG006 ban
 then restores the passing build through an explicit namespace exception. Run it locally with an installed SDK version:
 
 ```sh
-python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.3.0.nupkg --sdk 10.0.402
+python3 eng/test-analyzer-package.py artifacts/analyzers/ArchitectureGuardian.Analyzers.0.4.0.nupkg --sdk 10.0.402
 ```
 
 CI results are distinct from local verification; interactive IDE UI behavior remains

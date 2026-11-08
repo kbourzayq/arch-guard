@@ -1,3 +1,17 @@
+## v0.4.0 (2026-11-08)
+
+### Feat
+
+- **skills**: add reviewed architecture onboarding
+- **cli**: add installation and policy doctor diagnostics (#98)
+- **discovery**: add deterministic architecture policy proposals
+- **website**: add consumer documentation portal
+
+### Fix
+
+- **docs**: pin public documentation to published releases
+- **mcp**: correct oversized-response recovery guidance (#95)
+
 ## v0.3.0 (2026-10-29)
 
 ### Feat

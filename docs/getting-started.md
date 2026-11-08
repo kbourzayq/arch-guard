@@ -19,8 +19,8 @@ ownership and selectors matching nothing are configuration errors.
 
 ### 2. Write a policy
 
-Development-source users can first [discover a review-only proposal](discovery.md)
-from verified inventory. The published 0.3.0 CLI uses the manual workflow below.
+You can first [discover a review-only proposal](discovery.md) from verified
+inventory, or use the manual workflow below.
 Discovery requires developer review and validation before manual adoption.
 For guided ownership review, evidence and deliberate adoption choices, use the
 optional [onboarding agent skill](onboarding.md).

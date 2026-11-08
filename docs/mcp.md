@@ -27,7 +27,7 @@ SDK 10. If your repository pins an older SDK in `global.json`, install from outs
 that repository; its own SDK selection still applies when restoring and analyzing it:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.3.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.4.0
 ```
 
 The machine needs .NET 10 and the SDK required by the repository being loaded.

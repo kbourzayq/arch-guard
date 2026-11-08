@@ -21,7 +21,7 @@ Preserve existing source, policies, discovery outputs and baselines.
 
 Find installed `archguard` or configured MCP tools. Inspect `archguard --help`,
 `archguard init --help` and MCP tool discovery before using optional capabilities.
-The published 0.3.0 CLI lacks `init --discover`; development source supports it.
+The 0.4.0 CLI supports `init --discover`.
 Treat installed help as authoritative. There is no MCP discovery/proposal tool in
 the current five-tool interface. With MCP only, use manual authoring and the
 available validation tools. If neither interface exists, report blocked validation;
