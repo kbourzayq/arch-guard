@@ -1,14 +1,14 @@
 # Machine-readable reports
 
-Development-source `doctor --format json` emits the separate
+`doctor --format json` emits the separate
 [doctor v1 envelope](cli.md#diagnose-installation-and-policy-health) and
 [schema](schema/doctor.v1.schema.json) for installation/configuration diagnostics.
 It never emits architecture findings or a gate pass.
 
-Development-source `init --discover` writes a separate
+`init --discover` writes a separate
 [discovery v1 report](discovery.md#report-contract-and-determinism), with observations,
 review intentions and candidate compliance. It does not use the scan report format
-below. Its command is intended for the next feature release, after 0.3.0.
+below.
 
 CLI `scan` supports `--format json` and `--format sarif`, including scans with an
 explicit `--baseline` or Git `--base`. The default is `--format text`. Arguments

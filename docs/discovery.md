@@ -1,8 +1,7 @@
 # Architecture discovery and policy proposals
 
-`init --discover` is available in this development source for the next feature
-release. The published **0.3.0** CLI does not include it. For source execution,
-follow [local development](installation.md) and replace `archguard` below with
+`init --discover` is available in the 0.4.0 CLI. For source execution, follow
+[local development](installation.md) and replace `archguard` below with
 `dotnet artifacts/cli/ArchitectureGuardian.Cli.dll`. Check `init --help` on your
 installed version before using these commands.
 

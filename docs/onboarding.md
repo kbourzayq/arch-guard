@@ -7,9 +7,9 @@ policy, use [architecture-guardian](agent-workflow.md). Direct [manual policy
 creation](getting-started.md) and CLI adoption remain supported.
 
 The skill interprets evidence from existing tools; it adds no analysis engine,
-architecture format or Architecture Guardian cloud dependency. Current published
-0.3.0 tools support manual proposals and validation. Development-source
-[`init --discover`](discovery.md) adds deterministic proposals. The skill checks
+architecture format or Architecture Guardian cloud dependency. The 0.4.0 CLI
+supports deterministic proposals through [`init --discover`](discovery.md), alongside
+manual proposals and validation. The skill checks
 installed help and available MCP tools rather than assuming discovery is installed.
 MCP currently has no discovery tool.
 

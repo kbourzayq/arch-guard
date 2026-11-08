@@ -3,15 +3,14 @@
 Start with the command's stderr or the MCP response's `status` and `issues`.
 An empty diagnostic list alone does not establish complete analysis.
 
-Development source and the next feature release include
-[`archguard doctor`](cli.md#diagnose-installation-and-policy-health) for actionable
+Use [`archguard doctor`](cli.md#diagnose-installation-and-policy-health) for actionable
 SDK/runtime, YAML, assets, ownership and analyzer installation checks. Start without
 trust for static checks; authorize evaluated checks explicitly with `--trusted
 --configuration <name>` and select `--framework` for multi-targeting. Use `--format
 json` for the stable doctor report and `--workflow compiler` for required analyzer
 wiring. Doctor never repairs, restores, installs or certifies architecture compliance;
-a separate completed `scan` establishes the architecture gate. Published 0.3.0 users
-can use the manual checks below.
+a separate completed `scan` establishes the architecture gate. You can also use
+the manual checks below.
 
 ## Installation and command startup
 

@@ -23,20 +23,19 @@ the CLI.
 | `inspect` | `<input> --policy <path>` | List resolved ownership and policy constraints |
 | `load` | `<input>` | Validate workspace coverage without rule evaluation |
 | `explain` | `<rule-id>` | Print local rule metadata without loading a workspace |
-| `init` (development source; next feature release) | `--discover <input-or-directory>` | Write review-only policy intentions and a separate discovery report |
-| `doctor` (development source; next feature release) | `<input> --policy <path>` | Diagnose installation/configuration health without certifying architecture compliance |
+| `init` | `--discover <input-or-directory>` | Write review-only policy intentions and a separate discovery report |
+| `doctor` | `<input> --policy <path>` | Diagnose installation/configuration health without certifying architecture compliance |
 
 `scan`, `baseline update`, `inspect` and `load` also accept `--trusted`, `--configuration` (default
 `Debug`) and `--framework`. Full scans do not restore automatically; change
-comparison prepares temporary snapshots with cache-only restore. Development-source
-`init --discover` is documented in [discovery and policy proposals](discovery.md);
-it is not in the published 0.3.0 CLI. Trusted discovery requires explicit
+comparison prepares temporary snapshots with cache-only restore.
+`init --discover` is documented in [discovery and policy proposals](discovery.md).
+Trusted discovery requires explicit
 `--configuration`, accepts `--framework` and `--output-directory`, and never adopts policy.
 
 ## Diagnose installation and policy health
 
-`doctor` is available in development source and the next feature release; it is not
-in the published 0.3.0 CLI. Choose an explicit solution/project and policy:
+Choose an explicit solution/project and policy for `doctor`:
 
 ```sh
 archguard doctor path/to/Application.slnx --policy path/to/architecture.guardian.yaml

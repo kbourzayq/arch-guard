@@ -14,7 +14,7 @@ steps:
     inputs:
       packageType: sdk
       version: 10.0.x
-  - bash: dotnet tool install ArchitectureGuardian.Cli --tool-path "$(Agent.TempDirectory)/archguard" --version 0.3.0
+  - bash: dotnet tool install ArchitectureGuardian.Cli --tool-path "$(Agent.TempDirectory)/archguard" --version 0.4.0
     displayName: Install the released CLI
     # Install outside the checkout so its global.json cannot select an older SDK.
     workingDirectory: $(Agent.TempDirectory)

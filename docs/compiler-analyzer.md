@@ -19,7 +19,7 @@ Keep CLI or MCP solution scans as the full architecture gate. See
 ### 1. Choose the package
 
 Install `ArchitectureGuardian.Analyzers` from NuGet using an available release.
-The examples below target version `0.3.0`. No
+The examples below target version `0.4.0`. No
 Architecture Guardian checkout or source build is required. All three integration
 packages share a [version and compatibility policy](releases.md).
 
@@ -33,14 +33,14 @@ targets supply evaluated assembly identities and paths.
 ```xml
 <Project>
   <ItemGroup>
-    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.3.0" PrivateAssets="all" />
+    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.4.0" PrivateAssets="all" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
   </ItemGroup>
 </Project>
 ```
 
 If the consuming repository uses central package management, declare
-`<PackageVersion Include="ArchitectureGuardian.Analyzers" Version="0.3.0" />` in
+`<PackageVersion Include="ArchitectureGuardian.Analyzers" Version="0.4.0" />` in
 `Directory.Packages.props` and omit `Version` from `PackageReference` above.
 
 Use the same `architecture.guardian.yaml` as your CLI/MCP scans. Earlier XML-only

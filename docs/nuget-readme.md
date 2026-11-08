@@ -14,8 +14,8 @@ with source evidence and remediation guidance.
 For the CLI or MCP server:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.3.0
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.3.0
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.4.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.4.0
 archguard --version
 archguard --help
 ```
@@ -54,7 +54,7 @@ is installed separately from the repository files.
 Reference the analyzer in participating projects:
 
 ```xml
-<PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.3.0" PrivateAssets="all" />
+<PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.4.0" PrivateAssets="all" />
 <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
 ```
 
