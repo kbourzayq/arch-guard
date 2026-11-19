@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using ArchitectureGuardian.Analysis.Changes;
 using ArchitectureGuardian.Analysis.Orchestration;
 using ArchitectureGuardian.ArchitectureTests.Infrastructure;
 using ArchitectureGuardian.ArchitectureTests.Mcp;
@@ -212,6 +213,28 @@ public sealed class ChangeAnalysisTests
             Path.Combine(fixture.Root, "App"), TestContext.Current.CancellationToken);
         Assert.False(outside.GatePassed);
         Assert.Contains(outside.Analysis.Issues, item => item.Code == "change-snapshot-unavailable");
+    }
+
+    /// <summary>Snapshot copies live under an owner-only root so a private checkout is not exposed through a shared temporary directory.</summary>
+    [Fact]
+    public async Task Snapshot_root_is_owner_only_and_removed()
+    {
+        using var fixture = new ChangeInputFiles();
+        await fixture.Initialize();
+        string operationRoot;
+        using (var snapshots = new GitSnapshots())
+        {
+            await snapshots.CaptureAsync(fixture.Root, "HEAD", TestContext.Current.CancellationToken);
+            operationRoot = Path.GetDirectoryName(snapshots.BaseDirectory)!;
+            Assert.Equal(operationRoot, Path.GetDirectoryName(snapshots.CandidateDirectory));
+            Assert.True(File.Exists(Path.Combine(snapshots.CandidateDirectory, "App", "Existing.cs")));
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(operationRoot));
+            }
+        }
+
+        Assert.False(Directory.Exists(operationRoot));
     }
 
     /// <summary>Project-defined feeds cannot extend the temporary snapshot's cache-only restore sources.</summary>

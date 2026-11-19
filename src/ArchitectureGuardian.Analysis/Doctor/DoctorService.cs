@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 using System.Xml;
 using ArchitectureGuardian.Analysis.Discovery;
 using ArchitectureGuardian.Analysis.Repositories;
@@ -67,7 +68,7 @@ public sealed class DoctorService
             var workingDirectory = Path.GetDirectoryName(request.InputPath)!;
             if (Directory.Exists(workingDirectory))
             {
-                await EnvironmentChecksAsync(workingDirectory, checks, cancellationToken).ConfigureAwait(false);
+                await EnvironmentChecksAsync(workingDirectory, request.IsTrusted, checks, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -157,7 +158,7 @@ public sealed class DoctorService
         }
     }
 
-    private static async Task EnvironmentChecksAsync(string directory, List<DoctorCheck> checks, CancellationToken cancellationToken)
+    private static async Task EnvironmentChecksAsync(string directory, bool trusted, List<DoctorCheck> checks, CancellationToken cancellationToken)
     {
         foreach (var id in new[] { "sdk", "runtime" })
         {
@@ -165,14 +166,20 @@ public sealed class DoctorService
             deadline.CancelAfter(TimeSpan.FromSeconds(15));
             try
             {
-                if (id == "sdk")
+                if (id == "sdk" && trusted)
                 {
-                    var sdk = await SdkDiscovery.ResolveAsync(directory, deadline.Token).ConfigureAwait(false);
+                    // Trusted only: the host honors the input's global.json (including sdk.paths) and runs the selected SDK.
+                    var sdk = await SdkDiscovery.ResolveAsync(directory, trusted, deadline.Token).ConfigureAwait(false);
                     checks.Add(new(id, directory, "static", "passed", true, $"Input-selected SDK: {sdk}; global.json selection is honored without evaluating projects.", "Install the SDK/reference/workload packs required by this input. Selection alone does not prove workspace compatibility."));
+                }
+                else if (id == "sdk")
+                {
+                    await UntrustedSdkCheckAsync(directory, checks, deadline.Token).ConfigureAwait(false);
                 }
                 else
                 {
-                    var runtimes = await SdkDiscovery.QueryAsync("--list-runtimes", directory, deadline.Token).ConfigureAwait(false);
+                    // The runtime check concerns the tool's own host, so it never runs from the input directory.
+                    var runtimes = await SdkDiscovery.QueryHostAsync("--list-runtimes", deadline.Token).ConfigureAwait(false);
                     var available = runtimes.Split('\n').Any(line => line.StartsWith("Microsoft.NETCore.App 10.", StringComparison.Ordinal));
                     checks.Add(new(id, "dotnet", "static", available ? "passed" : "blocked", true,
                         available ? ".NET 10 runtime is available for CLI/MCP." : "The selected dotnet host does not list the .NET 10 runtime required by CLI/MCP.",
@@ -188,5 +195,52 @@ public sealed class DoctorService
                 checks.Add(new(id, directory, "static", "blocked", true, exception.Message, "Install the input's SDK and .NET 10 runtime; check PATH, DOTNET_HOST_PATH and global.json. No restore/install was attempted."));
             }
         }
+    }
+
+    /// <summary>Reports the input's SDK request without asking the host to resolve it, because resolution can run repository-selected SDK code.</summary>
+    private static async Task UntrustedSdkCheckAsync(string directory, List<DoctorCheck> checks, CancellationToken cancellationToken)
+    {
+        const string Verify = "Review repository build logic and global.json, then rerun with --trusted to verify input-selected SDK resolution.";
+        GlobalJsonSelection? selection;
+        try
+        {
+            selection = GlobalJsonInspector.Inspect(directory);
+        }
+        catch (JsonException exception)
+        {
+            checks.Add(new("sdk", directory, "static", "blocked", true, $"global.json is invalid: {exception.Message}", "Fix the global.json syntax or sdk section. No SDK was resolved."));
+            return;
+        }
+
+        if (selection is null || selection.Version is null && !selection.HasCustomPaths)
+        {
+            checks.Add(new("sdk", selection?.Path ?? directory, "static", "informational", true,
+                "No global.json SDK version is requested; the host's default SDK applies. SDK resolution was not run without --trusted.", Verify));
+            return;
+        }
+
+        if (selection.HasCustomPaths)
+        {
+            checks.Add(new("sdk", selection.Path, "static", "warning", true,
+                $"global.json sdk.paths ({string.Join(", ", selection.Paths)}) may select repository-local SDK code, which is not executed without --trusted.", Verify));
+            return;
+        }
+
+        var request = $"global.json requests SDK {selection.Version} (rollForward: {selection.RollForward ?? "default"})";
+        if (string.Equals(selection.RollForward, "disable", StringComparison.OrdinalIgnoreCase))
+        {
+            // Without custom paths, the host searches only its own installation, which --list-sdks enumerates exactly.
+            var installed = (await SdkDiscovery.QueryHostAsync("--list-sdks", cancellationToken).ConfigureAwait(false))
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(line => line.Split(' ', 2)[0]);
+            if (!installed.Contains(selection.Version, StringComparer.OrdinalIgnoreCase))
+            {
+                checks.Add(new("sdk", selection.Path, "static", "blocked", true, $"{request}, which the dotnet host does not list.",
+                    "Install the exact SDK required by global.json or relax its rollForward policy. No restore/install was attempted."));
+                return;
+            }
+        }
+
+        checks.Add(new("sdk", selection.Path, "static", "informational", true, $"{request}. Installed-SDK compatibility is verified only with --trusted.", Verify));
     }
 }

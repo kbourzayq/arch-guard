@@ -255,8 +255,8 @@ operational failures and retain reports.
 ## Development and support
 
 Build and run from source using [local development](docs/installation.md).
-[CONTRIBUTING.md](CONTRIBUTING.md) covers verification and PRs;
-[AGENT.md](AGENT.md) contains repository coding conventions.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers verification and PRs.
+[AGENTS.md](AGENTS.md) contains repository coding conventions.
 See [release notes](CHANGELOG.md) and the [roadmap](https://github.com/kbourzayq/arch-guard/issues/44).
 
 [Report an issue](https://github.com/kbourzayq/arch-guard/issues/new) with the command,

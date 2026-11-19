@@ -45,7 +45,7 @@ public sealed class MSBuildWorkspaceLoader
             }
 
             var workingDirectory = Path.GetDirectoryName(request.InputPath)!;
-            var sdkVersion = await SdkDiscovery.ResolveAsync(workingDirectory, cancellationToken).ConfigureAwait(false);
+            var sdkVersion = await SdkDiscovery.ResolveAsync(workingDirectory, request.IsTrusted, cancellationToken).ConfigureAwait(false);
             MSBuildRegistration.EnsureRegistered(workingDirectory, sdkVersion);
             cancellationToken.ThrowIfCancellationRequested();
             var properties = new Dictionary<string, string> { ["Configuration"] = request.Configuration };

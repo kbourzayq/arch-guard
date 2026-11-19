@@ -92,7 +92,7 @@ internal static class ChangeAnalysisService
                     snapshotPolicy =
                         await loader.LoadAsync(snapshotPolicyPath, cancellationToken).ConfigureAwait(false);
                     var workingDirectory = Path.GetDirectoryName(snapshotInput)!;
-                    var sdkVersion = await SdkDiscovery.ResolveAsync(workingDirectory, cancellationToken).ConfigureAwait(false);
+                    var sdkVersion = await SdkDiscovery.ResolveAsync(workingDirectory, request.IsTrusted, cancellationToken).ConfigureAwait(false);
                     if (sdkVersion.Major < 6)
                     {
                         throw new IOException("Change snapshots require SDK 6 or later with NuGet package source mapping support.");

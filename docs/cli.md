@@ -42,9 +42,14 @@ archguard doctor path/to/Application.slnx --policy path/to/architecture.guardian
 archguard doctor path/to/Application.slnx --policy path/to/architecture.guardian.yaml --trusted --configuration Release --framework net10.0 --format json
 ```
 
-Without `--trusted`, doctor only reads paths, YAML and literal XML, runs the .NET
-host's `--version`/`--list-runtimes` metadata queries, and checks executable presence
-on PATH. SDK selection honors `global.json` at the input directory. Root
+Without `--trusted`, doctor only reads paths, YAML, literal XML and the input's
+`global.json` (as data), runs the .NET host's `--list-runtimes`/`--list-sdks`
+metadata queries from the tool's own directory, and checks executable presence on
+PATH. Resolving the input-selected SDK can run SDK code chosen by the repository
+(for example through `global.json` `sdk.paths`), so it happens only with
+`--trusted`; untrusted runs report the requested version, block an exact
+`rollForward: disable` request the host does not list, and warn about custom
+`sdk.paths`. Root
 `Directory.Build.props`/`Directory.Packages.props` and default `obj/project.assets.json`
 paths are **unevaluated hints**: imports, conditions and custom asset paths can
 change them. Literal inactive/missing references are warnings, not asserted owners

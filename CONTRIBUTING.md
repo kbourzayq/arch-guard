@@ -22,7 +22,16 @@ dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
 The solution contains eight production projects and three test projects. Source
 organization, dependency direction and the two analysis engines are described in
 the [architecture overview](docs/architecture/overview.md).
-[AGENT.md](AGENT.md) contains the repository's coding and validation conventions.
+[AGENTS.md](AGENTS.md) contains the repository's coding and validation conventions.
+
+Claude Code v2.1.277 and later can read `AGENTS.md` directly. With the default
+project instructions setting, a `CLAUDE.md` or `CLAUDE.local.md` in the project
+or an ancestor takes precedence.
+
+The `.claude/skills` directory symlink exposes the shared contributor workflows
+from [`.agents/skills`](.agents/skills) as `/commit-push-pr`, `/implement-issue`,
+and `/implement-reviewed-issue`. Git must check out `.claude/skills` as a symlink.
+With `core.symlinks=false`, Git writes a plain file and Claude Code skips these skills.
 
 Contributor implementation notes remain in GitHub: [policy composition](docs/policy-composition.md),
 [workspace internals](docs/workspace-development.md), [MCP internals](docs/mcp-development.md),
@@ -47,7 +56,7 @@ published outputs, test results, personal settings, credentials or local tool in
 - Update user guides when commands, configuration or behavior change. Update the
   authoritative source for derived artifacts rather than hand-editing generated output.
 - When `.codegraph/` is present, follow the CodeGraph discovery instructions in
-  [AGENT.md](AGENT.md). Index creation is optional and is not part of contribution setup.
+  [AGENTS.md](AGENTS.md). Index creation is optional and is not part of contribution setup.
 
 ## Run the required checks
 

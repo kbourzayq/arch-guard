@@ -96,20 +96,80 @@ public sealed class CliDoctorTests
     public async Task Runtime_mismatch_is_a_required_blocker_without_project_evaluation()
     {
         using var files = new DoctorFiles();
-        var host = Path.Combine(files.Root, "MetadataHost");
-        Directory.CreateDirectory(host);
-        File.WriteAllText(Path.Combine(host, "MetadataHost.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType></PropertyGroup></Project>");
-        File.WriteAllText(Path.Combine(host, "Program.cs"), "System.Console.WriteLine(args[0] == \"--version\" ? \"10.0.402\" : \"Microsoft.NETCore.App 9.0.0 [test]\");");
-        var build = await Repository.Dotnet("build", Path.Combine(host, "MetadataHost.csproj"), "--source", files.Root, "--disable-build-servers");
-        Assert.True(build.ExitCode == 0, build.Output + build.Error);
-        var executable = Path.Combine(host, "bin", "Debug", "net10.0", "MetadataHost" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+        var executable = await BuildMetadataHostAsync(files, "9.0.0");
         var result = await RunProcessAsync(files, executable);
         Assert.Equal(2, result.ExitCode);
         using var report = JsonDocument.Parse(result.Output);
-        Assert.Equal("passed", Check(report, "sdk").GetProperty("status").GetString());
+        Assert.Equal("informational", Check(report, "sdk").GetProperty("status").GetString());
         Assert.Equal("blocked", Check(report, "runtime").GetProperty("status").GetString());
         Assert.Contains(".NET 10", Check(report, "runtime").GetProperty("remediation").GetString());
         Assert.False(File.Exists(files.Marker));
+    }
+
+    /// <summary>Untrusted diagnosis reads global.json as data and never runs the dotnet host from the input directory, so repository sdk.paths cannot select SDK code.</summary>
+    [Fact]
+    public async Task Untrusted_doctor_never_resolves_the_input_selected_sdk()
+    {
+        using var files = new DoctorFiles();
+        var executable = await BuildMetadataHostAsync(files, "10.0.0");
+        File.WriteAllText(Path.Combine(files.Root, "global.json"), "{\"sdk\":{\"version\":\"10.0.402\",\"paths\":[\".sdk\",\"$host$\"]}}");
+        var log = Path.Combine(files.Root, "host.log");
+
+        var untrusted = await RunProcessAsync(files, executable, log);
+        Assert.Equal(2, untrusted.ExitCode);
+        using (var report = JsonDocument.Parse(untrusted.Output))
+        {
+            Assert.Equal("warning", Check(report, "sdk").GetProperty("status").GetString());
+            Assert.Contains(".sdk", Check(report, "sdk").GetProperty("message").GetString());
+            Assert.Equal("passed", Check(report, "runtime").GetProperty("status").GetString());
+        }
+        var invocations = File.ReadAllLines(log).Select(line => line.Split('|', 2)).ToArray();
+        Assert.NotEmpty(invocations);
+        Assert.DoesNotContain(invocations, invocation => invocation[1] == "--version");
+        Assert.All(invocations, invocation => Assert.Equal(
+            Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(typeof(CliApplication).Assembly.Location)!),
+            Path.TrimEndingDirectorySeparator(invocation[0])));
+        Assert.False(File.Exists(files.Marker));
+
+        // A missing input stops trusted diagnosis after the SDK check, so the fake host never drives an MSBuild
+        // workspace load (MSBuild launches worker nodes through DOTNET_HOST_PATH, which could affect concurrent tests).
+        File.Delete(log);
+        File.Delete(files.Input);
+        var trusted = await RunProcessAsync(files, executable, log, "--trusted", "--configuration", "Release");
+        Assert.Equal(2, trusted.ExitCode);
+        using (var report = JsonDocument.Parse(trusted.Output))
+        {
+            Assert.Equal("passed", Check(report, "sdk").GetProperty("status").GetString());
+            Assert.Equal("notRun", Check(report, "workspace").GetProperty("status").GetString());
+        }
+        Assert.Contains(File.ReadAllLines(log), line => line.EndsWith("|--version", StringComparison.Ordinal)
+            && Path.GetFileName(Path.TrimEndingDirectorySeparator(line.Split('|')[0])) == Path.GetFileName(files.Root));
+    }
+
+    /// <summary>Untrusted SDK checks stay actionable from data alone: invalid JSON blocks and unconstrained requests are informational.</summary>
+    [Theory]
+    [InlineData("{\"sdk\":", "blocked")]
+    [InlineData("{\"sdk\":{\"version\":\"99.0.100\",\"rollForward\":\"latestFeature\"}}", "informational")]
+    [InlineData("{}", "informational")]
+    public async Task Untrusted_sdk_check_reads_global_json_as_data(string globalJson, string status)
+    {
+        using var files = new DoctorFiles();
+        File.WriteAllText(Path.Combine(files.Root, "global.json"), globalJson);
+        var result = await RunAsync(files);
+        Assert.Equal(2, result.ExitCode);
+        using var report = JsonDocument.Parse(result.Output);
+        Assert.Equal(status, Check(report, "sdk").GetProperty("status").GetString());
+        Assert.NotEmpty(Check(report, "sdk").GetProperty("remediation").GetString()!);
+        Assert.False(File.Exists(files.Marker));
+    }
+
+    /// <summary>Input-selected SDK resolution is a code-execution boundary that requires explicit trust at the API.</summary>
+    [Fact]
+    public async Task Sdk_resolution_requires_trust()
+    {
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            SdkDiscovery.ResolveAsync(Path.GetTempPath(), trusted: false, TestContext.Current.CancellationToken));
+        Assert.Contains("trust", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Trusted diagnostics reuse loading coverage and the strict ownership resolver, including stale and ambiguous selectors.</summary>
@@ -263,11 +323,28 @@ public sealed class CliDoctorTests
         return new(code, output.ToString(), error.ToString());
     }
 
-    private static async Task<CommandResult> RunProcessAsync(DoctorFiles files, string host)
+    /// <summary>Builds a fake dotnet host that answers metadata queries and optionally logs each invocation's working directory and argument.</summary>
+    private static async Task<string> BuildMetadataHostAsync(DoctorFiles files, string runtimeVersion)
+    {
+        var host = Path.Combine(files.Root, "MetadataHost");
+        Directory.CreateDirectory(host);
+        File.WriteAllText(Path.Combine(host, "MetadataHost.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType></PropertyGroup></Project>");
+        File.WriteAllText(Path.Combine(host, "Program.cs"), $$"""
+            var log = System.Environment.GetEnvironmentVariable("ARCHGUARD_TEST_HOST_LOG");
+            if (log is not null) { System.IO.File.AppendAllText(log, System.Environment.CurrentDirectory + "|" + args[0] + "\n"); }
+            System.Console.WriteLine(args[0] switch { "--version" => "10.0.402", "--list-sdks" => "10.0.402 [test]", _ => "Microsoft.NETCore.App {{runtimeVersion}} [test]" });
+            """);
+        var build = await Repository.Dotnet("build", Path.Combine(host, "MetadataHost.csproj"), "--source", files.Root, "--disable-build-servers");
+        Assert.True(build.ExitCode == 0, build.Output + build.Error);
+        return Path.Combine(host, "bin", "Debug", "net10.0", "MetadataHost" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+    }
+
+    private static async Task<CommandResult> RunProcessAsync(DoctorFiles files, string host, string? log = null, params string[] options)
     {
         var start = new ProcessStartInfo("dotnet") { WorkingDirectory = files.Root, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-        foreach (var argument in new[] { typeof(CliApplication).Assembly.Location, "doctor", files.Input, "--policy", files.Policy, "--format", "json" }) { start.ArgumentList.Add(argument); }
+        foreach (var argument in (string[])[typeof(CliApplication).Assembly.Location, "doctor", files.Input, "--policy", files.Policy, "--format", "json", .. options]) { start.ArgumentList.Add(argument); }
         start.Environment["DOTNET_HOST_PATH"] = host;
+        if (log is not null) { start.Environment["ARCHGUARD_TEST_HOST_LOG"] = log; }
         using var process = Process.Start(start)!;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(30));

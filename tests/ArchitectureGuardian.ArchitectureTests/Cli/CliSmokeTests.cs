@@ -91,6 +91,11 @@ public sealed class CliSmokeTests
             {
                 await File.WriteAllTextAsync(Path.Combine(directory, "global.json"), "{\"sdk\":{\"version\":\"99.0.100\",\"rollForward\":\"disable\"}}", TestContext.Current.CancellationToken);
             }
+            else
+            {
+                // Pin the repository SDK like other workspace fixtures; the runner's newest SDK may not be loadable by this host.
+                File.Copy(Path.Combine(Repository.Root, "global.json"), Path.Combine(directory, "global.json"));
+            }
             var sdk = scenario == "missing-sdk" ? "ArchitectureGuardian.Nonexistent.Sdk" : "Microsoft.NET.Sdk";
             var items = scenario switch
             {
@@ -113,7 +118,9 @@ public sealed class CliSmokeTests
             // SDK discovery and design-time builds need the workspace fixture's budget on shared CI runners.
             var result = await RunCli(TimeSpan.FromSeconds(60), "load", path, "--trusted");
 
-            Assert.Equal(scenario == "complete" ? 0 : 2, result.ExitCode);
+            var expected = scenario == "complete" ? 0 : 2;
+            Assert.True(expected == result.ExitCode,
+                $"Expected exit code {expected}, got {result.ExitCode}.{Environment.NewLine}stdout:{Environment.NewLine}{result.Output}{Environment.NewLine}stderr:{Environment.NewLine}{result.Error}");
             if (scenario == "complete")
             {
                 Assert.Contains("Workspace loaded: 1 project(s)", result.Output);
