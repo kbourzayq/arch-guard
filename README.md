@@ -34,7 +34,7 @@ with `dotnet --list-sdks` and runtimes with `dotnet --list-runtimes`.
 The exact SDK pinned in **this** repository is required only for
 [developing Architecture Guardian](docs/installation.md#requirements).
 
-Install a released version from NuGet. The examples below target `0.4.0`:
+Install a released version from NuGet. The examples below target `0.4.1`:
 
 | Package | What you install |
 | --- | --- |
@@ -54,13 +54,13 @@ repository before installing either CLI or MCP; keep the repository's SDK select
 for its own restore and analysis. No Architecture Guardian checkout is needed:
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Cli --version 0.4.0
+dotnet tool install --global ArchitectureGuardian.Cli --version 0.4.1
 archguard --version
 archguard --help
 archguard explain AG001
 ```
 
-The version starts with `0.4.0`; help lists `scan`, `inspect`, `load`, `explain`
+The version starts with `0.4.1`; help lists `scan`, `inspect`, `load`, `explain`
 and `baseline`. Ensure the global tool directory is on PATH: `$HOME/.dotnet/tools`
 on macOS/Linux or `%USERPROFILE%\.dotnet\tools` on Windows. Restart your terminal
 or agent after changing PATH. See [troubleshooting](docs/troubleshooting.md#installation-and-command-startup).
@@ -96,7 +96,7 @@ findings in an incomplete scan never mean success. See [CLI reference](docs/cli.
 ## Install the MCP server
 
 ```sh
-dotnet tool install --global ArchitectureGuardian.Mcp --version 0.4.0
+dotnet tool install --global ArchitectureGuardian.Mcp --version 0.4.1
 ```
 
 Find the installed executable with `command -v archguard-mcp` on macOS/Linux or
@@ -134,7 +134,7 @@ In your consuming repository, merge this into a root `Directory.Build.props`:
 ```xml
 <Project>
   <ItemGroup>
-    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.4.0" PrivateAssets="all" />
+    <PackageReference Include="ArchitectureGuardian.Analyzers" Version="0.4.1" PrivateAssets="all" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)architecture.guardian.yaml" />
   </ItemGroup>
 </Project>
@@ -194,8 +194,8 @@ repository's **absolute path**. Add `.tools/architecture-guardian/` to that
 repository's `.gitignore`:
 
 ```sh
-dotnet tool install ArchitectureGuardian.Cli --tool-path "<FULL_PATH_TO_YOUR_REPOSITORY>/.tools/architecture-guardian" --version 0.4.0
-dotnet tool install ArchitectureGuardian.Mcp --tool-path "<FULL_PATH_TO_YOUR_REPOSITORY>/.tools/architecture-guardian" --version 0.4.0
+dotnet tool install ArchitectureGuardian.Cli --tool-path "<FULL_PATH_TO_YOUR_REPOSITORY>/.tools/architecture-guardian" --version 0.4.1
+dotnet tool install ArchitectureGuardian.Mcp --tool-path "<FULL_PATH_TO_YOUR_REPOSITORY>/.tools/architecture-guardian" --version 0.4.1
 ```
 
 Then return to the target repository root. Use `./.tools/architecture-guardian/archguard` in place of `archguard` in scan
@@ -211,8 +211,8 @@ updates from a directory selecting SDK 10, as for installation. To select a
 published version, replace the version below consistently across tools and analyzers:
 
 ```sh
-dotnet tool update --global ArchitectureGuardian.Cli --version 0.4.0
-dotnet tool update --global ArchitectureGuardian.Mcp --version 0.4.0
+dotnet tool update --global ArchitectureGuardian.Cli --version 0.4.1
+dotnet tool update --global ArchitectureGuardian.Mcp --version 0.4.1
 ```
 
 Update the analyzer's package version in your project or central package file and
