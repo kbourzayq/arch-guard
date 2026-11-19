@@ -6,8 +6,18 @@ namespace ArchitectureGuardian.Analysis.Workspaces;
 internal static class SdkDiscovery
 {
     /// <summary>Resolves the input directory's SDK while capturing diagnostics and honoring cancellation.</summary>
-    internal static async Task<Version> ResolveAsync(string workingDirectory, CancellationToken cancellationToken)
+    /// <remarks>
+    /// SDK selection is a code-execution boundary: the host honors the directory's global.json, including
+    /// repository-local <c>sdk.paths</c>, and runs the selected SDK entrypoint even for <c>--version</c>.
+    /// Callers must have explicit build trust for <paramref name="workingDirectory"/>.
+    /// </remarks>
+    internal static async Task<Version> ResolveAsync(string workingDirectory, bool trusted, CancellationToken cancellationToken)
     {
+        if (!trusted)
+        {
+            throw new InvalidOperationException("Input-selected SDK resolution can execute repository-selected SDK code and requires explicit build trust.");
+        }
+
         var sdkVersion = (await QueryAsync("--version", workingDirectory, cancellationToken).ConfigureAwait(false)).Trim();
         if (!Version.TryParse(sdkVersion.Split('-')[0], out var version))
         {
@@ -16,7 +26,11 @@ internal static class SdkDiscovery
         return version;
     }
 
-    /// <summary>Queries host metadata only; never invokes project evaluation, restore or build.</summary>
+    /// <summary>Queries host-only metadata from the tool's own directory, which an input cannot influence through global.json.</summary>
+    internal static Task<string> QueryHostAsync(string argument, CancellationToken cancellationToken) =>
+        QueryAsync(argument, AppContext.BaseDirectory, cancellationToken);
+
+    /// <summary>Queries host metadata only; never invokes project evaluation, restore or build. The working directory selects global.json.</summary>
     internal static async Task<string> QueryAsync(string argument, string workingDirectory, CancellationToken cancellationToken)
     {
         var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")

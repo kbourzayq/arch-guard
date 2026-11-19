@@ -51,8 +51,8 @@ Git and the required .NET SDKs must be installed. Trust authorizes build logic i
 The MCP operator root must contain the Git root. Tool arguments cannot grant trust
 or widen the operator root.
 
-Analysis creates temporary base/candidate directories and a private Git index,
-then prepares each snapshot using a bounded **cache-only locked restore**. A
+Analysis creates temporary base/candidate directories and a private Git index
+under a uniquely named, owner-only (`0700` on Unix) operation directory, then prepares each snapshot using a bounded **cache-only locked restore**. A
 temporary NuGet configuration clears package sources, an empty local feed overrides
 project restore sources, and package auditing is disabled for this preparation.
 [NuGet source mapping](https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping)

@@ -5,17 +5,20 @@ namespace ArchitectureGuardian.Analysis.Changes;
 /// <summary>Owns isolated base and working-tree snapshots without changing the checkout, index or refs.</summary>
 internal sealed class GitSnapshots : IDisposable
 {
-    private readonly string _directory =
-        Path.Combine(Path.GetTempPath(), "archguard-changes-" + Guid.NewGuid().ToString("N"));
+    private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+    private string? _directory;
 
-    internal string BaseDirectory => Path.Combine(_directory, "base");
-    internal string CandidateDirectory => Path.Combine(_directory, "candidate");
+    internal string BaseDirectory => Path.Combine(OperationDirectory, "base");
+    internal string CandidateDirectory => Path.Combine(OperationDirectory, "candidate");
     internal string Commit { get; private set; } = "";
+
+    private string OperationDirectory => _directory ?? throw new InvalidOperationException("Snapshots have not been captured.");
 
     internal async Task CaptureAsync(string root, string baseReference, CancellationToken cancellationToken)
     {
         Commit = (await Git(root, ["rev-parse", "--verify", "--end-of-options", baseReference + "^{commit}"],
             cancellationToken).ConfigureAwait(false)).Trim();
+        CreatePrivateRoot();
         Directory.CreateDirectory(BaseDirectory);
         Directory.CreateDirectory(CandidateDirectory);
         var tree = await Git(root, ["ls-tree", "-rz", "--full-tree", Commit], cancellationToken).ConfigureAwait(false);
@@ -28,7 +31,7 @@ internal sealed class GitSnapshots : IDisposable
         }
 
         // A private index preserves export-ignored files and leaves the operator's index untouched.
-        var index = Path.Combine(_directory, "index");
+        var index = Path.Combine(OperationDirectory, "index");
         await SnapshotProcess.RunAsync("git", root, ["read-tree", Commit], cancellationToken, index)
             .ConfigureAwait(false);
         await SnapshotProcess.RunAsync("git", root,
@@ -126,10 +129,33 @@ internal sealed class GitSnapshots : IDisposable
         }
     }
 
+    /// <summary>
+    /// Creates the operation root atomically and owner-only before any source is written, so copies of a private
+    /// checkout do not become readable through a shared temporary directory.
+    /// </summary>
+    private void CreatePrivateRoot()
+    {
+        if (_directory is not null)
+        {
+            throw new InvalidOperationException("Snapshots can be captured only once.");
+        }
+
+        // Unix: mkdtemp creates a uniquely named 0700 directory. Windows: inherits the per-user %TEMP% ACL.
+        _directory = Directory.CreateTempSubdirectory("archguard-changes-").FullName;
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(_directory, OwnerOnly);
+            if (File.GetUnixFileMode(_directory) != OwnerOnly)
+            {
+                throw new IOException("Could not restrict the change-snapshot directory to its owner.");
+            }
+        }
+    }
+
     /// <summary>Removes only this operation's temporary snapshots and private index.</summary>
     public void Dispose()
     {
-        if (Directory.Exists(_directory))
+        if (_directory is not null && Directory.Exists(_directory))
         {
             Directory.Delete(_directory, recursive: true);
         }
