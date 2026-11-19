@@ -1,3 +1,9 @@
+## v0.4.1 (2026-11-20)
+
+### Fix
+
+- **security**: require trust before SDK resolution and protect change snapshots
+
 ## v0.4.0 (2026-11-08)
 
 ### Feat
