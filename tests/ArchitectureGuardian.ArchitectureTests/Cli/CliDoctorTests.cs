@@ -131,8 +131,17 @@ public sealed class CliDoctorTests
             Path.TrimEndingDirectorySeparator(invocation[0])));
         Assert.False(File.Exists(files.Marker));
 
+        // A missing input stops trusted diagnosis after the SDK check, so the fake host never drives an MSBuild
+        // workspace load (MSBuild launches worker nodes through DOTNET_HOST_PATH, which could affect concurrent tests).
         File.Delete(log);
-        await RunProcessAsync(files, executable, log, "--trusted", "--configuration", "Release");
+        File.Delete(files.Input);
+        var trusted = await RunProcessAsync(files, executable, log, "--trusted", "--configuration", "Release");
+        Assert.Equal(2, trusted.ExitCode);
+        using (var report = JsonDocument.Parse(trusted.Output))
+        {
+            Assert.Equal("passed", Check(report, "sdk").GetProperty("status").GetString());
+            Assert.Equal("notRun", Check(report, "workspace").GetProperty("status").GetString());
+        }
         Assert.Contains(File.ReadAllLines(log), line => line.EndsWith("|--version", StringComparison.Ordinal)
             && Path.GetFileName(Path.TrimEndingDirectorySeparator(line.Split('|')[0])) == Path.GetFileName(files.Root));
     }

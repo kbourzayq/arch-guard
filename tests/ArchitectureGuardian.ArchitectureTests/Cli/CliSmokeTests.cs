@@ -113,7 +113,9 @@ public sealed class CliSmokeTests
             // SDK discovery and design-time builds need the workspace fixture's budget on shared CI runners.
             var result = await RunCli(TimeSpan.FromSeconds(60), "load", path, "--trusted");
 
-            Assert.Equal(scenario == "complete" ? 0 : 2, result.ExitCode);
+            var expected = scenario == "complete" ? 0 : 2;
+            Assert.True(expected == result.ExitCode,
+                $"Expected exit code {expected}, got {result.ExitCode}.{Environment.NewLine}stdout:{Environment.NewLine}{result.Output}{Environment.NewLine}stderr:{Environment.NewLine}{result.Error}");
             if (scenario == "complete")
             {
                 Assert.Contains("Workspace loaded: 1 project(s)", result.Output);
