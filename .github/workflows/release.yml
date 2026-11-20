@@ -53,3 +53,41 @@ jobs:
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: dotnet nuget push "artifacts/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY"
+
+  github-release:
+    # Publish the release page only once packages are public, so the docs deployment that
+    # follows this workflow finds both the release and its NuGet versions.
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Wait for nuget.org to list all three packages
+        run: python eng/release-notes.py wait-nuget --tag "$RELEASE_TAG" --timeout 2400
+      - name: Write release notes from the tagged changelog
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python eng/release-notes.py notes --tag "$RELEASE_TAG" --run-url "$RUN_URL" > "$RUNNER_TEMP/release-notes.md"
+      - name: Create the GitHub release
+        run: |
+          # A maintainer may already have published hand-written notes; never overwrite them.
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "GitHub release $RELEASE_TAG already exists; leaving it unchanged."
+          else
+            # A backport tag must not displace the newest release as "Latest" (which docs follow).
+            newest=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+            latest=$([ "$newest" = "$RELEASE_TAG" ] && echo true || echo false)
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --latest="$latest" \
+              --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
