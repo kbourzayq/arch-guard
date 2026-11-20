@@ -1,3 +1,4 @@
+using Application;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Web;
@@ -26,6 +27,8 @@ public interface IHandlerHost { }
 public class HandlerHost(IEnumerable<IHandler> handlers) : IHandlerHost { }
 public interface ITwoCtor { }
 public class TwoCtor : ITwoCtor { public TwoCtor() { } public TwoCtor(IScopedThing scoped) { } }
+public interface IRemoteHolder { }
+public class RemoteHolder(IRemoteScoped remote) : IRemoteHolder { }
 public interface IInstance { }
 public class Instance : IInstance { }
 
@@ -46,6 +49,7 @@ public static class Registration
         services.AddScoped<IHandler, Handler>();
         services.AddSingleton<IHandlerHost, HandlerHost>(); // ASP003 proven through collection injection
         services.AddSingleton<ITwoCtor, TwoCtor>(); // ASP003 potential: constructor choice is ambiguous
+        services.AddSingleton<IRemoteHolder, RemoteHolder>(); // ASP003 potential: the scoped registration is in another project
         services.AddSingleton<IInstance>(new Instance()); // allowed: an instance cannot capture scoped services
     }
 }

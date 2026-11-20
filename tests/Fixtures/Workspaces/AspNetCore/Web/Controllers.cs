@@ -41,6 +41,12 @@ public class BodyController : ControllerBase
 public abstract class BaseApiController : ControllerBase
 {
     [HttpGet("inh")] public IActionResult Inherited() => Ok();
+
+    [HttpGet("v")] public virtual IActionResult Replaced() => Ok();
 }
 
-public class DerivedController : BaseApiController { }
+// The override replaces the base action, so the route is reported once.
+public class DerivedController : BaseApiController
+{
+    public override IActionResult Replaced() => Ok();
+}

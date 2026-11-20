@@ -85,7 +85,7 @@ public static class AspNetCoreFactExtractor
     {
         for (var current = type; current is not null; current = current.BaseType)
         {
-            if (current.ContainingNamespace?.ToDisplayString() + "." + current.Name == metadataName)
+            if (current.ContainingNamespace?.ToDisplayString() + "." + current.Name == metadataName && IsReferenced(current))
             {
                 return true;
             }
@@ -94,13 +94,18 @@ public static class AspNetCoreFactExtractor
         return false;
     }
 
+    /// <summary>Determines whether a symbol comes from a referenced assembly rather than the analyzed source.</summary>
+    /// <remarks>Framework identities are matched by name, so a source type in a framework namespace must not count as the framework.</remarks>
+    private static bool IsReferenced(ISymbol symbol) => symbol.Locations.Length > 0 && symbol.Locations.All(item => item.IsInMetadata);
+
     private sealed record Context(string Project, Compilation Compilation, HashSet<SyntaxTree> Generated, string Root);
 
     private sealed class Scan(Context context, IReadOnlyDictionary<AssemblyIdentity, string> owners, CancellationToken cancellationToken)
     {
         internal CancellationToken Token => cancellationToken;
 
-        private readonly INamedTypeSymbol? _controllerBase = context.Compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ControllerBase");
+        private readonly INamedTypeSymbol? _controllerBase = context.Compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ControllerBase")
+            is { } controllerBase && IsReferenced(controllerBase) ? controllerBase : null;
 
         internal void Visit(SemanticModel model, SyntaxNode root, List<AspNetCoreEndpoint> endpoints, List<AspNetCoreServiceRegistration> registrations)
         {
@@ -127,44 +132,65 @@ public static class AspNetCoreFactExtractor
                 return;
             }
 
-            var shared = new Dependencies(this, model);
-            foreach (var parameter in ConstructorParameters(declaration))
-            {
-                if (model.GetDeclaredSymbol(parameter, cancellationToken) is IParameterSymbol symbol)
-                {
-                    shared.Add(symbol.Type, parameter.GetLocation(), injected: true);
-                }
-            }
-
-            foreach (var member in declaration.Members.Where(item => item is FieldDeclarationSyntax or PropertyDeclarationSyntax))
-            {
-                shared.Collect(member, injected: false);
-            }
-
-            var controllerSymbol = type.ToDisplayString(Display);
-            endpoints.Add(new(context.Project, AspNetCoreEndpointKind.Controller, controllerSymbol, DeclaredAuthorization.Undeclared,
-                shared.ToList(), Location(declaration.Identifier.GetLocation())));
-            var covered = shared.Symbols;
-            foreach (var method in declaration.Members.OfType<MethodDeclarationSyntax>())
-            {
-                if (model.GetDeclaredSymbol(method, cancellationToken) is IMethodSymbol action)
-                {
-                    AddAction(model, method, action, type, covered, endpoints);
-                }
-            }
-
-            // Inherited actions belong to the concrete controller's route and authorization. A partial class is
-            // visited once per declaration, so only its first declaration contributes them.
-            var first = type.DeclaringSyntaxReferences.Select(item => item.GetSyntax(cancellationToken)).FirstOrDefault();
-            if (!ReferenceEquals(first, declaration))
+            // A partial controller is one controller: its first declaration reports every part, and later parts are skipped.
+            var parts = type.DeclaringSyntaxReferences.Select(item => item.GetSyntax(cancellationToken)).OfType<ClassDeclarationSyntax>().ToArray();
+            if (!ReferenceEquals(parts.FirstOrDefault(), declaration))
             {
                 return;
             }
 
+            var shared = new Dependencies(this, model);
+            foreach (var part in parts)
+            {
+                var partModel = SemanticModelFor(model, part);
+                foreach (var parameter in ConstructorParameters(part))
+                {
+                    if (partModel.GetDeclaredSymbol(parameter, cancellationToken) is IParameterSymbol symbol)
+                    {
+                        shared.Add(symbol.Type, parameter.GetLocation(), injected: true);
+                    }
+                }
+
+                var members = new Dependencies(this, partModel);
+                foreach (var member in part.Members.Where(item => item is FieldDeclarationSyntax or PropertyDeclarationSyntax))
+                {
+                    members.Collect(member, injected: false);
+                }
+
+                shared.Merge(members);
+            }
+
+            endpoints.Add(new(context.Project, AspNetCoreEndpointKind.Controller, type.ToDisplayString(Display), DeclaredAuthorization.Undeclared,
+                shared.ToList(), Location(declaration.Identifier.GetLocation())));
+            var covered = shared.Symbols;
+            // Signatures already supplied by a more-derived type; an override or a hiding method replaces the base action.
+            var supplied = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var part in parts)
+            {
+                var partModel = SemanticModelFor(model, part);
+                foreach (var method in part.Members.OfType<MethodDeclarationSyntax>())
+                {
+                    if (partModel.GetDeclaredSymbol(method, cancellationToken) is IMethodSymbol action)
+                    {
+                        supplied.Add(Signature(action));
+                        AddAction(partModel, method, action, type, covered, endpoints);
+                    }
+                }
+            }
+
+            // Inherited actions belong to the concrete controller's route and authorization.
             for (var baseType = type.BaseType; baseType is not null && !SymbolEqualityComparer.Default.Equals(baseType, _controllerBase); baseType = baseType.BaseType)
             {
-                foreach (var inherited in baseType.GetMembers().OfType<IMethodSymbol>().OrderBy(item => item.Name, StringComparer.Ordinal))
+                var level = new List<string>();
+                foreach (var inherited in baseType.GetMembers().OfType<IMethodSymbol>().OrderBy(item => item.ToDisplayString(Display), StringComparer.Ordinal))
                 {
+                    var signature = Signature(inherited);
+                    level.Add(signature);
+                    if (supplied.Contains(signature))
+                    {
+                        continue;
+                    }
+
                     foreach (var reference in inherited.DeclaringSyntaxReferences)
                     {
                         if (reference.GetSyntax(cancellationToken) is MethodDeclarationSyntax syntax)
@@ -173,8 +199,18 @@ public static class AspNetCoreFactExtractor
                         }
                     }
                 }
+
+                supplied.UnionWith(level);
             }
         }
+
+        private SemanticModel SemanticModelFor(SemanticModel model, SyntaxNode node)
+            => ReferenceEquals(model.SyntaxTree, node.SyntaxTree) ? model : context.Compilation.GetSemanticModel(node.SyntaxTree);
+
+        /// <summary>Identifies a method by name, arity and parameter types, which is what overriding and hiding replace.</summary>
+        private static string Signature(IMethodSymbol method)
+            => method.Name + "`" + method.Arity.ToString(System.Globalization.CultureInfo.InvariantCulture) + "("
+                + string.Join(",", method.Parameters.Select(item => item.RefKind + " " + item.Type.ToDisplayString(Display))) + ")";
 
         private void AddAction(SemanticModel model, MethodDeclarationSyntax method, IMethodSymbol action, INamedTypeSymbol controller,
             HashSet<ITypeSymbol> covered, List<AspNetCoreEndpoint> endpoints)
@@ -244,7 +280,7 @@ public static class AspNetCoreFactExtractor
         private void VisitInvocation(SemanticModel model, InvocationExpressionSyntax invocation, List<AspNetCoreEndpoint> endpoints,
             List<AspNetCoreServiceRegistration> registrations)
         {
-            if (model.GetSymbolInfo(invocation, cancellationToken).Symbol is not IMethodSymbol method)
+            if (model.GetSymbolInfo(invocation, cancellationToken).Symbol is not IMethodSymbol method || !IsReferenced(method))
             {
                 return;
             }
@@ -375,7 +411,8 @@ public static class AspNetCoreFactExtractor
         }
 
         private static bool IsFramework(ISymbol? symbol)
-            => (symbol?.ContainingNamespace?.ToDisplayString() ?? "").StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal);
+            => symbol is not null && IsReferenced(symbol)
+                && (symbol.ContainingNamespace?.ToDisplayString() ?? "").StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal);
 
         private void ResolveReceiver(SemanticModel model, ExpressionSyntax receiver, AuthorizationFlags flags, int depth)
         {
@@ -397,8 +434,7 @@ public static class AspNetCoreFactExtractor
                     ResolveReceiver(model, parenthesized.Expression, flags, depth + 1);
                     break;
                 case InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax access } call
-                    when model.GetSymbolInfo(call, cancellationToken).Symbol is IMethodSymbol method
-                        && (method.ContainingNamespace?.ToDisplayString() ?? "").StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal):
+                    when model.GetSymbolInfo(call, cancellationToken).Symbol is IMethodSymbol method && IsFramework(method):
                     // Group extensions such as MapGroup, RequireAuthorization and WithTags return the same builder.
                     flags.AddConvention(access.Name.Identifier.Text);
                     if (method.Name == "MapGroup" && call.ArgumentList.Arguments.Count > 0

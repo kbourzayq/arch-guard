@@ -56,7 +56,10 @@ public sealed class DoctorService
                 {
                     checks.Add(new("rule-selection", rule.Key, "static", "informational", false,
                         $"Solution severity: {rule.Value.ToString().ToLowerInvariant()}; gate threshold: {policy.Gate.FailOn.ToString().ToLowerInvariant()}.",
-                        rule.Key == "AG003" ? "AG003 requires a separate whole-solution scan; the compiler cannot check cycles." : "Compiler overrides apply only to selected rules; solution scans use YAML severity."));
+                        rule.Key == "AG003" ? "AG003 requires a separate whole-solution scan; the compiler cannot check cycles."
+                            // ASP rules need solution-wide endpoint and registration facts, so no compiler diagnostic exists for them.
+                            : rule.Key.StartsWith("ASP", StringComparison.Ordinal) ? $"{rule.Key} runs only in solution scans; the compiler analyzer does not report ASP.NET Core rules."
+                            : "Compiler overrides apply only to selected rules; solution scans use YAML severity."));
                 }
             }
             catch (Exception exception) when (exception is not OperationCanceledException)

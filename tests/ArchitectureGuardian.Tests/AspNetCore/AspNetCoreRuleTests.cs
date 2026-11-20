@@ -37,17 +37,19 @@ public sealed class AspNetCoreRuleTests(AspNetCoreWorkspaceFixture fixture) : IC
         return result.Violations;
     }
 
-    /// <summary>ASP001 flags constructor and body persistence in controllers only, with proven evidence.</summary>
+    /// <summary>ASP001 flags constructor and body persistence in controllers only, treating a partial controller as one type.</summary>
     [Fact]
     public async Task Controller_persistence_is_proven_from_constructor_and_body_uses()
     {
         var violations = await EvaluateAsync(await BuildAsync(), "ASP001");
-        Assert.Equal(["Web.BodyController.Query()", "Web.OrdersController"], violations.Select(item => item.Target.Symbol!).Distinct().Order(StringComparer.Ordinal));
+        // The partial controller's action uses a constructor dependency from another part, so it is attributed to the controller once.
+        Assert.Equal(["Web.BodyController.Query()", "Web.OrdersController", "Web.PartialController"],
+            violations.Select(item => item.Target.Symbol!).Distinct().Order(StringComparer.Ordinal));
         Assert.Contains(violations, item => item.Message.Contains("System.Data.IDbConnection", StringComparison.Ordinal));
         Assert.All(violations, item =>
         {
             Assert.Equal(ViolationClassification.Proven, item.Classification);
-            Assert.All(item.Evidence, fact => Assert.EndsWith("Controllers.cs", fact.Location!.Path, StringComparison.Ordinal));
+            Assert.All(item.Evidence, fact => Assert.StartsWith("Web/", fact.Location!.Path, StringComparison.Ordinal));
         });
     }
 
@@ -61,18 +63,18 @@ public sealed class AspNetCoreRuleTests(AspNetCoreWorkspaceFixture fixture) : IC
         Assert.Equal(ViolationClassification.Proven, violation.Classification);
     }
 
-    /// <summary>ASP002 distinguishes missing declarations from route groups it cannot resolve; allowed cases pass.</summary>
+    /// <summary>ASP002 distinguishes missing declarations from unresolved route groups, ignores source lookalikes and reports overrides once.</summary>
     [Fact]
     public async Task Authorization_separates_proven_gaps_from_runtime_validation_requirements()
     {
         var violations = await EvaluateAsync(await BuildAsync(), "ASP002");
         var byClass = violations.ToLookup(item => item.Classification);
-        Assert.Equal(["GET /fake", "GET /open", "Web.DerivedController.Inherited()", "Web.OpenController.Get()"], byClass[ViolationClassification.Proven].Select(item => item.Target.Symbol!).Order(StringComparer.Ordinal));
+        Assert.Equal(["GET /fake", "GET /fakens", "GET /open", "Web.DerivedController.Inherited()", "Web.DerivedController.Replaced()", "Web.OpenController.Get()"], byClass[ViolationClassification.Proven].Select(item => item.Target.Symbol!).Order(StringComparer.Ordinal));
         Assert.Equal(["GET /e"], byClass[ViolationClassification.RuntimeValidationRequired].Select(item => item.Target.Symbol!));
         Assert.Empty(byClass[ViolationClassification.Potential]);
     }
 
-    /// <summary>ASP003 proves direct and transient captive dependencies, flags mixed lifetimes and factories, and accepts the rest.</summary>
+    /// <summary>ASP003 proves same-project captive dependencies, flags mixed lifetimes, other projects' registrations and factories, and accepts the rest.</summary>
     [Fact]
     public async Task Lifetimes_classify_proven_potential_and_factory_registrations()
     {
@@ -80,7 +82,7 @@ public sealed class AspNetCoreRuleTests(AspNetCoreWorkspaceFixture fixture) : IC
         string[] Targets(ViolationClassification value) => violations.Where(item => item.Classification == value)
             .Select(item => item.Target.Symbol!).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(["Web.IHandlerHost", "Web.ISingletonThing", "Web.IViaTransient"], Targets(ViolationClassification.Proven));
-        Assert.Equal(["Web.IHolder", "Web.ITwoCtor"], Targets(ViolationClassification.Potential));
+        Assert.Equal(["Web.IHolder", "Web.IRemoteHolder", "Web.ITwoCtor"], Targets(ViolationClassification.Potential));
         Assert.Equal(["Web.IFactoryThing"], Targets(ViolationClassification.RuntimeValidationRequired));
         Assert.Contains("Web.IViaTransient → Web.IMiddle → Web.IScopedThing", violations.Single(item => item.Target.Symbol == "Web.IViaTransient").Message);
     }

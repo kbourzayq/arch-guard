@@ -439,7 +439,7 @@ guessed: they are either skipped or classified as `runtimeValidationRequired`.
 Controller types (deriving `ControllerBase`) must not use persistence types. Reported
 for constructor, field and property types on the controller itself, and for parameter
 and body uses in each public action. A type already reported on the controller is not
-repeated per action. Always `proven`.
+repeated per action. A partial controller is analyzed as one type. Always `proven`.
 
 **Supported:** direct and derived persistence types, extension methods in persistence namespaces.
 **Blind spots:** persistence reached only through a non-persistence abstraction; reflection and `dynamic`.
@@ -460,7 +460,10 @@ a route group received as a parameter, field or helper result is
 `runtimeValidationRequired`.
 
 **Supported:** attributes on actions, controllers and base classes; conventions on a Map call chain,
-on `MapGroup` chains, and on a local variable initialized with one.
+on `MapGroup` chains, and on a local variable initialized with one or configured in a later statement.
+An inherited action is reported once on each concrete controller; an override or hiding method replaces it.
+Framework conventions and attributes must come from referenced assemblies, so a source method with the
+same name, even in a `Microsoft.AspNetCore.*` namespace, declares nothing.
 **Blind spots:** fallback authorization policy and authorization middleware are not inspected;
 policy contents are not evaluated. Declare intent in source or confirm effective authorization with integration tests.
 
@@ -468,14 +471,15 @@ policy contents are not evaluated. Declare intent in source or confirm effective
 
 A singleton must not capture a scoped service. Statically registered implementations are
 followed through their longest public constructor and through transient services.
-All-scoped targets are `proven`; a target also registered with another lifetime is
+All-scoped targets registered in the singleton's project are `proven`; a target also
+registered with another lifetime, a capture that relies on another project's registration
+(which may belong to a separate container), or more than one public constructor is
 `potential`; a singleton created by a factory delegate is `runtimeValidationRequired`
 because its dependencies are hidden.
 
 **Supported:** `AddSingleton`/`AddScoped`/`AddTransient` and `TryAdd*` with generic or `typeof`
 arguments, and `AddDbContext`/`AddDbContextPool` (scoped by default). Registering an instance is allowed.
-**Blind spots:** all registrations in the solution are treated as one container, so separate
-containers are not distinguished; more than one public constructor yields `potential`; assembly
+**Blind spots:** separate containers within one project are not distinguished; assembly
 scanning, keyed services, conditional registrations and registrations in other assemblies. Enable `ValidateScopes` and `ValidateOnBuild` to confirm container behavior.
 
 ## ASP004: Minimal API persistence access

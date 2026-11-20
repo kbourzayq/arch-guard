@@ -51,6 +51,21 @@ public sealed class CliDoctorTests
         Assert.False(File.Exists(files.Marker));
     }
 
+    /// <summary>A selected ASP rule is described as solution-scan only, never as configurable through compiler overrides.</summary>
+    [Fact]
+    public async Task Asp_rule_selection_points_to_solution_scans()
+    {
+        using var files = new DoctorFiles();
+        File.WriteAllText(files.Policy, File.ReadAllText(files.Policy).Replace("AG001: error", "AG001: error\n  ASP002: warning", StringComparison.Ordinal));
+        var result = await RunAsync(files);
+        using var report = JsonDocument.Parse(result.Output);
+        var selections = report.RootElement.GetProperty("checks").EnumerateArray()
+            .Where(check => check.GetProperty("id").GetString() == "rule-selection")
+            .ToDictionary(check => check.GetProperty("scope").GetString()!, check => check.GetProperty("remediation").GetString()!, StringComparer.Ordinal);
+        Assert.Contains("runs only in solution scans", selections["ASP002"], StringComparison.Ordinal);
+        Assert.Contains("Compiler overrides apply", selections["AG001"], StringComparison.Ordinal);
+    }
+
     /// <summary>Malformed YAML and missing SDK selections are retained in the stable diagnostic envelope with remediation.</summary>
     /// <param name="scenario">The static blocker to introduce.</param>
     [Theory]

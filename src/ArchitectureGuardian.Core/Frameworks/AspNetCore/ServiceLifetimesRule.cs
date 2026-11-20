@@ -57,13 +57,16 @@ public sealed class ServiceLifetimesRule : IArchitectureRule<DependencyBuildResu
                     }
 
                     var lifetimes = targets.Select(item => item.Lifetime).Distinct().ToArray();
+                    // Registrations are matched solution-wide, but another project's registrations may belong to a
+                    // different container, so they can indicate a capture without proving it.
+                    var sameProject = targets.All(item => string.Equals(item.Project, singleton.Project, StringComparison.Ordinal));
                     if (lifetimes.Contains(AspNetCoreServiceLifetime.Scoped))
                     {
                         var scoped = targets.First(item => item.Lifetime == AspNetCoreServiceLifetime.Scoped);
-                        var proven = lifetimes.Length == 1 && !ambiguous;
+                        var proven = lifetimes.Length == 1 && !ambiguous && sameProject;
                         var text = proven
                             ? $"Singleton '{singleton.ServiceType}' captures scoped service '{service}' ({path})."
-                            : $"Singleton '{singleton.ServiceType}' may capture scoped service '{service}' ({path}); the constructor choice or the service's registrations are ambiguous.";
+                            : $"Singleton '{singleton.ServiceType}' may capture scoped service '{service}' ({path}); the constructor choice, the service's registrations or their container are ambiguous.";
                         violations.Add(AspNetCoreEvaluation.Violation(Descriptor, module, singleton.Project, singleton.ServiceType, text,
                             "Register the singleton as scoped, make the dependency a singleton, or resolve it from an IServiceScopeFactory scope when needed.",
                             [new DiagnosticEvidence(text, singleton.Location), new DiagnosticEvidence($"'{service}' is registered as Scoped.", scoped.Location)],
@@ -75,7 +78,7 @@ public sealed class ServiceLifetimesRule : IArchitectureRule<DependencyBuildResu
                     if (lifetimes.All(item => item == AspNetCoreServiceLifetime.Transient))
                     {
                         // A transient inherits the lifetime of its consumer, so its own scoped dependencies are captured too.
-                        ambiguous |= targets.Any(item => item.HasAmbiguousConstructor);
+                        ambiguous |= !sameProject || targets.Any(item => item.HasAmbiguousConstructor);
                         foreach (var next in targets.Where(item => !item.IsFactory).SelectMany(item => item.ImplementationDependencies).Distinct(StringComparer.Ordinal))
                         {
                             queue.Enqueue((next, path + " → " + next));
