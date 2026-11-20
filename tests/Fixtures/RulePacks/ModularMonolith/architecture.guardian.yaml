@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../../../docs/schema/architecture.guardian.v1.schema.json
+version: 1
+extends:
+  - pack: modular-monolith
+    version: 1.0.0
+modules:
+  # Each logical module spans several projects; only its Contracts project is public to other modules.
+  - id: Orders
+    projects: ["src/Modules/Orders/**/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["src/Modules/Orders/Orders.Contracts/*.csproj"]
+    allowedDependencies: ["contract:Billing/api"]
+  - id: Billing
+    projects: ["src/Modules/Billing/**/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["src/Modules/Billing/Billing.Contracts/*.csproj"]
+    allowedDependencies: ["contract:Orders/api"]
+  # Host is declared by the pack; the policy grants its contract permissions.
+  - id: Host
+    allowedDependencies: ["contract:Billing/api", "contract:Orders/api"]

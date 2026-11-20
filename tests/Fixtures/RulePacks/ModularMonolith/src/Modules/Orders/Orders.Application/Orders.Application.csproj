@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Orders.Contracts/Orders.Contracts.csproj" />
+    <ProjectReference Include="../Orders.Domain/Orders.Domain.csproj" />
+    <ProjectReference Include="../../Billing/Billing.Contracts/Billing.Contracts.csproj" />
+    <ProjectReference Include="../../Billing/Billing.Application/Billing.Application.csproj" Condition="'$(Configuration)' == 'AG004'" />
+  </ItemGroup>
+</Project>

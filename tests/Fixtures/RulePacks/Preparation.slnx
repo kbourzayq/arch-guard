@@ -12,4 +12,11 @@
   <Project Path="CleanArchitecture/src/Shop.Application/Shop.Application.csproj" />
   <Project Path="CleanArchitecture/src/Shop.Infrastructure/Shop.Infrastructure.csproj" />
   <Project Path="CleanArchitecture/src/Shop.Web/Shop.Web.csproj" />
+  <Project Path="ModularMonolith/src/Modules/Orders/Orders.Contracts/Orders.Contracts.csproj" />
+  <Project Path="ModularMonolith/src/Modules/Orders/Orders.Domain/Orders.Domain.csproj" />
+  <Project Path="ModularMonolith/src/Modules/Orders/Orders.Application/Orders.Application.csproj" />
+  <Project Path="ModularMonolith/src/Modules/Billing/Billing.Contracts/Billing.Contracts.csproj" />
+  <Project Path="ModularMonolith/src/Modules/Billing/Billing.Application/Billing.Application.csproj" />
+  <Project Path="ModularMonolith/src/Modules/Billing/Billing.Infrastructure/Billing.Infrastructure.csproj" />
+  <Project Path="ModularMonolith/src/Host/Monolith.Host/Monolith.Host.csproj" />
 </Solution>

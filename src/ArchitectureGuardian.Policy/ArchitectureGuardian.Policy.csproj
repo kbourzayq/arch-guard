@@ -19,5 +19,6 @@
   <ItemGroup>
     <!-- Built-in rule packs: one immutable manifest per released pack version, shared by both analysis engines. -->
     <EmbeddedResource Include="Packs/clean-architecture/1.0.0/pack.yaml" LogicalName="packs/clean-architecture/1.0.0/pack.yaml" />
+    <EmbeddedResource Include="Packs/modular-monolith/1.0.0/pack.yaml" LogicalName="packs/modular-monolith/1.0.0/pack.yaml" />
   </ItemGroup>
 </Project>
