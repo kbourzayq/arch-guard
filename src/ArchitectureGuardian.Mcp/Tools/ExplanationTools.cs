@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Core.Frameworks.AspNetCore;
 using System.ComponentModel;
 using ArchitectureGuardian.Analysis.Orchestration;
 using ArchitectureGuardian.Analysis.Workspaces;
@@ -23,7 +24,7 @@ internal sealed class ExplanationTools(WorkspaceFiles files, IOptions<WorkspaceO
         [Description("YAML policy path inside Workspace:Root, at most 4096 characters and 262144 file bytes.")]
         string policyPath,
         [Description(
-            "Canonical case-sensitive rule ID AG001–AG006. Mutually exclusive with diagnosticId; omit inputPath for rule guidance.")]
+            "Canonical case-sensitive rule ID AG001–AG006 or ASP001–ASP005. Mutually exclusive with diagnosticId; omit inputPath for rule guidance.")]
         string? ruleId = null,
         [Description(
             "Exact 64-character lowercase hexadecimal diagnostic ID from analyze_solution. Requires the same input/policy/build context.")]
@@ -43,9 +44,9 @@ internal sealed class ExplanationTools(WorkspaceFiles files, IOptions<WorkspaceO
             throw new McpException("Supply exactly one of ruleId or diagnosticId.");
         }
 
-        if (ruleId is not null && RuleCatalog.All.All(rule => rule.Id != ruleId))
+        if (ruleId is not null && RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).All(rule => rule.Id != ruleId))
         {
-            throw new McpException("Unknown ruleId. Use a canonical case-sensitive ID: AG001–AG006.");
+            throw new McpException("Unknown ruleId. Use a canonical case-sensitive ID: AG001–AG006 or ASP001–ASP005.");
         }
 
         if (diagnosticId is not null && (diagnosticId.Length != 64 ||
@@ -122,7 +123,8 @@ internal sealed class ExplanationTools(WorkspaceFiles files, IOptions<WorkspaceO
             rules.Single(rule => rule.Id == diagnostic.RuleId),
             diagnostic.Message, new(diagnostic.Id, diagnostic.RuleId, diagnostic.Severity.ToString().ToLowerInvariant(),
                 diagnostic.Message, diagnostic.Location, diagnostic.Target, diagnostic.Evidence, diagnostic.Remediation,
-                diagnostic.DocumentationUrl.AbsoluteUri), context.DependencyPath, context.PolicyConstraints,
+                diagnostic.DocumentationUrl.AbsoluteUri,
+                diagnostic.Violation.Classification is { } kind ? char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..] : null), context.DependencyPath, context.PolicyConstraints,
             context.PublicContracts, remediation, result.Issues), cancellationToken);
     }
 

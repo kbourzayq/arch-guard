@@ -1,8 +1,9 @@
 # Rule catalog
 
-Architecture Guardian implements six canonical rules. CLI and MCP solution scans
-can evaluate all six; compiler analysis implements AG001, AG002, AG004, AG005 and
-AG006 against its host compilation. Only the solution engine checks module cycles.
+Architecture Guardian implements six canonical architecture rules (AG001–AG006) and
+five ASP.NET Core rules (ASP001–ASP005). CLI and MCP solution scans can evaluate all
+of them; compiler analysis implements AG001, AG002, AG004, AG005 and AG006 against its
+host compilation. Only the solution engine checks module cycles and the ASP rules.
 
 | Rule | Check |
 | --- | --- |
@@ -12,6 +13,11 @@ AG006 against its host compilation. Only the solution engine checks module cycle
 | [AG004](#ag004-implementation-boundaries) | Cross-module implementation access |
 | [AG005](#ag005-forbidden-references) | Explicit assembly and namespace restrictions |
 | [AG006](#ag006-domain-infrastructure) | Layer-scoped technology restrictions and exceptions |
+| [ASP001](#asp001-controller-persistence-access) | Controllers using persistence technology directly |
+| [ASP002](#asp002-declared-endpoint-authorization) | Endpoints without declared authorization |
+| [ASP003](#asp003-service-lifetime-mismatches) | Singletons capturing scoped services |
+| [ASP004](#asp004-minimal-api-persistence-access) | Minimal API handlers using persistence technology directly |
+| [ASP005](#asp005-application-abstraction-dependencies) | Endpoints injecting concrete services from other projects |
 
 Choose rules and severities in your [YAML policy](policy.md#rule-selection-severity-and-gates).
 Use CLI `explain <rule-id>` for local metadata. The
@@ -400,6 +406,97 @@ exceptions and lookalikes against the same compilation.
 Severity is assigned separately from discovery. A rule's metadata does not decide
 the quality gate; see [analysis outcomes](concepts/diagnostics.md).
 
+## ASP.NET Core rules ASP001–ASP005
+
+The ASP rules are independent capabilities. Select any of them under `rules` in the
+[policy](policy.md#rule-selection-severity-and-gates); they need no other policy
+settings and run only in the solution engine (`scan`, `baseline update` and the MCP
+tools). Facts are extracted from bound symbols and metadata names, so the analyzed
+projects need ASP.NET Core references but Architecture Guardian does not. A project
+without those references has no endpoints. A selected ASP rule whose facts are
+unavailable yields an incomplete result (`aspnetcore-facts-unavailable`), never a clean one.
+
+Static analysis cannot see runtime composition. Every ASP diagnostic therefore carries
+a `classification` in JSON and SARIF reports (`classification` on `RuleViolation` in Core):
+
+| Classification | Meaning |
+| --- | --- |
+| `proven` | Source evidence establishes the violation |
+| `potential` | Evidence indicates a concern that static analysis cannot confirm |
+| `runtimeValidationRequired` | Static analysis cannot decide; validate in tests or at startup |
+
+Persistence means types from, or derived from or implementing types from, these
+namespaces and their descendants: `Dapper`, `Microsoft.Azure.Cosmos`, `Microsoft.Data`,
+`Microsoft.EntityFrameworkCore`, `MongoDB`, `MySqlConnector`, `Npgsql`,
+`Oracle.ManagedDataAccess` and `System.Data`.
+
+Supported static cases and runtime blind spots are published by
+`AspNetCoreRuleCatalog.Support` and summarized below. Unsupported shapes are never
+guessed: they are either skipped or classified as `runtimeValidationRequired`.
+
+## ASP001: Controller persistence access
+
+Controller types (deriving `ControllerBase`) must not use persistence types. Reported
+for constructor, field and property types on the controller itself, and for parameter
+and body uses in each public action. A type already reported on the controller is not
+repeated per action. A partial controller is analyzed as one type. Always `proven`.
+
+**Supported:** direct and derived persistence types, extension methods in persistence namespaces.
+**Blind spots:** persistence reached only through a non-persistence abstraction; reflection and `dynamic`.
+
+```csharp
+// Invalid: the controller receives a database connection.
+public class OrdersController(System.Data.IDbConnection connection) : ControllerBase { }
+// Valid: it depends on an application service.
+public class OrdersController(IOrderService orders) : ControllerBase { }
+```
+
+## ASP002: Declared endpoint authorization
+
+Every controller action and minimal API endpoint must declare `[Authorize]`,
+`RequireAuthorization()` or an explicit `[AllowAnonymous]`/`AllowAnonymous()`.
+`AllowAnonymous` at any level wins over a requirement. Missing declarations are `proven`;
+a route group received as a parameter, field or helper result is
+`runtimeValidationRequired`.
+
+**Supported:** attributes on actions, controllers and base classes; conventions on a Map call chain,
+on `MapGroup` chains, and on a local variable initialized with one or configured in a later statement.
+An inherited action is reported once on each concrete controller; an override or hiding method replaces it.
+Framework conventions and attributes must come from referenced assemblies, so a source method with the
+same name, even in a `Microsoft.AspNetCore.*` namespace, declares nothing.
+**Blind spots:** fallback authorization policy and authorization middleware are not inspected;
+policy contents are not evaluated. Declare intent in source or confirm effective authorization with integration tests.
+
+## ASP003: Service lifetime mismatches
+
+A singleton must not capture a scoped service. Statically registered implementations are
+followed through their longest public constructor and through transient services.
+All-scoped targets registered in the singleton's project are `proven`; a target also
+registered with another lifetime, a capture that relies on another project's registration
+(which may belong to a separate container), or more than one public constructor is
+`potential`; a singleton created by a factory delegate is `runtimeValidationRequired`
+because its dependencies are hidden.
+
+**Supported:** `AddSingleton`/`AddScoped`/`AddTransient` and `TryAdd*` with generic or `typeof`
+arguments, and `AddDbContext`/`AddDbContextPool` (scoped by default). Registering an instance is allowed.
+**Blind spots:** separate containers within one project are not distinguished; assembly
+scanning, keyed services, conditional registrations and registrations in other assemblies. Enable `ValidateScopes` and `ValidateOnBuild` to confirm container behavior.
+
+## ASP004: Minimal API persistence access
+
+Minimal API handlers written as lambdas or method groups must not use persistence types in
+parameters or bodies. Always `proven`. **Blind spots:** handlers held in delegate variables;
+persistence behind a non-persistence abstraction.
+
+## ASP005: Application abstraction dependencies
+
+Controllers and endpoints must receive abstractions. An injected concrete (non-abstract) class
+declared in another source project is `proven`. Injection means controller constructor parameters,
+`[FromServices]` parameters and `[FromServices]` minimal API parameters; unattributed minimal API
+class parameters are not treated as injected because their binding is inferred at runtime.
+Persistence types are reported by ASP001/ASP004 only.
+**Blind spots:** which concrete type the container supplies for an abstraction.
+
 ## Compiler scope
 
 The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002/AG004 for bound semantic
@@ -407,5 +504,6 @@ uses between assemblies present in its supplied policy and ownership metadata. A
 explicit restrictions on all bound target assemblies. The adapter shares Core's
 IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
 spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable
-compiler configuration and is an operational adapter diagnostic, outside AG001–AG006.
+compiler configuration and is an operational adapter diagnostic, outside AG001–AG006. ASP001–ASP005 are
+solution-only: the compiler adapter does not evaluate them.
 Compiler results do not establish whole-solution coverage or cycle compliance.

@@ -12,6 +12,7 @@ namespace ArchitectureGuardian.Mcp.Tools;
 /// <param name="Evidence">All supporting facts and source spans.</param>
 /// <param name="Remediation">Correction guidance.</param>
 /// <param name="DocumentationUrl">Canonical rule documentation URL.</param>
+/// <param name="Classification">proven, potential or runtimeValidationRequired for ASP rules; null for other rules.</param>
 internal sealed record AnalysisDiagnostic(
     string Id,
     string RuleId,
@@ -21,4 +22,5 @@ internal sealed record AnalysisDiagnostic(
     DiagnosticTarget Target,
     IReadOnlyList<DiagnosticEvidence> Evidence,
     string Remediation,
-    string DocumentationUrl);
+    string DocumentationUrl,
+    string? Classification = null);

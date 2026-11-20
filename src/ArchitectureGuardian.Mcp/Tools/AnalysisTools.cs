@@ -91,7 +91,8 @@ internal sealed class AnalysisTools(WorkspaceFiles files, IOptions<WorkspaceOpti
         cancellationToken.ThrowIfCancellationRequested();
         var diagnostics = result.Diagnostics.Select(item => new AnalysisDiagnostic(item.Id, item.RuleId,
             item.Severity.ToString().ToLowerInvariant(), item.Message, item.Location, item.Target, item.Evidence,
-            item.Remediation, item.DocumentationUrl.AbsoluteUri)).ToArray();
+            item.Remediation, item.DocumentationUrl.AbsoluteUri,
+            item.Violation.Classification is { } kind ? char.ToLowerInvariant(kind.ToString()[0]) + kind.ToString()[1..] : null)).ToArray();
         var counts = new DiagnosticCounts(diagnostics.Length,
                 result.Diagnostics.Count(item => item.Severity == DiagnosticSeverity.Info),
                 result.Diagnostics.Count(item => item.Severity == DiagnosticSeverity.Warning),

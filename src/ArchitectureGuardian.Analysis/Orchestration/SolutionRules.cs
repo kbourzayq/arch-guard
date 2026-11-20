@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Core.Dependencies;
+using ArchitectureGuardian.Core.Frameworks.AspNetCore;
 using ArchitectureGuardian.Core.Rules;
 
 namespace ArchitectureGuardian.Analysis.Orchestration;
@@ -9,5 +10,7 @@ public static class SolutionRules
     /// <summary>Gets the immutable implementation inventory; policy selection remains explicit and independent.</summary>
     public static IReadOnlyList<IArchitectureRule<DependencyBuildResult>> All { get; } =
         Array.AsReadOnly<IArchitectureRule<DependencyBuildResult>>([new ModuleDependenciesRule(), new LayerDependenciesRule(),
-            new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule(), new DomainInfrastructureRule()]);
+            new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule(), new DomainInfrastructureRule(),
+            new ControllerPersistenceRule(), new DeclaredAuthorizationRule(), new ServiceLifetimesRule(), new ApiPersistenceRule(),
+            new ApplicationAbstractionsRule()]);
 }

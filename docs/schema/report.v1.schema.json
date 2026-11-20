@@ -380,6 +380,13 @@
             "additionalProperties": false
           }
         },
+        "classification": {
+          "enum": [
+            "proven",
+            "potential",
+            "runtimeValidationRequired"
+          ]
+        },
         "publicContracts": {
           "type": "array",
           "items": {

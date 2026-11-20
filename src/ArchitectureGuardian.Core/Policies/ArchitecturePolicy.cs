@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Core.Diagnostics;
+using ArchitectureGuardian.Core.Frameworks.AspNetCore;
 using ArchitectureGuardian.Core.Rules;
 
 namespace ArchitectureGuardian.Core.Policies;
@@ -25,9 +26,9 @@ public sealed class ArchitecturePolicy
 
         foreach (var ruleId in rules.Keys)
         {
-            if (RuleCatalog.All.All(rule => rule.Id != ruleId))
+            if (RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).All(rule => rule.Id != ruleId))
             {
-                throw new ArgumentException($"rules.{ruleId}: Unknown rule ID; supported IDs are AG001–AG006 (case-sensitive).");
+                throw new ArgumentException($"rules.{ruleId}: Unknown rule ID; supported IDs are AG001–AG006 and ASP001–ASP005 (case-sensitive).");
             }
         }
 

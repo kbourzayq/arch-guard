@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Core.Analysis;
+using ArchitectureGuardian.Core.Frameworks.AspNetCore;
 using ArchitectureGuardian.Core.Repositories;
 
 namespace ArchitectureGuardian.Core.Dependencies;
@@ -11,7 +12,9 @@ public sealed class DependencyBuildResult
     /// <param name="graph">The available graph, or null when no graph could be constructed.</param>
     /// <param name="status">The combined coverage outcome.</param>
     /// <param name="issues">Operational issues explaining unfinished coverage.</param>
-    public DependencyBuildResult(RepositoryModel? repository, DependencyGraph? graph, AnalysisStatus status, IEnumerable<AnalysisIssue>? issues = null)
+    /// <param name="aspNetCore">ASP.NET Core facts, or null when no selected rule required them.</param>
+    public DependencyBuildResult(RepositoryModel? repository, DependencyGraph? graph, AnalysisStatus status, IEnumerable<AnalysisIssue>? issues = null,
+        AspNetCoreFacts? aspNetCore = null)
     {
         var coverage = new AnalysisResult(status, issues: issues);
         if (status == AnalysisStatus.Completed && (graph is null || repository is null))
@@ -21,6 +24,7 @@ public sealed class DependencyBuildResult
 
         Repository = repository;
         Graph = graph;
+        AspNetCore = aspNetCore;
         Status = coverage.Status;
         Issues = coverage.Issues;
     }
@@ -29,6 +33,8 @@ public sealed class DependencyBuildResult
     public RepositoryModel? Repository { get; }
     /// <summary>Gets the available graph; inspect coverage before evaluating or claiming a clean result.</summary>
     public DependencyGraph? Graph { get; }
+    /// <summary>Gets the extracted ASP.NET Core facts, or null when no selected rule needed them.</summary>
+    public AspNetCoreFacts? AspNetCore { get; }
     /// <summary>Gets combined workspace, normalization and extraction coverage.</summary>
     public AnalysisStatus Status { get; }
     /// <summary>Gets immutable operational issues in canonical order.</summary>

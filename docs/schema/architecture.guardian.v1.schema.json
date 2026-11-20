@@ -48,6 +48,21 @@
         },
         "AG006": {
           "$ref": "#/$defs/severity"
+        },
+        "ASP001": {
+          "$ref": "#/$defs/severity"
+        },
+        "ASP002": {
+          "$ref": "#/$defs/severity"
+        },
+        "ASP003": {
+          "$ref": "#/$defs/severity"
+        },
+        "ASP004": {
+          "$ref": "#/$defs/severity"
+        },
+        "ASP005": {
+          "$ref": "#/$defs/severity"
         }
       }
     },
@@ -337,7 +352,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^((layer|module):[A-Za-z][A-Za-z0-9_.-]*|rule:AG00[1-6])$"
+            "pattern": "^((layer|module):[A-Za-z][A-Za-z0-9_.-]*|rule:(AG00[1-6]|ASP00[1-5]))$"
           }
         }
       }
