@@ -65,14 +65,28 @@ artifact, checks the tag/version/commit and SHA-256 manifest, then publishes tho
 packages to nuget.org without rebuilding them. Normal PR CI also runs package
 validation. A local passing run does not establish that GitHub CI passed.
 
+After publishing, the `github-release` job waits (up to 40 minutes) until nuget.org
+lists all three package versions, then creates the GitHub release for the tag.
+`eng/release-notes.py` writes its notes from the tag's own `CHANGELOG.md` entry, with
+the tagged commit, the workflow run and package links. The job marks the release as
+Latest only when the tag is the highest version, and leaves an existing release for
+that tag unchanged, so hand-written notes are never overwritten. Add compatibility or
+known-limitation sections by editing the published release. To create notes for an
+older tag by hand:
+
+```sh
+python3 eng/release-notes.py notes --tag v0.4.1 --run-url <release workflow run URL>
+```
+
 See the [MVP release sign-off record](release-signoff-0.3.0.md) for candidate evidence,
 the squash-history changelog boundary and the remaining maintainer gates.
 
 ## Publish matching documentation
 
 GitHub Pages follows published stable releases independently of development docs
-on main. After the tagged NuGet workflow succeeds, verify all three package versions
-and publish the GitHub release for the same tag. Documentation refreshes on stable
+on main. The tagged NuGet workflow publishes the GitHub release once all three
+package versions are listed; if that job fails or times out, verify the packages and
+publish the release for the same tag manually. Documentation refreshes on stable
 GitHub release publication and successful completion of the repository's tag-triggered
 NuGet workflow; a manual docs run on main can retry it.
 
