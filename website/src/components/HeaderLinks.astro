@@ -1,12 +1,24 @@
 ---
 import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro';
-import { pagePath } from '../../scripts/site.mjs';
+import { content } from '../../scripts/release-source.mjs';
+import { pagePath, github } from '../../scripts/site.mjs';
+
+// Published builds name the tagged release they render; previews say they are unreleased.
+const release = content.kind === 'release';
 ---
 
+{release ? (
+  <a class="version-label" href={`${github}/releases/tag/${content.tag}`} title={`Documentation for release ${content.version}. View release notes.`}>v{content.version}</a>
+) : (
+  <span class="version-label unreleased" title="Development documentation. Commands may be unavailable in published packages.">dev</span>
+)}
 <a class="docs-link" href={pagePath('documentation')}>Documentation</a>
 <SocialIcons />
 
 <style>
   .docs-link { color: var(--ag-ink); font-size: .85rem; font-weight: 600; text-decoration: none; }
   .docs-link:hover { color: var(--ag-accent); text-decoration: underline; }
+  .version-label { padding: .1rem .45rem; border: 1px solid var(--sl-color-hairline); border-radius: 999px; color: var(--ag-muted); font-family: var(--sl-font-mono); font-size: .7rem; line-height: 1.4; text-decoration: none; white-space: nowrap; }
+  a.version-label:hover { border-color: var(--ag-accent); color: var(--ag-accent); }
+  .version-label.unreleased { border-style: dashed; }
 </style>
