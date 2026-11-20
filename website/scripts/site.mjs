@@ -46,6 +46,7 @@ export const sourceGroups = [
   { label: 'Reference', items: [
     ['docs/policy.md', 'policy', 'YAML policies & public contracts'],
     ['docs/rule-packs.md', 'rule-packs', 'Rule packs & extends'],
+    ['docs/packs/clean-architecture.md', 'pack-clean-architecture', 'Clean Architecture pack'],
     ['docs/rule-catalog.md', 'rule-catalog', 'Rules AG001–AG006'],
     ['docs/reports.md', 'reports', 'JSON & SARIF reports'],
     ['docs/semantic-accuracy.md', 'semantic-accuracy', 'Engine coverage & limitations'],

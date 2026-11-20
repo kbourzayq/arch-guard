@@ -1,0 +1,30 @@
+# Clean Architecture rule pack. Released versions are immutable; documentation: docs/packs/clean-architecture.md
+# yaml-language-server: $schema=../../../../../docs/schema/rule-pack.v1.schema.json
+manifest: 1
+id: clean-architecture
+version: 1.0.0
+description: Domain, Application, Infrastructure and Api layers whose dependencies point toward Domain.
+requires:
+  policySchema: 1
+  engine: 0.4.1
+rules:
+  AG002: error
+  AG006: error
+layers:
+  - id: Domain
+    projects: ["src/**/*.Domain.csproj"]
+    domainInfrastructure:
+      forbiddenNamespaces:
+        - Microsoft.AspNetCore
+        - Microsoft.EntityFrameworkCore
+        - System.Data
+        - System.Net.Http
+  - id: Application
+    projects: ["src/**/*.Application.csproj"]
+    allowedDependencies: [Domain]
+  - id: Infrastructure
+    projects: ["src/**/*.Infrastructure.csproj"]
+    allowedDependencies: [Application, Domain]
+  - id: Api
+    projects: ["src/**/*.Api.csproj"]
+    allowedDependencies: [Application, Domain, Infrastructure]

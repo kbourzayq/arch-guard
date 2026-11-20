@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Compliant" />
+    <BuildType Name="AG002" />
+    <BuildType Name="AG003" />
+    <BuildType Name="AG004" />
+    <BuildType Name="AG006" />
+  </Configurations>
+  <Project Path="src/Shop.Domain/Shop.Domain.csproj" />
+  <Project Path="src/Shop.Application/Shop.Application.csproj" />
+  <Project Path="src/Shop.Infrastructure/Shop.Infrastructure.csproj" />
+  <Project Path="src/Shop.Web/Shop.Web.csproj" />
+</Solution>

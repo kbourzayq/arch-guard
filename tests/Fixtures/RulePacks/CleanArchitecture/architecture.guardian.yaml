@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../../../../docs/schema/architecture.guardian.v1.schema.json
+version: 1
+extends:
+  - pack: clean-architecture
+    version: 1.0.0
+modules:
+  - id: Shop
+    projects: ["src/**/*.csproj"]
+layers:
+  # This repository names its entry point Shop.Web; only the selector changes, the pack's permissions remain.
+  - id: Api
+    projects: ["src/Shop.Web/*.csproj"]

@@ -2,6 +2,7 @@ using ArchitectureGuardian.ArchitectureTests.Changes;
 using ArchitectureGuardian.ArchitectureTests.Cli;
 using ArchitectureGuardian.ArchitectureTests.Mcp;
 using ArchitectureGuardian.ArchitectureTests.ReferenceSolutions;
+using ArchitectureGuardian.ArchitectureTests.RulePacks;
 using Xunit.Sdk;
 using Xunit.v3;
 
@@ -17,6 +18,7 @@ public sealed class WorkspaceCollectionOrderer : ITestCollectionOrderer
     private static readonly string[] LongestFirst =
     [
         nameof(ReferenceSolutionTests),
+        nameof(RulePackFixtureTests),
         nameof(CliDoctorTests),
         nameof(McpOnboardingWorkflowTests),
         nameof(CliOnboardingWorkflowTests),

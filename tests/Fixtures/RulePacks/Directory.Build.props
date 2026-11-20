@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Each labeled configuration enables exactly one violation scenario. -->
+    <DefineConstants Condition="'$(Configuration)' == 'AG002'">$(DefineConstants);AG002</DefineConstants>
+    <DefineConstants Condition="'$(Configuration)' == 'AG003'">$(DefineConstants);AG003</DefineConstants>
+    <DefineConstants Condition="'$(Configuration)' == 'AG004'">$(DefineConstants);AG004</DefineConstants>
+    <DefineConstants Condition="'$(Configuration)' == 'AG006'">$(DefineConstants);AG006</DefineConstants>
+  </PropertyGroup>
+</Project>
