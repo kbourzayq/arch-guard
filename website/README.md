@@ -45,7 +45,7 @@ DOCS_RELEASE_TAG=v0.3.0 npm run build
 In PowerShell, set `$env:DOCS_RELEASE_TAG = 'v0.3.0'` before the build and remove it
 afterward with `Remove-Item Env:DOCS_RELEASE_TAG`. Release builds materialize tagged
 Git content under ignored `artifacts/docs-source/` without switching the checkout.
-The version banner and generated `public/release.json` identify the content tag,
+The header version label and generated `public/release.json` identify the content tag,
 version and commit. Missing/mismatched tags fail without substituting main's text.
 Deployment additionally verifies public package availability.
 
