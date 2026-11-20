@@ -155,7 +155,7 @@ Selectors must cover exactly that scope, including referenced projects. See the
 
 `--configuration` defaults to `Debug`; `--framework <tfm>` is required for
 multi-targeted projects. Coverage applies to that configuration and framework.
-`scan` registers AG001–AG006 and runs only policy-selected IDs. AG006 enforces
+`scan` registers AG001–AG006 and ASP001–ASP005 and runs only policy-selected IDs. AG006 enforces
 layer-scoped domain technology restrictions and namespace exceptions; see the
 [policy guide](policy.md#domain-infrastructure-ag006).
 
@@ -240,7 +240,7 @@ future rules: inspection reports declarations rather than implementation availab
 archguard explain AG001
 ```
 
-`explain` resolves AG001–AG006 case-sensitively from the local catalog, prints the
+`explain` resolves AG001–AG006 and ASP001–ASP005 case-sensitively from the local catalog, prints the
 title and documentation URL, and states whether the current scan engine implements
 it. It requires no workspace, trust, policy or network. Unknown IDs return 2 with
 corrective guidance. Documentation links are not fetched automatically.

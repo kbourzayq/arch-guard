@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Core.Frameworks.AspNetCore;
 using ArchitectureGuardian.Core.Policies;
 using ArchitectureGuardian.Core.Rules;
 
@@ -54,6 +55,11 @@ internal sealed record RuleGuidance(
                             layer.DomainInfrastructure.ForbiddenNamespaces)
                         .Append(new("layers." + layer.Id + ".domainInfrastructure", "allowedNamespaces",
                             layer.DomainInfrastructure.AllowedNamespaces))).ToArray(), []),
+            _ when AspNetCoreRuleCatalog.Support.SingleOrDefault(item => item.RuleId == ruleId) is { } support => new RuleGuidance(
+                "Static ASP.NET Core analysis. Supported: " + string.Join(" ", support.SupportedCases)
+                    + " Runtime blind spots: " + string.Join(" ", support.RuntimeBlindSpots),
+                "Diagnostics are classified as Proven, Potential or RuntimeValidationRequired; validate runtime blind spots with tests or container validation.",
+                [new("rule:" + ruleId, "staticSupport", support.SupportedCases)], []),
             _ => throw new ArgumentOutOfRangeException(nameof(ruleId)),
         };
         if (guidance.PublicContracts.Length > 0)

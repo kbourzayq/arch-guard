@@ -17,7 +17,7 @@ namespace ArchitectureGuardian.Policy.Composition;
 internal sealed class PolicyFragmentReader
 {
     /// <summary>The canonical rule IDs this engine evaluates.</summary>
-    internal static readonly string[] RuleIds = ["AG001", "AG002", "AG003", "AG004", "AG005", "AG006"];
+    internal static readonly string[] RuleIds = ["AG001", "AG002", "AG003", "AG004", "AG005", "AG006", "ASP001", "ASP002", "ASP003", "ASP004", "ASP005"];
 
     private static readonly Regex PackIdPattern = new("\\A[a-z][a-z0-9]*(-[a-z0-9]+)*\\z", RegexOptions.CultureInvariant);
     private static readonly Regex VersionPattern = new("\\A(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\z",
@@ -219,7 +219,7 @@ internal sealed class PolicyFragmentReader
                         || value.StartsWith("rule:", StringComparison.Ordinal) && !RuleIds.Contains(value.Substring(5), StringComparer.Ordinal))
                     {
                         throw Error(targets[target].Start, targetPath,
-                            $"Invalid exclusion '{value}'. Use layer:ID, module:ID or rule:AG00N for a declaration or rule supplied by the pack.");
+                            $"Invalid exclusion '{value}'. Use layer:ID, module:ID or rule:ID for a declaration or rule supplied by the pack.");
                     }
 
                     if (exclusions.Any(item => item.Key == value))
@@ -332,7 +332,7 @@ internal sealed class PolicyFragmentReader
                 if (!RuleIds.Contains(id, StringComparer.Ordinal))
                 {
                     throw Error(key.Start, "$.rules." + id,
-                        $"Pack '{_fragment.PackId}@{_fragment.PackVersion}' requires rule '{id}', which this engine does not provide (AG001–AG006). Upgrade Architecture Guardian or pin a compatible pack version.");
+                        $"Pack '{_fragment.PackId}@{_fragment.PackVersion}' requires rule '{id}', which this engine does not provide (AG001–AG006, ASP001–ASP005). Upgrade Architecture Guardian or pin a compatible pack version.");
                 }
             }
         }
@@ -341,8 +341,8 @@ internal sealed class PolicyFragmentReader
         if (rules.Count == 0 && required)
         {
             throw Error(node.Start, "$.rules", pack
-                ? "Declare at least one rule ID this pack configures (AG001–AG006)."
-                : "Select at least one canonical rule (AG001–AG006).");
+                ? "Declare at least one rule ID this pack configures (AG001–AG006, ASP001–ASP005)."
+                : "Select at least one canonical rule (AG001–AG006, ASP001–ASP005).");
         }
 
         foreach (var pair in rules)

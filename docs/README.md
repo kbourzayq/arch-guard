@@ -58,7 +58,7 @@ tools and downloadable samples do not require an Architecture Guardian source ch
 Use the [CLI](cli.md), [MCP](mcp.md), [analyzer](compiler-analyzer.md) and
 [CI](ci.md) guides for integration. Exact contracts are in the [YAML reference](policy.md),
 [rule packs](rule-packs.md),
-[AG001–AG006 catalog](rule-catalog.md), [JSON/SARIF reports](reports.md),
+[AG001–AG006 and ASP001–ASP005 catalog](rule-catalog.md), [JSON/SARIF reports](reports.md),
 [baselines](baselines.md), [Git comparison](changes.md), and [compatibility policy](releases.md).
 Operational guidance covers [workspace loading](workspace-loading.md),
 [performance and telemetry](performance.md) and [troubleshooting](troubleshooting.md).

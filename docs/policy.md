@@ -285,7 +285,7 @@ does not select it. Exceptions do not override AG002 or AG005; see the
 
 ## Rule selection, severity and gates
 
-The `rules` mapping explicitly selects canonical IDs AG001–AG006. Omitted IDs are
+The `rules` mapping explicitly selects canonical IDs AG001–AG006 and ASP001–ASP005 (the [ASP.NET Core rules](rule-catalog.md#aspnet-core-rules-asp001asp005), which need no extra settings). Omitted IDs are
 not selected. Every selected ID has exactly one severity: `info`, `warning` or
 `error`. Selection is separate from reporting severity; `off` and `none` are invalid
 severities. The [rule catalog](rule-catalog.md) describes each identity.

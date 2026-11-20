@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Analysis.AspNetCore;
 using ArchitectureGuardian.Analysis.Repositories;
 using ArchitectureGuardian.Analysis.Telemetry;
 using ArchitectureGuardian.Analysis.Workspaces;
@@ -40,7 +41,24 @@ public sealed class DependencyGraphBuilder
 
         var result = await ExtractAsync(solution, new RepositoryInventory(repository.Id, repository.Projects),
             policyDirectory, normalized.Status, normalized.Issues, cancellationToken).ConfigureAwait(false);
-        return new(repository, result.Graph?.Aggregate(repository), result.Status, result.Issues);
+        var aspNetCore = await ExtractAspNetCoreAsync(solution, repository, policyDirectory, policy, result, cancellationToken).ConfigureAwait(false);
+        return new(repository, result.Graph?.Aggregate(repository), aspNetCore.Status, aspNetCore.Issues, aspNetCore.Facts);
+    }
+
+    /// <summary>Extracts ASP.NET Core facts only when a selected rule needs them, keeping other scans unchanged.</summary>
+    private static async Task<(AnalysisStatus Status, IReadOnlyList<AnalysisIssue> Issues, Core.Frameworks.AspNetCore.AspNetCoreFacts? Facts)>
+        ExtractAspNetCoreAsync(Microsoft.CodeAnalysis.Solution solution, RepositoryModel repository, string policyDirectory,
+            ArchitecturePolicy policy, DependencyInventoryResult graph, CancellationToken cancellationToken)
+    {
+        if (graph.Status is AnalysisStatus.Failed or AnalysisStatus.Cancelled
+            || !policy.SeverityPolicy.RuleSeverities.Keys.Any(id => id.StartsWith("ASP", StringComparison.Ordinal)))
+        {
+            return (graph.Status, graph.Issues, null);
+        }
+
+        var (facts, issues) = await AspNetCoreFactExtractor.ExtractAsync(solution, repository.Projects, policyDirectory, cancellationToken).ConfigureAwait(false);
+        var all = graph.Issues.Concat(issues).ToArray();
+        return (graph.Status == AnalysisStatus.Completed && all.Length > 0 ? AnalysisStatus.Incomplete : graph.Status, all, facts);
     }
 
     /// <summary>Extracts the same semantic evidence without policy ownership or architectural permissions.</summary>

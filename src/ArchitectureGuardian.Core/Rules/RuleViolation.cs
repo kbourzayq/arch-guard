@@ -15,11 +15,18 @@ public sealed class RuleViolation
     /// <param name="remediation">Guidance for correcting the violation.</param>
     /// <param name="location">The primary source range, when one is available.</param>
     /// <param name="context">Optional structured provenance supplied by the evaluator; not part of the v1 finding identity.</param>
+    /// <param name="classification">How much the evidence establishes, or null for rules that always prove their findings.</param>
     /// <exception cref="ArgumentNullException">A required argument is null.</exception>
     /// <exception cref="ArgumentException">Message or remediation is blank, or evidence is empty or contains null.</exception>
     public RuleViolation(RuleDescriptor rule, string message, DiagnosticTarget target,
-        IEnumerable<DiagnosticEvidence> evidence, string remediation, SourceLocation? location = null, ViolationContext? context = null)
+        IEnumerable<DiagnosticEvidence> evidence, string remediation, SourceLocation? location = null, ViolationContext? context = null,
+        ViolationClassification? classification = null)
     {
+        if (classification is { } value && !Enum.IsDefined(value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(classification));
+        }
+
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         ArgumentNullException.ThrowIfNull(target);
@@ -37,11 +44,21 @@ public sealed class RuleViolation
         Remediation = remediation;
         Location = location;
         Context = context;
+        Classification = classification;
         // The version tag allows future identity formats to be distinguished. Severity is excluded
         // so reporting policy can change without changing the identity of this snapshot's finding.
-        Id = CanonicalData.Hash(CanonicalData.Encode("ag-diagnostic-v1", rule.Id, target.Module, target.Symbol,
-            location?.CanonicalKey, message, remediation, rule.DocumentationUrl.AbsoluteUri,
-            CanonicalData.Encode(Evidence.Select(item => item.CanonicalKey).ToArray())));
+        var identity = new List<string?>
+        {
+            "ag-diagnostic-v1", rule.Id, target.Module, target.Symbol, location?.CanonicalKey, message, remediation,
+            rule.DocumentationUrl.AbsoluteUri, CanonicalData.Encode(Evidence.Select(item => item.CanonicalKey).ToArray()),
+        };
+        if (classification is not null)
+        {
+            // Appended only when present so identities of rules without classification are unchanged.
+            identity.Add(classification.ToString());
+        }
+
+        Id = CanonicalData.Hash(CanonicalData.Encode(identity.ToArray()));
     }
 
     /// <summary>Gets the lowercase SHA-256 identity of the versioned canonical finding content.</summary>
@@ -69,6 +86,10 @@ public sealed class RuleViolation
     /// <summary>Gets evaluator-owned explanation details, or null for findings without structured provenance.</summary>
     /// <remarks>This additive projection does not change the existing v1 diagnostic identity.</remarks>
     public ViolationContext? Context { get; }
+
+    /// <summary>Gets how much the evidence establishes, or null when the rule does not classify its findings.</summary>
+    /// <remarks>Rules whose analysis has runtime blind spots set this so consumers can separate proof from concerns.</remarks>
+    public ViolationClassification? Classification { get; }
 
     internal string SortKey => CanonicalData.Encode(Rule.Id, Id);
 }

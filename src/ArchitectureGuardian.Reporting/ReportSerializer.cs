@@ -96,6 +96,12 @@ public static class ReportSerializer
             ["description"] = item.Description,
             ["location"] = Location(item.Location, root),
         }).ToArray());
+        if (diagnostic.Violation.Classification is { } classification)
+        {
+            // Only rules with static blind spots classify findings, so AG report shape is unchanged.
+            result["classification"] = char.ToLowerInvariant(classification.ToString()[0]) + classification.ToString()[1..];
+        }
+
         result["publicContracts"] = new JsonArray((diagnostic.Violation.Context?.PublicContracts ?? [])
             .Select(value => (JsonNode)JsonValue.Create(value)!).ToArray());
         result["remediation"] = diagnostic.Remediation;
