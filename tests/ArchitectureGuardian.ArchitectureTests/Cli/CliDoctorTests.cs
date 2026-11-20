@@ -12,7 +12,7 @@ namespace ArchitectureGuardian.ArchitectureTests.Cli;
 
 /// <summary>Exercises diagnostic output, trust, environmental blockers and effective compiler installation using isolated consumers.</summary>
 [Trait("Category", "Integration")]
-[Collection(nameof(CliWorkspaceTests))]
+[Collection(nameof(CliDoctorTests))]
 public sealed class CliDoctorTests
 {
     /// <summary>Static diagnosis never runs build sentinels, restores assets or changes inputs; machine output is byte stable.</summary>

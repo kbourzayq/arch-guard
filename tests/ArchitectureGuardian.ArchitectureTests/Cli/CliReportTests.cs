@@ -6,7 +6,7 @@ using Xunit;
 namespace ArchitectureGuardian.ArchitectureTests.Cli;
 
 /// <summary>Exercises machine output through CLI composition, including Git comparison and operational failures.</summary>
-[Collection(nameof(CliWorkspaceTests))]
+[Collection(nameof(CliReportTests))]
 public sealed class CliReportTests
 {
     /// <summary>Partial reports stay parseable and report-write errors override analysis outcomes with exit two.</summary>

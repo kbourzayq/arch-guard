@@ -9,7 +9,7 @@ namespace ArchitectureGuardian.ArchitectureTests.Cli;
 
 /// <summary>Exercises explore, propose, review, validate and manual adoption through the CLI application.</summary>
 [Trait("Category", "Integration")]
-[Collection(nameof(CliWorkspaceTests))]
+[Collection(nameof(CliDiscoveryTests))]
 public sealed class CliDiscoveryTests
 {
     /// <summary>Proves byte stability across checkout paths/enumeration and preserves independently expected forbidden edges.</summary>

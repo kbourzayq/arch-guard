@@ -9,16 +9,18 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # Superseded pull-request pushes stop; main and release validation always finish.
+  group: ci-${{ github.workflow_ref }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  architecture-tests:
-    name: Architecture and CLI (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    # Windows runs of this job take 10-14 minutes; leave headroom so a slow runner is not cancelled after passing.
-    timeout-minutes: 25
+  static-checks:
+    # Formatting and benchmark compilation are OS-independent; checking them once keeps
+    # them off the test matrices' critical path.
+    name: Formatting and benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'
@@ -37,11 +39,82 @@ jobs:
         run: dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
       - name: Check formatting
         run: dotnet format ArchitectureGuardian.slnx --verify-no-changes --no-restore
-      - name: Test contracts, analysis, architecture boundaries and CLI
+      - name: Build, format and discover benchmarks
+        # Compile/discover the non-shipping suite without collecting timings on shared runners.
+        # Its own lock file and formatter keep tooling outside the solution.
+        run: |
+          dotnet restore benchmarks/ArchitectureGuardian.Benchmarks.csproj --locked-mode
+          dotnet build benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore
+          dotnet format benchmarks/ArchitectureGuardian.Benchmarks.csproj --verify-no-changes --no-restore
+          dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-build --no-restore -- --list flat
+
+  architecture-tests:
+    name: Architecture tests ${{ matrix.shard.name }} (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Shards balance measured namespace durations. The last shard excludes the
+        # others instead of listing namespaces, so new test namespaces always run.
+        shard:
+          - name: MCP
+            filter: FullyQualifiedName~ArchitectureGuardian.ArchitectureTests.Mcp.
+          - name: Changes
+            filter: FullyQualifiedName~ArchitectureGuardian.ArchitectureTests.Changes.
+          - name: CLI and others
+            filter: FullyQualifiedName!~ArchitectureGuardian.ArchitectureTests.Mcp.&FullyQualifiedName!~ArchitectureGuardian.ArchitectureTests.Changes.
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Restore locked dependencies
+        run: dotnet restore ArchitectureGuardian.slnx --locked-mode
+      - name: Build
+        run: dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
+      - name: Test architecture boundaries, CLI and MCP (${{ matrix.shard.name }})
         # xUnit v3 uses the VSTest adapter; retain VSTest filtering and TRX reporting.
-        # Separate runners keep both heavy suites off each other's critical path without
-        # increasing the two-workspace collection limit within either test host.
-        run: dotnet test tests/ArchitectureGuardian.ArchitectureTests/ArchitectureGuardian.ArchitectureTests.csproj --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
+        # Each shard runs on its own runner and keeps the assembly's collection limit.
+        run: dotnet test tests/ArchitectureGuardian.ArchitectureTests/ArchitectureGuardian.ArchitectureTests.csproj --configuration Release --no-build --no-restore -m:1 --filter "${{ matrix.shard.filter }}" --logger trx --results-directory TestResults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-architecture-${{ matrix.shard.name }}-${{ matrix.os }}
+          path: TestResults/*.trx
+
+  cli-validation:
+    name: CLI and report validation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Restore locked dependencies
+        run: dotnet restore ArchitectureGuardian.slnx --locked-mode
+      - name: Build
+        run: dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
@@ -54,13 +127,8 @@ jobs:
       - name: Verify independent CI gates and failure artifacts
         run: python eng/test-quality-gate.py
       - name: Verify portable onboarding skill and bundled YAML
-        # Interface scenarios run in the test assemblies above and in unit-tests.
+        # Interface scenarios run in the test assemblies.
         run: python eng/test-onboarding.py --portable-only
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-architecture-${{ matrix.os }}
-          path: TestResults/*.trx
 
   unit-tests:
     name: Unit and compiler tests (${{ matrix.os }})
@@ -86,14 +154,6 @@ jobs:
         run: dotnet restore ArchitectureGuardian.slnx --locked-mode
       - name: Build
         run: dotnet build ArchitectureGuardian.slnx --configuration Release --no-restore
-      - name: Build, format and discover benchmarks
-        # Compile/discover the non-shipping suite without collecting timings on shared runners.
-        # Its own lock file and formatter keep tooling outside the solution covered on every OS.
-        run: |
-          dotnet restore benchmarks/ArchitectureGuardian.Benchmarks.csproj --locked-mode
-          dotnet build benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore
-          dotnet format benchmarks/ArchitectureGuardian.Benchmarks.csproj --verify-no-changes --no-restore
-          dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-build --no-restore -- --list flat
       - name: Test compiler analyzer
         run: dotnet test tests/ArchitectureGuardian.Analyzers.Tests/ArchitectureGuardian.Analyzers.Tests.csproj --configuration Release --no-build --no-restore -m:1 --logger trx --results-directory TestResults
       - name: Test contracts and workspace analysis
@@ -109,7 +169,7 @@ jobs:
     # test or package-consumer matrix failed, was cancelled, or was skipped.
     name: Build and test (${{ matrix.os }})
     if: ${{ always() }}
-    needs: [architecture-tests, unit-tests, package-consumers]
+    needs: [static-checks, architecture-tests, cli-validation, unit-tests, package-consumers]
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -118,10 +178,15 @@ jobs:
     steps:
       - name: Require complete test and package-consumer matrices
         env:
+          STATIC_RESULT: ${{ needs.static-checks.result }}
           ARCHITECTURE_RESULT: ${{ needs.architecture-tests.result }}
+          CLI_RESULT: ${{ needs.cli-validation.result }}
           UNIT_RESULT: ${{ needs.unit-tests.result }}
           PACKAGE_RESULT: ${{ needs.package-consumers.result }}
-        run: test "$ARCHITECTURE_RESULT" = success && test "$UNIT_RESULT" = success && test "$PACKAGE_RESULT" = success
+        run: >-
+          test "$STATIC_RESULT" = success && test "$ARCHITECTURE_RESULT" = success &&
+          test "$CLI_RESULT" = success && test "$UNIT_RESULT" = success &&
+          test "$PACKAGE_RESULT" = success
 
   pack-distribution:
     name: Pack distribution
