@@ -1,16 +1,18 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using System.Xml.Linq;
 using ArchitectureGuardian.ArchitectureTests.Infrastructure;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Xunit;
 using Xunit.Sdk;
+using static ArchitectureGuardian.ArchitectureTests.Mcp.CorrectionFiles;
 
 namespace ArchitectureGuardian.ArchitectureTests.Mcp;
 
 /// <summary>Exercises a client's inspect, detect, explain, edit and verify loop against the production stdio executable.</summary>
+/// <remarks>Onboarding scenarios live in separate classes so these long workflows run as parallel collections.</remarks>
 [Trait("Category", "Integration")]
+[Collection(nameof(CorrectionWorkflowTests))]
 public sealed class CorrectionWorkflowTests
 {
     /// <summary>Only the client edits fixture inputs; fresh server calls verify a correction using the configured public contract.</summary>
@@ -118,180 +120,6 @@ public sealed class CorrectionWorkflowTests
         catch (Exception exception)
         {
             throw new XunitException($"{exception}\nServer stderr:\n{string.Join(Environment.NewLine, errors)}");
-        }
-    }
-
-    /// <summary>Manual onboarding works without discovery in either interface and revalidates the adopted path after a deliberate client decision.</summary>
-    [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task Onboarding_validates_a_separate_candidate_before_explicit_adoption(bool existingPolicy, bool useMcp)
-    {
-        using var fixture = new CorrectionFiles();
-        var active = Path.Combine(fixture.Root, "architecture.guardian.yaml");
-        var proposed = Path.Combine(fixture.Root, "architecture.guardian.proposed.yaml");
-        var candidate = await File.ReadAllBytesAsync(active, TestContext.Current.CancellationToken);
-        File.Move(active, proposed);
-        byte[]? approved = null;
-        if (existingPolicy)
-        {
-            // This approved policy deliberately allows implementation access. Review tightens only the candidate.
-            var previous = System.Text.Encoding.UTF8.GetString(candidate).Replace("contract:Library/api", "module:Library", StringComparison.Ordinal);
-            approved = System.Text.Encoding.UTF8.GetBytes(previous);
-            await File.WriteAllBytesAsync(active, approved, TestContext.Current.CancellationToken);
-        }
-
-        async Task Run(McpClient? client, CancellationToken token)
-        {
-            async Task<JsonDocument> Scan(string policy, bool complete, bool passed)
-            {
-                if (client is not null)
-                {
-                    var arguments = Arguments();
-                    arguments["policyPath"] = policy;
-                    using var rules = Parse(await fixture.Call(client, "list_rules", new() { ["policyPath"] = policy }, token));
-                    Assert.Equal("AG001", Assert.Single(rules.RootElement.GetProperty("rules").EnumerateArray(), rule => rule.GetProperty("selected").GetBoolean()).GetProperty("id").GetString());
-                    using var architecture = Parse(await fixture.Call(client, "get_architecture", arguments, token));
-                    var response = Parse(await fixture.Call(client, "analyze_solution", arguments, token));
-                    Assert.Equal(complete, response.RootElement.GetProperty("status").GetString() == "completed");
-                    Assert.Equal(complete ? passed ? "passed" : "failed" : "not-evaluated", response.RootElement.GetProperty("gateOutcome").GetString());
-                    return response;
-                }
-
-                var common = new[] { Path.Combine(fixture.Root, "Correction.slnx"), "--policy", Path.Combine(fixture.Root, policy), "--configuration", "Release", "--trusted" };
-                var inspection = await Repository.Dotnet(TimeSpan.FromSeconds(60), [Path.Combine(AppContext.BaseDirectory, "ArchitectureGuardian.Cli.dll"), "inspect", .. common]);
-                Assert.Equal(complete ? 0 : 2, inspection.ExitCode);
-                var result = await Repository.Dotnet(TimeSpan.FromSeconds(60), [Path.Combine(AppContext.BaseDirectory, "ArchitectureGuardian.Cli.dll"), "scan", .. common, "--format", "json"]);
-                Assert.True(result.ExitCode == (complete ? passed ? 0 : 1 : 2), result.Output + result.Error);
-                var json = JsonDocument.Parse(result.Output);
-                Assert.Equal(complete, json.RootElement.GetProperty("status").GetString() == "completed");
-                Assert.Equal(complete ? passed ? "passed" : "failed" : "notEvaluated", json.RootElement.GetProperty("gateOutcome").GetString());
-                return json;
-            }
-
-            // No restored assets: an empty/partial result must stay unresolved in the chosen interface.
-            using var unavailable = await Scan("architecture.guardian.proposed.yaml", complete: false, passed: false);
-            Assert.NotEmpty(unavailable.RootElement.GetProperty("issues").EnumerateArray());
-            await fixture.Restore();
-            using var before = await Scan("architecture.guardian.proposed.yaml", complete: true, passed: false);
-            Assert.Equal("AG001", Assert.Single(before.RootElement.GetProperty("diagnostics").EnumerateArray()).GetProperty("ruleId").GetString());
-            Assert.Equal(candidate, await File.ReadAllBytesAsync(proposed, token));
-            if (existingPolicy) { Assert.Equal(approved, await File.ReadAllBytesAsync(active, token)); }
-            else { Assert.False(File.Exists(active)); }
-
-            // Refusing replacement preserves an existing policy; no helper may silently choose adoption.
-            if (existingPolicy)
-            {
-                Assert.Throws<IOException>(() => File.Copy(proposed, active, overwrite: false));
-                Assert.Equal(approved, await File.ReadAllBytesAsync(active, token));
-            }
-
-            // Scripted developer approval: adopt the reviewed bytes, then validate the active path too.
-            File.Copy(proposed, active, overwrite: existingPolicy);
-            using var adopted = await Scan("architecture.guardian.yaml", complete: true, passed: false);
-            await fixture.Correct(token);
-            await fixture.Restore();
-            using var after = await Scan("architecture.guardian.yaml", complete: true, passed: true);
-            Assert.Empty(after.RootElement.GetProperty("diagnostics").EnumerateArray());
-            Assert.Equal(candidate, await File.ReadAllBytesAsync(active, token));
-        }
-
-        if (useMcp) { await ToolRegistrationTests.WithServer(Run, root: fixture.Root, trusted: true); }
-        else { await Run(null, TestContext.Current.CancellationToken); }
-    }
-
-    private static Dictionary<string, object?> Arguments() => new()
-    {
-        ["inputPath"] = "Correction.slnx",
-        ["policyPath"] = "architecture.guardian.yaml",
-        ["configuration"] = "Release"
-    };
-
-    private static void AssertComplete(JsonElement result)
-    {
-        Assert.True(result.GetProperty("status").GetString() == "completed", result.GetRawText());
-        Assert.Empty(result.GetProperty("issues").EnumerateArray());
-    }
-
-    private static JsonDocument Parse(CallToolResult result)
-    {
-        var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
-        Assert.False(result.IsError, text);
-        Assert.Equal(text, result.StructuredContent!.Value.GetRawText());
-        return JsonDocument.Parse(text);
-    }
-
-    /// <summary>Owns an isolated fixture copy and checks that every tool call preserves all non-build inputs byte for byte.</summary>
-    private sealed class CorrectionFiles : IDisposable
-    {
-        internal string Root { get; } = Path.Combine(Path.GetTempPath(), "archguard-correction-" + Guid.NewGuid().ToString("N"));
-
-        internal CorrectionFiles()
-        {
-            var source = Path.Combine(Repository.Root, "tests", "Fixtures", "AgentCorrection");
-            foreach (var file in Inputs(source))
-            {
-                var destination = Path.Combine(Root, Path.GetRelativePath(source, file));
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Copy(file, destination);
-            }
-            File.Copy(Path.Combine(Repository.Root, "global.json"), Path.Combine(Root, "global.json"));
-        }
-
-        internal async Task Restore()
-        {
-            var result = await Repository.Dotnet(TimeSpan.FromSeconds(60), "restore", Path.Combine(Root, "Correction.slnx"),
-                "-p:Configuration=Release", "--disable-parallel", "--disable-build-servers");
-            Assert.True(result.ExitCode == 0, result.Output + result.Error);
-        }
-
-        internal async Task InitializeGit()
-        {
-            File.WriteAllText(Path.Combine(Root, ".gitignore"), "**/bin/\n**/obj/\n");
-            await ChangeInputFiles.GitAt(Root, "init", "-b", "main");
-            await ChangeInputFiles.GitAt(Root, "add", ".");
-            await ChangeInputFiles.GitAt(Root, "-c", "user.name=Architecture Tests", "-c", "user.email=tests@example.invalid", "commit", "-m", "seeded violation");
-        }
-
-        internal async Task Correct(CancellationToken token)
-        {
-            await File.WriteAllTextAsync(Path.Combine(Root, "Consumer", "Checkout.cs"), """
-                namespace Consumer;
-
-                public sealed class Checkout
-                {
-                    public void Pay(Library.Contracts.IInvoice invoice) => invoice.Pay();
-                }
-                """, token);
-            var path = Path.Combine(Root, "Consumer", "Consumer.csproj");
-            var project = XDocument.Load(path);
-            project.Descendants("ProjectReference").Single(reference =>
-                reference.Attribute("Include")!.Value == "../Library.Implementation/Library.Implementation.csproj").Remove();
-            project.Save(path);
-        }
-
-        internal async Task<CallToolResult> Call(McpClient client, string tool, Dictionary<string, object?> arguments, CancellationToken token)
-        {
-            var before = Snapshot();
-            var result = await client.CallToolAsync(tool, arguments, cancellationToken: token);
-            var after = Snapshot();
-            Assert.Equal(before.Keys.Order(StringComparer.Ordinal), after.Keys.Order(StringComparer.Ordinal));
-            foreach (var (path, bytes) in before) { Assert.Equal(bytes, after[path]); }
-            return result;
-        }
-
-        private Dictionary<string, byte[]> Snapshot() => Inputs(Root).ToDictionary(path => Path.GetRelativePath(Root, path), File.ReadAllBytes, StringComparer.Ordinal);
-
-        private static IEnumerable<string> Inputs(string root) => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
-            .Where(path => !Path.GetRelativePath(root, path).Split(Path.DirectorySeparatorChar).Any(part => part is "bin" or "obj"));
-
-        /// <summary>Removes fixture inputs and build outputs after the protocol client has shut down.</summary>
-        public void Dispose()
-        {
-            foreach (var file in Directory.EnumerateFiles(Root, "*", SearchOption.AllDirectories)) { File.SetAttributes(file, FileAttributes.Normal); }
-            Directory.Delete(Root, recursive: true);
         }
     }
 }

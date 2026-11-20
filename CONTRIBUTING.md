@@ -84,8 +84,12 @@ to `IDisposable.Dispose` when both are implemented.
 Use `TestContext.Current.CancellationToken` for cancellable test operations unless
 the scenario deliberately supplies its own token. Cleanup that must restore shared
 fixtures after cancellation uses an explicit `CancellationToken.None`. Workspace
-test assemblies use `[assembly: Parallelization(MaxThreads = 2)]` to bound
-concurrent collections.
+test assemblies bound concurrent collections with `[assembly: Parallelization]`:
+`ArchitectureGuardian.Tests` uses two threads and `ArchitectureGuardian.ArchitectureTests`
+uses three. xUnit runs the tests of one collection serially, and each class is its own
+collection unless it opts into a shared one. Keep long workflow scenarios in separate
+classes, each with an isolated fixture, so they can run in parallel, and add new long
+collections to `WorkspaceCollectionOrderer` so they start first.
 
 For fast feedback after a build:
 
@@ -96,13 +100,19 @@ dotnet test tests/ArchitectureGuardian.Tests/ArchitectureGuardian.Tests.csproj -
 Use `--filter "Category=Integration"` for the unit-test project's MSBuild/Roslyn
 workspace integration tests. CLI process and evaluated dependency checks live in
 `ArchitectureGuardian.ArchitectureTests`; run the full solution suite before submitting
-code. On each OS, CI runs architecture/CLI checks and unit/compiler checks on
-independent runners. Each test host retains its two-collection limit and `-m:1`;
-this removes the wait between heavy suites without oversubscribing one runner.
-The unit runner executes both unit-test assemblies sequentially. The existing
-`Build and test (<os>)` check names are aggregate gates: both full test matrices
-must succeed, including schema validation and all package-consumer checks, before
-any of those gates can pass.
+code. On each OS, CI runs these jobs on independent runners:
+
+- `ArchitectureGuardian.ArchitectureTests` in three filtered shards (`Mcp`, `Changes`,
+  and everything else). The last shard excludes the first two rather than listing
+  namespaces, so a new test namespace always runs.
+- The repository, report, quality-gate and onboarding scripts under `eng/`.
+- Both unit-test assemblies, one after the other.
+
+Formatting and benchmark compilation do not depend on the OS, so they run once on
+Linux. Each test host keeps its collection limit and `-m:1`. The existing
+`Build and test (<os>)` check names are aggregate gates: every job above, including
+schema validation and all package-consumer checks, must succeed before any of those
+gates can pass. CI cancels superseded runs of a pull request.
 All tests still run on Linux, Windows and macOS. Fixture restore and individual
 workspace CLI checks retain bounded process deadlines; trusted MCP scenarios use a
 three-minute aggregate budget for their multiple full workspace calls. The process
