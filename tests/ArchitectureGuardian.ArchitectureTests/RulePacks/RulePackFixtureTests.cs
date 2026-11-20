@@ -27,6 +27,9 @@ public sealed class RulePackFixtureTests(RulePackFixture fixture) : IClassFixtur
     [InlineData("CleanArchitecture", "Compliant", "", null)]
     [InlineData("CleanArchitecture", "AG002", "AG002", "src/Shop.Application/Checkout.cs")]
     [InlineData("CleanArchitecture", "AG006", "AG006", "src/Shop.Domain/Order.cs")]
+    [InlineData("ModularMonolith", "Compliant", "", null)]
+    [InlineData("ModularMonolith", "AG003", "AG003", "src/Modules/Billing/Billing.Application/InvoiceCalculator.cs")]
+    [InlineData("ModularMonolith", "AG004", "AG001,AG004", "src/Modules/Orders/Orders.Application/Checkout.cs")]
     public async Task Pack_fixtures_match_expected_outcomes(string solution, string configuration, string expectedRules,
         string? scenarioFile)
     {

@@ -1,0 +1,32 @@
+# Modular Monolith rule pack. Released versions are immutable; documentation: docs/packs/modular-monolith.md
+# yaml-language-server: $schema=../../../../../docs/schema/rule-pack.v1.schema.json
+manifest: 1
+id: modular-monolith
+version: 1.0.0
+description: Logical modules spanning several projects, communicating only through declared public contract projects.
+requires:
+  policySchema: 1
+  engine: 0.4.1
+rules:
+  AG001: error
+  AG002: error
+  AG003: error
+  AG004: error
+modules:
+  # The composition root. Policies list the modules or contracts it may reference in allowedDependencies.
+  - id: Host
+    projects: ["src/Host/**/*.csproj"]
+layers:
+  - id: Contracts
+    projects: ["src/Modules/**/*.Contracts.csproj"]
+  - id: Domain
+    projects: ["src/Modules/**/*.Domain.csproj"]
+  - id: Application
+    projects: ["src/Modules/**/*.Application.csproj"]
+    allowedDependencies: [Contracts, Domain]
+  - id: Infrastructure
+    projects: ["src/Modules/**/*.Infrastructure.csproj"]
+    allowedDependencies: [Application, Contracts, Domain]
+  - id: Host
+    projects: ["src/Host/**/*.csproj"]
+    allowedDependencies: [Application, Contracts, Domain, Infrastructure]

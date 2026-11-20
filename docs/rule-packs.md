@@ -11,6 +11,7 @@ Built-in packs:
 | Pack | Version | Use it for | Guide |
 | --- | --- | --- | --- |
 | `clean-architecture` | `1.0.0` | Domain/Application/Infrastructure/Api layers pointing inward | [Clean Architecture pack](packs/clean-architecture.md) |
+| `modular-monolith` | `1.0.0` | Multi-project logical modules talking through contract projects | [Modular Monolith pack](packs/modular-monolith.md) |
 
 ## Extend a pack
 
