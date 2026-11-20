@@ -6,7 +6,11 @@ gate. A repository policy opts in to packs with `extends`, then overrides only t
 settings that differ in that repository. Packs never change rule semantics; they
 configure the same AG001–AG006 rules described in the [rule catalog](rule-catalog.md).
 
-Built-in packs are listed here as they are released.
+Built-in packs:
+
+| Pack | Version | Use it for | Guide |
+| --- | --- | --- | --- |
+| `clean-architecture` | `1.0.0` | Domain/Application/Infrastructure/Api layers pointing inward | [Clean Architecture pack](packs/clean-architecture.md) |
 
 ## Extend a pack
 

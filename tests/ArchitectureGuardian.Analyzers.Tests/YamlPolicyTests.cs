@@ -149,9 +149,51 @@ public sealed class YamlPolicyTests
         Assert.Empty(await Analyze(Yaml, source: $"using unsafe Callback = {signature}; public class Order {{ }}"));
     }
 
+    /// <summary>Compiler hosts compose built-in packs and local packs supplied as AdditionalFiles.</summary>
+    [Fact]
+    public async Task Rule_packs_compose_in_compiler_hosts()
+    {
+        const string modules = """
+            modules:
+              - id: Orders
+                projects: [Orders/*.csproj]
+              - id: Billing
+                projects: [Billing/*.csproj]
+            """;
+        // The project selectors override the pack's defaults; the inherited matrix forbids Application -> Infrastructure.
+        var builtIn = "version: 1\nextends:\n  - pack: clean-architecture\n    version: 1.0.0\n" + modules
+            + "\nlayers:\n  - id: Application\n    projects: [Orders/*.csproj]\n  - id: Infrastructure\n    projects: [Billing/*.csproj]\n";
+        var diagnostic = Assert.Single(await Analyze(builtIn));
+        Assert.Equal("AG002", diagnostic.Id);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+
+        var local = "version: 1\nextends:\n  - pack: team\n    version: 1.0.0\n    path: packs/team\n" + modules;
+        const string manifest = """
+            manifest: 1
+            id: team
+            version: 1.0.0
+            requires:
+              policySchema: 1
+              engine: 0.1.0
+            rules:
+              AG002: warning
+            layers:
+              - id: Application
+                projects: [Orders/*.csproj]
+              - id: Infrastructure
+                projects: [Billing/*.csproj]
+            """;
+        var fromPack = Assert.Single(await Analyze(local, extraFiles: ("packs/team/pack.yaml", manifest)));
+        Assert.Equal("AG002", fromPack.Id);
+        Assert.Equal(DiagnosticSeverity.Warning, fromPack.Severity);
+        var missing = Assert.Single(await Analyze(local));
+        Assert.Equal("AG000", missing.Id);
+        Assert.Contains("AdditionalFiles", missing.GetMessage(), StringComparison.Ordinal);
+    }
+
     private static async Task<Diagnostic[]> Analyze(string yaml, bool inMemory = true, ReportDiagnostic? setting = null,
         bool missingContext = false, bool missingReferenceIdentity = false, string? extraPolicy = null, bool omitReferenceMetadata = false,
-        string source = "public class Order : Billing.Service { }")
+        string source = "public class Order : Billing.Service { }", params (string Path, string Text)[] extraFiles)
     {
         var references = new[] { MetadataReference.CreateFromFile(typeof(object).Assembly.Location) };
         var billing = CSharpCompilation.Create("Custom.Billing", [CSharpSyntaxTree.ParseText("namespace Billing { public class Service { } }")],
@@ -171,6 +213,7 @@ public sealed class YamlPolicyTests
         var project = new TextFile(Path.Combine(Root, "Billing", "UnrelatedFilename.csproj"), null);
         var files = omitReferenceMetadata ? ImmutableArray.Create<AdditionalText>(policy) : ImmutableArray.Create<AdditionalText>(policy, project);
         if (extraPolicy is not null) { files = files.Add(new TextFile(Path.Combine(Root, "extra", extraPolicy), "invalid")); }
+        files = files.AddRange(extraFiles.Select(file => (AdditionalText)new TextFile(Path.Combine(Root, file.Path), file.Text)));
         var options = new Options(missingContext ? new Dictionary<string, string>() : new()
         {
             ["build_property.MSBuildProjectFullPath"] = Path.Combine(Root, "Orders", "AlsoUnrelated.csproj"),
