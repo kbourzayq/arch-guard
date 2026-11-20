@@ -19,4 +19,10 @@
   <Project Path="ModularMonolith/src/Modules/Billing/Billing.Application/Billing.Application.csproj" />
   <Project Path="ModularMonolith/src/Modules/Billing/Billing.Infrastructure/Billing.Infrastructure.csproj" />
   <Project Path="ModularMonolith/src/Host/Monolith.Host/Monolith.Host.csproj" />
+  <Project Path="VerticalSlice/src/SharedKernel/Shop.SharedKernel/Shop.SharedKernel.csproj" />
+  <Project Path="VerticalSlice/src/Features/Catalog/Catalog.Contracts/Catalog.Contracts.csproj" />
+  <Project Path="VerticalSlice/src/Features/Catalog/Catalog.Feature/Catalog.Feature.csproj" />
+  <Project Path="VerticalSlice/src/Features/Ordering/Ordering.Contracts/Ordering.Contracts.csproj" />
+  <Project Path="VerticalSlice/src/Features/Ordering/Ordering.Feature/Ordering.Feature.csproj" />
+  <Project Path="VerticalSlice/src/Host/Slices.Host/Slices.Host.csproj" />
 </Solution>

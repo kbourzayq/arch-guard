@@ -12,6 +12,7 @@ Built-in packs:
 | --- | --- | --- | --- |
 | `clean-architecture` | `1.0.0` | Domain/Application/Infrastructure/Api layers pointing inward | [Clean Architecture pack](packs/clean-architecture.md) |
 | `modular-monolith` | `1.0.0` | Multi-project logical modules talking through contract projects | [Modular Monolith pack](packs/modular-monolith.md) |
+| `vertical-slice` | `1.0.0` | Feature slices isolated from each other, sharing a kernel | [Vertical Slice pack](packs/vertical-slice.md) |
 
 ## Extend a pack
 

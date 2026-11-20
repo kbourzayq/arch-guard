@@ -30,6 +30,8 @@ public sealed class RulePackFixtureTests(RulePackFixture fixture) : IClassFixtur
     [InlineData("ModularMonolith", "Compliant", "", null)]
     [InlineData("ModularMonolith", "AG003", "AG003", "src/Modules/Billing/Billing.Application/InvoiceCalculator.cs")]
     [InlineData("ModularMonolith", "AG004", "AG001,AG004", "src/Modules/Orders/Orders.Application/Checkout.cs")]
+    [InlineData("VerticalSlice", "Compliant", "", null)]
+    [InlineData("VerticalSlice", "AG004", "AG001,AG004", "src/Features/Ordering/Ordering.Feature/PlaceOrder.cs")]
     public async Task Pack_fixtures_match_expected_outcomes(string solution, string configuration, string expectedRules,
         string? scenarioFile)
     {

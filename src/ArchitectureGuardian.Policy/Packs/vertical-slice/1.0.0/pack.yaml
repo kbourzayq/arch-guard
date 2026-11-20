@@ -1,0 +1,33 @@
+# Vertical Slice Architecture rule pack. Released versions are immutable; documentation: docs/packs/vertical-slice.md
+# yaml-language-server: $schema=../../../../../docs/schema/rule-pack.v1.schema.json
+manifest: 1
+id: vertical-slice
+version: 1.0.0
+description: Feature slices isolated from each other's implementation, sharing only a shared kernel and declared slice contracts.
+requires:
+  policySchema: 1
+  engine: 0.4.1
+rules:
+  AG001: error
+  AG002: error
+  AG003: error
+  AG004: error
+modules:
+  # Policies declare each slice as a module and allow module:SharedKernel plus any approved slice contracts.
+  # The whole shared kernel is a public contract, so AG004 permits shared abstractions.
+  - id: SharedKernel
+    projects: ["src/SharedKernel/**/*.csproj"]
+    contracts:
+      - id: kernel
+        projects: ["src/SharedKernel/**/*.csproj"]
+  - id: Host
+    projects: ["src/Host/**/*.csproj"]
+layers:
+  - id: SharedKernel
+    projects: ["src/SharedKernel/**/*.csproj"]
+  - id: Slices
+    projects: ["src/Features/**/*.csproj"]
+    allowedDependencies: [SharedKernel]
+  - id: Host
+    projects: ["src/Host/**/*.csproj"]
+    allowedDependencies: [SharedKernel, Slices]

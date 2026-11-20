@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Catalog.Contracts/Catalog.Contracts.csproj" />
+    <ProjectReference Include="../../../SharedKernel/Shop.SharedKernel/Shop.SharedKernel.csproj" />
+  </ItemGroup>
+</Project>

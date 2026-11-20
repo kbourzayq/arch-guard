@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Ordering.Contracts/Ordering.Contracts.csproj" />
+    <ProjectReference Include="../../Catalog/Catalog.Contracts/Catalog.Contracts.csproj" />
+    <ProjectReference Include="../../../SharedKernel/Shop.SharedKernel/Shop.SharedKernel.csproj" />
+    <ProjectReference Include="../../Catalog/Catalog.Feature/Catalog.Feature.csproj" Condition="'$(Configuration)' == 'AG004'" />
+  </ItemGroup>
+</Project>
