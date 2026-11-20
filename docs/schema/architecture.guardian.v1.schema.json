@@ -2,45 +2,124 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/kbourzayq/arch-guard/blob/main/docs/schema/architecture.guardian.v1.schema.json",
   "title": "Architecture Guardian policy v1",
-  "description": "Structural schema. Loading additionally checks unique identities and declared references; inventory resolution checks selector coverage and overlaps.",
+  "description": "Structural schema. Loading additionally checks unique identities, declared references and rule-pack composition; inventory resolution checks selector coverage and overlaps. A policy that extends packs may declare partial entries that override inherited fields.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "modules", "layers", "rules"],
+  "required": [
+    "version"
+  ],
   "properties": {
-    "version": { "type": "integer", "const": 1 },
-    "modules": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "extends": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/module" }
+      "items": {
+        "$ref": "#/$defs/packReference"
+      },
+      "description": "Pinned rule packs. A policy's own settings override inherited ones field by field; sibling packs that disagree must be overridden here."
+    },
+    "modules": {
+      "type": "array"
     },
     "layers": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/layer" }
+      "type": "array"
     },
     "rules": {
       "type": "object",
-      "minProperties": 1,
       "additionalProperties": false,
       "properties": {
-        "AG001": { "$ref": "#/$defs/severity" },
-        "AG002": { "$ref": "#/$defs/severity" },
-        "AG003": { "$ref": "#/$defs/severity" },
-        "AG004": { "$ref": "#/$defs/severity" },
-        "AG005": { "$ref": "#/$defs/severity" },
-        "AG006": { "$ref": "#/$defs/severity" }
+        "AG001": {
+          "$ref": "#/$defs/severity"
+        },
+        "AG002": {
+          "$ref": "#/$defs/severity"
+        },
+        "AG003": {
+          "$ref": "#/$defs/severity"
+        },
+        "AG004": {
+          "$ref": "#/$defs/severity"
+        },
+        "AG005": {
+          "$ref": "#/$defs/severity"
+        },
+        "AG006": {
+          "$ref": "#/$defs/severity"
+        }
       }
     },
     "gate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["failOn"],
-      "properties": { "failOn": { "$ref": "#/$defs/severity" } }
+      "required": [
+        "failOn"
+      ],
+      "properties": {
+        "failOn": {
+          "$ref": "#/$defs/severity"
+        }
+      }
+    }
+  },
+  "if": {
+    "required": [
+      "extends"
+    ]
+  },
+  "then": {
+    "properties": {
+      "modules": {
+        "items": {
+          "$ref": "#/$defs/moduleOverride"
+        }
+      },
+      "layers": {
+        "items": {
+          "$ref": "#/$defs/layerOverride"
+        }
+      }
+    }
+  },
+  "else": {
+    "required": [
+      "modules",
+      "layers",
+      "rules"
+    ],
+    "properties": {
+      "modules": {
+        "minItems": 1,
+        "items": {
+          "$ref": "#/$defs/module"
+        }
+      },
+      "layers": {
+        "minItems": 1,
+        "items": {
+          "$ref": "#/$defs/layer"
+        }
+      },
+      "rules": {
+        "minProperties": 1
+      }
     }
   },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$" },
-    "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ]
+    },
     "selectors": {
       "type": "array",
       "minItems": 1,
@@ -53,51 +132,214 @@
         }
       }
     },
-    "contract": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "projects"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "projects": { "$ref": "#/$defs/selectors" }
+    "namespaces": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"
       }
     },
-    "module": {
+    "contractShape": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "projects"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "projects": { "$ref": "#/$defs/selectors" },
-        "contracts": { "type": "array", "items": { "$ref": "#/$defs/contract" } },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "projects": {
+          "$ref": "#/$defs/selectors"
+        }
+      }
+    },
+    "moduleShape": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "projects": {
+          "$ref": "#/$defs/selectors"
+        },
+        "contracts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contractShape"
+          }
+        },
         "allowedDependencies": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^(module:[A-Za-z][A-Za-z0-9_.-]*|contract:[A-Za-z][A-Za-z0-9_.-]*/[A-Za-z][A-Za-z0-9_.-]*)$" }
+          "items": {
+            "type": "string",
+            "pattern": "^(module:[A-Za-z][A-Za-z0-9_.-]*|contract:[A-Za-z][A-Za-z0-9_.-]*/[A-Za-z][A-Za-z0-9_.-]*)$"
+          }
         },
-        "forbiddenAssemblies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
-        "forbiddenNamespaces": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } }
+        "forbiddenAssemblies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          }
+        },
+        "forbiddenNamespaces": {
+          "$ref": "#/$defs/namespaces"
+        }
       }
     },
-    "layer": {
+    "layerShape": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "projects"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "projects": { "$ref": "#/$defs/selectors" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "projects": {
+          "$ref": "#/$defs/selectors"
+        },
         "domainInfrastructure": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "forbiddenAssemblies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
-            "forbiddenNamespaces": { "$ref": "#/$defs/layer/properties/forbiddenNamespaces" },
-            "allowedNamespaces": { "$ref": "#/$defs/layer/properties/forbiddenNamespaces" }
+            "forbiddenAssemblies": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$"
+              }
+            },
+            "forbiddenNamespaces": {
+              "$ref": "#/$defs/namespaces"
+            },
+            "allowedNamespaces": {
+              "$ref": "#/$defs/namespaces"
+            }
           }
         },
-        "allowedDependencies": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
-        "forbiddenAssemblies": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
-        "forbiddenNamespaces": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" } }
+        "allowedDependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "forbiddenAssemblies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          }
+        },
+        "forbiddenNamespaces": {
+          "$ref": "#/$defs/namespaces"
+        }
+      }
+    },
+    "module": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/moduleShape"
+        },
+        {
+          "required": [
+            "id",
+            "projects"
+          ],
+          "properties": {
+            "contracts": {
+              "items": {
+                "required": [
+                  "id",
+                  "projects"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "moduleOverride": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/moduleShape"
+        },
+        {
+          "required": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "layer": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/layerShape"
+        },
+        {
+          "required": [
+            "id",
+            "projects"
+          ]
+        }
+      ]
+    },
+    "layerOverride": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/layerShape"
+        },
+        {
+          "required": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "packId": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "packVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})$",
+      "description": "An exact MAJOR.MINOR.PATCH version; ranges are unsupported."
+    },
+    "packReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack",
+        "version"
+      ],
+      "properties": {
+        "pack": {
+          "$ref": "#/$defs/packId"
+        },
+        "version": {
+          "$ref": "#/$defs/packVersion"
+        },
+        "path": {
+          "type": "string",
+          "description": "Local pack directory relative to the root policy directory; omit for a built-in pack.",
+          "minLength": 1,
+          "not": {
+            "pattern": "(^/|/$|//|(^|/)\\.{1,2}(/|$)|[\\\\:\\t\\r\\n])"
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^((layer|module):[A-Za-z][A-Za-z0-9_.-]*|rule:AG00[1-6])$"
+          }
+        }
       }
     }
   }

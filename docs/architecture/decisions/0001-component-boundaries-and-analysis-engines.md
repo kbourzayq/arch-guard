@@ -620,3 +620,35 @@ source, references or baselines; review, validation and manual adoption remain
 distinct steps. Namespace/feature slices remain report limitations under project-based
 schema v1. See [discovery](../../discovery.md) for released-version availability,
 determinism, contexts, report schema and the complete workflow.
+
+## F31–F34: versioned rule packs and `extends` composition
+
+Delivery: [F31](https://github.com/kbourzayq/arch-guard/issues/31),
+[F32](https://github.com/kbourzayq/arch-guard/issues/32),
+[F33](https://github.com/kbourzayq/arch-guard/issues/33),
+[F34](https://github.com/kbourzayq/arch-guard/issues/34).
+
+Rule packs are declarative policy fragments, not plugins. Composition lives in the
+portable `ArchitectureGuardian.Policy` reader so the solution engine and compiler
+host resolve the same packs with the same precedence; no project or package
+dependency changes. Built-in packs are immutable, version-addressed embedded
+resources of that assembly. Local packs are read through the `IPolicyPackResolver`
+port: Configuration reads files confined below the root policy directory, rejecting
+links and oversized manifests, and the analyzer reads only compilation
+AdditionalFiles. A reader without a resolver accepts built-in packs only.
+
+A policy's own settings override inherited settings at field granularity; packs in
+one `extends` array are equal-precedence siblings, so differing values for the same
+setting fail unless the extending document overrides it. This keeps results
+independent of list order and makes every override visible in reviewed YAML.
+Exclusions remove a pack's declaration together with the permissions that target it.
+References pin exact versions; a pack resolved with two identities, cycles, unknown
+or incompatible manifests (policy schema, minimum engine, unsupported rule IDs or
+unknown fields) fail with located configuration errors instead of reducing coverage.
+The composed result passes the unchanged v1 validation and ownership resolution.
+
+No extension code is loaded or executed. Rule logic stays in the engine and packs can
+only select AG001–AG006 and configure their inputs, so the trust boundary is the
+same review applied to the policy. The Clean Architecture, Modular Monolith and
+Vertical Slice packs ship with labeled compliant/violating fixture solutions that the
+architecture tests scan end to end. See [rule packs](../../rule-packs.md).

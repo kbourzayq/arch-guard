@@ -2,20 +2,24 @@ using ArchitectureGuardian.Configuration.Validation;
 using ArchitectureGuardian.Core.Diagnostics;
 using ArchitectureGuardian.Core.Policies;
 using ArchitectureGuardian.Policy;
+using ArchitectureGuardian.Policy.Packs;
 
 namespace ArchitectureGuardian.Configuration.Yaml;
 
 /// <summary>Loads strict YAML through the portable reader and adapts it into Core policy contracts.</summary>
 public sealed class YamlPolicyLoader : IPolicyLoader
 {
-    /// <summary>Reads and validates a UTF-8 policy file asynchronously.</summary>
-    /// <param name="path">The explicit policy path.</param>
+    /// <summary>Reads and validates a UTF-8 policy file asynchronously, composing the rule packs it extends.</summary>
+    /// <param name="path">The explicit policy path. Local packs resolve below its directory.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>A validated Core architecture policy.</returns>
+    /// <exception cref="PolicyConfigurationException">The policy or a pack is invalid, unavailable, incompatible or conflicting.</exception>
+    /// <exception cref="IOException">The policy or a local pack manifest cannot be read.</exception>
     public async Task<ArchitecturePolicy> LoadAsync(string path, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return Parse(await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false), path, cancellationToken);
+        var yaml = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+        return Parse(yaml, path, new FilePolicyPackResolver(Path.GetDirectoryName(Path.GetFullPath(path))!), cancellationToken);
     }
 
     /// <summary>Parses YAML with the same schema, validation and selector semantics used by the compiler.</summary>
@@ -23,12 +27,18 @@ public sealed class YamlPolicyLoader : IPolicyLoader
     /// <param name="sourcePath">The path used in configuration errors.</param>
     /// <param name="cancellationToken">Cooperative cancellation.</param>
     /// <returns>A validated Core architecture policy.</returns>
+    /// <exception cref="PolicyConfigurationException">
+    /// The policy is invalid, or extends a local pack, which requires <see cref="LoadAsync"/> and a policy file location.
+    /// </exception>
     public ArchitecturePolicy Parse(string yaml, string sourcePath = "architecture.guardian.yaml",
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) => Parse(yaml, sourcePath, null, cancellationToken);
+
+    private static ArchitecturePolicy Parse(string yaml, string sourcePath, IPolicyPackResolver? packResolver,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var document = new PolicyDocumentReader().Parse(yaml, sourcePath, cancellationToken);
+            var document = new PolicyDocumentReader().Parse(yaml, sourcePath, packResolver, cancellationToken);
             var modules = document.Modules.Select(module => new ModulePolicy(module.Id, module.Projects.Select(pattern => pattern.Value),
                 module.Contracts.Select(contract => new ContractPolicy(contract.Id, contract.Projects.Select(pattern => pattern.Value))),
                 module.AllowedDependencies, module.ForbiddenAssemblies, module.ForbiddenNamespaces));

@@ -68,8 +68,8 @@ gate:
   failOn: error
 ```
 
-`version`, `modules`, `layers` and `rules` are required. The version is the integer
-`1`. Modules, layers, project-selector lists and selected rules must be nonempty.
+`version`, `modules`, `layers` and `rules` are required unless the policy uses
+[`extends`](#rule-packs). The version is the integer `1`. Modules, layers, project-selector lists and selected rules must be nonempty.
 Module and layer IDs are unique within their respective collections; contract IDs
 are unique within their module. IDs follow `[A-Za-z][A-Za-z0-9_.-]*` and compare
 ordinally, including case. Module and layer IDs may share a spelling.
@@ -79,9 +79,10 @@ default to empty lists. Layers may also declare the optional
 [`domainInfrastructure`](#domain-infrastructure-ag006) object. `gate` defaults to
 `failOn: error`; when present it must contain `failOn`. Duplicate list values,
 duplicate YAML keys, missing fields, unknown fields and unknown rule IDs are errors.
-No policy inheritance, environment expansion, implicit exclusion or fallback policy
-is supported. Settings such as `extends`, `enabled`, `off`, baselines,
-`allowIncomplete` and custom rule options are rejected instead of ignored.
+Inheritance is available only through pinned [rule packs](#rule-packs). Environment
+expansion, implicit exclusion and fallback policies are unsupported. Settings such as
+`enabled`, `off`, baselines, `allowIncomplete` and custom rule options are rejected
+instead of ignored.
 
 The schema supports editor validation through a comment such as:
 
@@ -96,6 +97,33 @@ a policy. YAML must be one tree-shaped data document. Aliases, anchors, merge ke
 explicit tags and YAML version directives are unsupported. Quote glob strings;
 strings resembling null, booleans or numbers also require quotes. The loader accepts
 at most 32 nesting levels and 100,000 parser events and performs no network calls.
+
+## Rule packs
+
+`extends` composes versioned [rule packs](rule-packs.md) into the policy before
+validation and resolution:
+
+```yaml
+version: 1
+extends:
+  - pack: clean-architecture
+    version: 1.0.0
+    exclude: ["layer:Api"]
+modules:
+  - id: Shop
+    projects: ["src/**/*.csproj"]
+layers:
+  - id: Domain
+    projects: ["src/Shop.Core/*.csproj"]
+```
+
+With `extends`, module, layer and contract entries may contain only `id` plus the
+fields they override; the document's settings replace inherited ones field by field.
+Sibling packs that disagree about a setting fail until the policy overrides it.
+Versions are exact, local packs are confined to the policy directory, and packs never
+execute code. The composed policy must still declare complete modules, layers and
+rules. See [rule packs](rule-packs.md) for precedence, conflicts, exclusions,
+compatibility and the [built-in packs](rule-packs.md#rule-packs-and-extends).
 
 ## Project identities and globs
 

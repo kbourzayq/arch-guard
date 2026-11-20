@@ -1,5 +1,6 @@
 using ArchitectureGuardian.Policy;
 using ArchitectureGuardian.Policy.Documents;
+using ArchitectureGuardian.Policy.Packs;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -25,7 +26,8 @@ internal sealed partial class CompilerPolicy
         CancellationToken cancellationToken)
     {
         var text = file.GetText(cancellationToken) ?? throw new ArgumentException("Cannot read YAML policy AdditionalFile.");
-        var document = new PolicyDocumentReader().Parse(text.ToString(), file.Path, cancellationToken);
+        var document = new PolicyDocumentReader().Parse(text.ToString(), file.Path,
+            new AdditionalFilePackResolver(file, options.AdditionalFiles), cancellationToken);
         var policy = new CompilerPolicy { _rules = document.Rules };
         foreach (var module in document.Modules)
         {
@@ -113,4 +115,24 @@ internal sealed partial class CompilerPolicy
     }
 
     private static StringComparison PathComparison => Path.DirectorySeparatorChar == '\\' ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+    /// <summary>Supplies local rule-pack manifests only from compiler AdditionalFiles, without file-system access.</summary>
+    /// <param name="policy">The YAML policy AdditionalFile that anchors relative pack paths.</param>
+    /// <param name="files">The compilation's additional files.</param>
+    private sealed class AdditionalFilePackResolver(AdditionalText policy, IEnumerable<AdditionalText> files) : IPolicyPackResolver
+    {
+        /// <summary>Finds the AdditionalFiles item at the manifest's full path below the policy directory.</summary>
+        /// <param name="request">The validated pack request.</param>
+        /// <param name="cancellationToken">Cooperative cancellation.</param>
+        /// <returns>The manifest, or null when the build did not supply it.</returns>
+        public PolicyPackSource? Resolve(PolicyPackRequest request, CancellationToken cancellationToken)
+        {
+            var manifest = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(policy.Path))!,
+                request.ManifestPath.Replace('/', Path.DirectorySeparatorChar)));
+            var file = files.FirstOrDefault(candidate => string.Equals(Path.GetFullPath(candidate.Path), manifest, PathComparison));
+            var text = file?.GetText(cancellationToken);
+            return file is null ? null : new PolicyPackSource(file.Path,
+                text?.ToString() ?? throw new ArgumentException("Cannot read the pack manifest AdditionalFile."));
+        }
+    }
 }

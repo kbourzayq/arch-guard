@@ -244,6 +244,9 @@ adjusting instructions that reference it.
 | AG005 | Modules and layers avoid configured assemblies and namespace trees. |
 | AG006 | Selected layers avoid configured technology dependencies, with namespace exceptions. |
 
+Start from a built-in [rule pack](docs/rule-packs.md) for Clean Architecture,
+Modular Monolith or Vertical Slice conventions, then override only what differs.
+
 Findings retain evidence, locations when available, deterministic identities and
 remediation. Analysis does not infer runtime dependencies through reflection or
 injection. Read the [rule catalog](docs/rule-catalog.md),
