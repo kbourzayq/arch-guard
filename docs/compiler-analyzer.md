@@ -45,6 +45,9 @@ If the consuming repository uses central package management, declare
 
 Use the same `architecture.guardian.yaml` as your CLI/MCP scans. Earlier XML-only
 packages require the [legacy snapshot setup](#compiler-policy-snapshot).
+Built-in [rule packs](rule-packs.md) referenced by `extends` are embedded in the
+analyzer. The analyzer does not read files, so add each **local** pack's `pack.yaml`
+as another `AdditionalFiles` item; a missing manifest reports AG000.
 Authorize the consuming
 repository's build logic and run from its root, replacing `MyApp.slnx`:
 

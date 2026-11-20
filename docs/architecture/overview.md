@@ -15,8 +15,8 @@ records the decisions and constraints behind them.
 | Core contracts and rules | Rule catalog, findings, diagnostics, architecture/severity policy, project-policy resolution, requests, coverage outcomes, repository/module model, evidence graph and AG001–AG006 module/layer/cycle/implementation/reference evaluation | Extended rules |
 | Analysis | `AnalysisService<TContext>` over prepared contexts; shared CLI/MCP `SolutionAnalysisService`; trusted `.sln`/`.slnx`/`.csproj` loading through `MSBuildWorkspaceLoader`; repository normalization, dependency extraction and full-context Git comparison | Additional input adapters |
 | CLI | System.CommandLine help/version, `scan`, `baseline update`, `inspect`, `explain` and trusted `load`; development-source `init`/`doctor`; JSON/SARIF and doctor JSON output; installable `archguard` tool | Additional commands |
-| Policy | Portable strict YAML v1 parsing, declaration positions and source-shared selectors/contracts | Additional policy features |
-| Configuration | File loading through `IPolicyLoader` and adaptation from portable policy documents into Core | Additional policy features |
+| Policy | Portable strict YAML v1 parsing, declaration positions, source-shared selectors/contracts, versioned rule-pack manifests, deterministic `extends` composition and embedded built-in packs | Additional policy features |
+| Configuration | File loading through `IPolicyLoader`, confined local rule-pack resolution and adaptation from portable policy documents into Core | Additional policy features |
 | Compiler analyzer | netstandard2.0 Roslyn adapter, AG001/AG002/AG004/AG005/AG006 semantic uses, shared YAML / legacy XML, build metadata and labeled cross-engine parity | Extended rules |
 | MCP | Official C# SDK stdio transport and attributed discovery, bounded `get_architecture`, `list_rules`, `analyze_solution`, `explain_violation` and `analyze_changes` with full base/candidate comparison | Report export |
 | Reporting | JSON v1 and SARIF 2.1.0 serialization, portable locations and atomic file output; depends only on Core | Additional formats |
@@ -85,6 +85,7 @@ The service interface and its implementation live on opposite sides of this boun
 | Detect module cycles with reproducible paths and evidence | Core | [`ModuleCyclesRule`](../../src/ArchitectureGuardian.Core/Rules/ModuleCyclesRule.cs) |
 | Identify built-in checks and their help URLs | Core | [`RuleCatalog`](../../src/ArchitectureGuardian.Core/Rules/RuleCatalog.cs) |
 | Load YAML through a neutral port | Core / Configuration | [`IPolicyLoader`](../../src/ArchitectureGuardian.Core/Policies/IPolicyLoader.cs), [`YamlPolicyLoader`](../../src/ArchitectureGuardian.Configuration/Yaml/YamlPolicyLoader.cs) |
+| Compose pinned rule packs with deterministic precedence | Policy | [`PolicyComposer`](../../src/ArchitectureGuardian.Policy/Composition/PolicyComposer.cs), [`IPolicyPackResolver`](../../src/ArchitectureGuardian.Policy/Packs/IPolicyPackResolver.cs) |
 | Resolve project ownership and dependency permissions | Core | [`ResolvedPolicy`](../../src/ArchitectureGuardian.Core/Policies/ResolvedPolicy.cs) |
 | Check completed coverage and severity threshold | Core | [`GatePolicy`](../../src/ArchitectureGuardian.Core/Policies/GatePolicy.cs) |
 | Carry findings, reporting levels and coverage | Core | [`RuleViolation`](../../src/ArchitectureGuardian.Core/Rules/RuleViolation.cs), [`Diagnostic`](../../src/ArchitectureGuardian.Core/Diagnostics/Diagnostic.cs), [`AnalysisResult`](../../src/ArchitectureGuardian.Core/Analysis/AnalysisResult.cs) |
@@ -120,8 +121,8 @@ nested implementation helpers stay with their owner.
 | Analysis | `Discovery` | Static input guidance, policy-independent verified inventory and independent candidate compliance |
 | Analysis | `Workspaces` | Trusted workspace loading, SDK registration, build-context and coverage validation |
 | Analysis | `Doctor` | Reusable static installation diagnostics and trusted loading/ownership/compiler-setting checks; no rule evaluation or repairs |
-| Policy | `Documents` / project root | Portable parsing, validation and source positions |
-| Configuration | `Yaml` | File loading, Core adaptation and validated review-only proposal serialization |
+| Policy | `Documents` / `Composition` / `Packs` / project root | Portable parsing, validation and source positions / pack resolution and precedence / pack contracts and embedded manifests |
+| Configuration | `Yaml` | File loading, local rule-pack resolution, Core adaptation and validated review-only proposal serialization |
 | Configuration | `Validation` | Configuration error contracts with source positions |
 | Analyzers | `Policies` / project root | YAML / legacy XML validation and observed ownership / compilation-local semantic diagnostics |
 | MCP | `Hosting` / `Tools` / project root | SDK registration and workspace options / bounded architecture, rule and analysis schemas and tools / host bootstrap |

@@ -130,9 +130,10 @@ gate:
 ```
 
 This selection fragment runs all six rules; warnings remain visible below an
-error-threshold gate. Omit a rule to leave it inactive. `enabled`, `off`,
-per-rule scope selectors and policy inheritance are not supported YAML fields.
-Unknown keys and rule IDs fail validation instead of being ignored.
+error-threshold gate. Omit a rule to leave it inactive. `enabled`, `off` and
+per-rule scope selectors are not supported YAML fields. Unknown keys and rule IDs
+fail validation instead of being ignored. To reuse a convention, extend a pinned
+[rule pack](rule-packs.md) and override only what differs.
 
 For gradual adoption, review current findings and choose [baselines](baselines.md)
 or [Git comparisons](changes.md). These are scan options, not YAML fields.

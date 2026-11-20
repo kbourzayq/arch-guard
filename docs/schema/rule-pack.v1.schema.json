@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kbourzayq/arch-guard/blob/main/docs/schema/rule-pack.v1.schema.json",
+  "title": "Architecture Guardian rule-pack manifest v1",
+  "description": "Structural schema for pack.yaml. Packs are declarative policy fragments; they cannot contain or load code. Composition additionally checks compatibility, identities, cycles and conflicts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest",
+    "id",
+    "version",
+    "requires",
+    "rules"
+  ],
+  "properties": {
+    "manifest": {
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "$ref": "architecture.guardian.v1.schema.json#/$defs/packId"
+    },
+    "version": {
+      "$ref": "architecture.guardian.v1.schema.json#/$defs/packVersion"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policySchema",
+        "engine"
+      ],
+      "properties": {
+        "policySchema": {
+          "type": "integer",
+          "const": 1
+        },
+        "engine": {
+          "$ref": "architecture.guardian.v1.schema.json#/$defs/packVersion",
+          "description": "Minimum Architecture Guardian version."
+        }
+      }
+    },
+    "rules": {
+      "allOf": [
+        {
+          "$ref": "architecture.guardian.v1.schema.json#/properties/rules"
+        }
+      ],
+      "minProperties": 1
+    },
+    "extends": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "architecture.guardian.v1.schema.json#/$defs/packReference"
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "$ref": "architecture.guardian.v1.schema.json#/$defs/moduleOverride"
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "architecture.guardian.v1.schema.json#/$defs/layerOverride"
+      }
+    },
+    "gate": {
+      "$ref": "architecture.guardian.v1.schema.json#/properties/gate"
+    }
+  }
+}

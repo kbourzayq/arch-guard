@@ -35,6 +35,9 @@ obsolete hosts. Pin the same package version when comparing engines.
   solution engine; compiler counts/identities remain intentionally different.
 - NuGet versions and release tags are immutable. Select a new published version
   to receive a fix and keep the three integrations aligned when comparing behavior.
+- Built-in [rule packs](rule-packs.md) have their own versions. A released pack
+  version keeps its content in later tool releases; changes ship as a new pack
+  version that policies adopt by changing their pinned `version`.
 
 ## Upgrade deliberately
 
