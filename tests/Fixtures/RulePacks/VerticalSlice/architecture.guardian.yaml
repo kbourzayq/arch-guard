@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../../../docs/schema/architecture.guardian.v1.schema.json
+version: 1
+extends:
+  - pack: vertical-slice
+    version: 1.0.0
+modules:
+  # Each slice is a logical module; its Contracts project is the only part other slices may use.
+  - id: Catalog
+    projects: ["src/Features/Catalog/**/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["src/Features/Catalog/Catalog.Contracts/*.csproj"]
+    allowedDependencies: ["module:SharedKernel"]
+  - id: Ordering
+    projects: ["src/Features/Ordering/**/*.csproj"]
+    contracts:
+      - id: api
+        projects: ["src/Features/Ordering/Ordering.Contracts/*.csproj"]
+    allowedDependencies: ["module:SharedKernel", "contract:Catalog/api"]
+  - id: Host
+    allowedDependencies: ["contract:Catalog/api", "contract:Ordering/api"]

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../Features/Catalog/Catalog.Contracts/Catalog.Contracts.csproj" />
+    <ProjectReference Include="../../Features/Ordering/Ordering.Contracts/Ordering.Contracts.csproj" />
+  </ItemGroup>
+</Project>
