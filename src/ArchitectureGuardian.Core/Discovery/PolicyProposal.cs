@@ -6,9 +6,10 @@ namespace ArchitectureGuardian.Core.Discovery;
 public sealed class PolicyProposal
 {
     internal PolicyProposal(ArchitecturePolicy? policy, IEnumerable<DiscoveryOwnership> ownership,
-        IEnumerable<DiscoveryInference> inferences, IEnumerable<string> questions)
+        IEnumerable<DiscoveryInference> inferences, IEnumerable<string> questions, PolicyPackSuggestion? pack = null)
     {
         Policy = policy;
+        Pack = policy is null ? null : pack;
         Ownership = Array.AsReadOnly(ownership.OrderBy(item => item.ProjectPath, StringComparer.Ordinal).ToArray());
         Inferences = Array.AsReadOnly(inferences.OrderBy(item => item.Kind, StringComparer.Ordinal)
             .ThenBy(item => item.Subject, StringComparer.Ordinal).ToArray());
@@ -17,6 +18,8 @@ public sealed class PolicyProposal
 
     /// <summary>Gets a candidate policy only when every verified project has unambiguous candidate ownership.</summary>
     public ArchitecturePolicy? Policy { get; }
+    /// <summary>Gets the built-in rule pack that <see cref="Policy"/> is equivalent to extending, or null for a standalone policy.</summary>
+    public PolicyPackSuggestion? Pack { get; }
     /// <summary>Gets candidate ownership; missing projects remain explicit unresolved questions.</summary>
     public IReadOnlyList<DiscoveryOwnership> Ownership { get; }
     /// <summary>Gets evidence-backed suggestions, independently of observations.</summary>

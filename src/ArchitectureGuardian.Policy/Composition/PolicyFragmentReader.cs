@@ -17,7 +17,8 @@ namespace ArchitectureGuardian.Policy.Composition;
 internal sealed class PolicyFragmentReader
 {
     /// <summary>The canonical rule IDs this engine evaluates.</summary>
-    internal static readonly string[] RuleIds = ["AG001", "AG002", "AG003", "AG004", "AG005", "AG006", "ASP001", "ASP002", "ASP003", "ASP004", "ASP005", "EF001", "EF002", "EF003"];
+    internal static readonly string[] RuleIds = ["AG001", "AG002", "AG003", "AG004", "AG005", "AG006", "ASP001", "ASP002", "ASP003", "ASP004", "ASP005", "EF001", "EF002", "EF003",
+        "ABP001", "ABP002", "ABP003", "ABP004", "ABP005"];
 
     private static readonly Regex PackIdPattern = new("\\A[a-z][a-z0-9]*(-[a-z0-9]+)*\\z", RegexOptions.CultureInvariant);
     private static readonly Regex VersionPattern = new("\\A(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\z",
@@ -53,7 +54,7 @@ internal sealed class PolicyFragmentReader
         var root = Load(yaml, "policy", cancellationToken);
         _fragment = new PolicyFragment(Origin(root, "$"));
         _fragment.Locations["$"] = Position(root.Start);
-        var fields = Map(root, "$", ["version"], ["extends", "modules", "layers", "rules", "gate", "entityFrameworkCore"]);
+        var fields = Map(root, "$", ["version"], ["extends", "modules", "layers", "rules", "gate", "entityFrameworkCore", "abp"]);
         if (fields["version"] is not YamlScalarNode { Value: "1", Style: ScalarStyle.Plain })
         {
             throw Error(fields["version"].Start, "$.version", "Unsupported schema version. Use the integer version: 1.");
@@ -79,6 +80,7 @@ internal sealed class PolicyFragmentReader
         ReadRules(fields, required: !extended, pack: false);
         ReadGate(fields);
         ReadEntityFrameworkCore(fields);
+        ReadAbp(fields);
         cancellationToken.ThrowIfCancellationRequested();
         return _fragment;
     }
@@ -93,7 +95,7 @@ internal sealed class PolicyFragmentReader
         var root = Load(yaml, "pack manifest", cancellationToken);
         _fragment = new PolicyFragment(Origin(root, "$"));
         var fields = Map(root, "$", ["manifest", "id", "version", "requires", "rules"],
-            ["description", "extends", "modules", "layers", "gate", "entityFrameworkCore"]);
+            ["description", "extends", "modules", "layers", "gate", "entityFrameworkCore", "abp"]);
         if (fields["manifest"] is not YamlScalarNode { Value: "1", Style: ScalarStyle.Plain })
         {
             throw Error(fields["manifest"].Start, "$.manifest", "Unsupported pack manifest version. Use the integer manifest: 1.");
@@ -116,6 +118,7 @@ internal sealed class PolicyFragmentReader
         ReadRules(fields, required: true, pack: true);
         ReadGate(fields);
         ReadEntityFrameworkCore(fields);
+        ReadAbp(fields);
         cancellationToken.ThrowIfCancellationRequested();
         return _fragment;
     }
@@ -334,7 +337,7 @@ internal sealed class PolicyFragmentReader
                 if (!RuleIds.Contains(id, StringComparer.Ordinal))
                 {
                     throw Error(key.Start, "$.rules." + id,
-                        $"Pack '{_fragment.PackId}@{_fragment.PackVersion}' requires rule '{id}', which this engine does not provide (AG001–AG006, ASP001–ASP005, EF001–EF003). Upgrade Architecture Guardian or pin a compatible pack version.");
+                        $"Pack '{_fragment.PackId}@{_fragment.PackVersion}' requires rule '{id}', which this engine does not provide (AG001–AG006, ASP001–ASP005, EF001–EF003, ABP001–ABP005). Upgrade Architecture Guardian or pin a compatible pack version.");
                 }
             }
         }
@@ -343,8 +346,8 @@ internal sealed class PolicyFragmentReader
         if (rules.Count == 0 && required)
         {
             throw Error(node.Start, "$.rules", pack
-                ? "Declare at least one rule ID this pack configures (AG001–AG006, ASP001–ASP005, EF001–EF003)."
-                : "Select at least one canonical rule (AG001–AG006, ASP001–ASP005, EF001–EF003).");
+                ? "Declare at least one rule ID this pack configures (AG001–AG006, ASP001–ASP005, EF001–EF003, ABP001–ABP005)."
+                : "Select at least one canonical rule (AG001–AG006, ASP001–ASP005, EF001–EF003, ABP001–ABP005).");
         }
 
         foreach (var pair in rules)
@@ -381,6 +384,23 @@ internal sealed class PolicyFragmentReader
             values => new EntityFrameworkCorePolicy(persistenceLayers: values), allowEmpty: true);
         AddValues(settings, "forbiddenApis", scope, PolicySlotKey.EntityFrameworkCore("forbiddenApis"),
             values => new EntityFrameworkCorePolicy(forbiddenApis: values), allowEmpty: true);
+    }
+
+    private void ReadAbp(Dictionary<string, YamlNode> fields)
+    {
+        if (!fields.TryGetValue("abp", out var node))
+        {
+            return;
+        }
+
+        const string scope = "$.abp";
+        var settings = Map(node, scope, [], ["repositoryLayers", "tenantFilterBypassLayers"]);
+        _fragment.Locations[scope] = Position(node.Start);
+        // Each list merges independently, so a policy can add a bypass layer and keep a pack's repository layers.
+        AddValues(settings, "repositoryLayers", scope, PolicySlotKey.Abp("repositoryLayers"),
+            values => new AbpPolicy(repositoryLayers: values), allowEmpty: true);
+        AddValues(settings, "tenantFilterBypassLayers", scope, PolicySlotKey.Abp("tenantFilterBypassLayers"),
+            values => new AbpPolicy(tenantFilterBypassLayers: values), allowEmpty: true);
     }
 
     private void Declare(PolicySlotKey key, YamlNode idNode, YamlNode node, string path, string kind)

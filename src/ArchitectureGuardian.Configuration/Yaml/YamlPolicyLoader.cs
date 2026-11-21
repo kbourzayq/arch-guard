@@ -50,7 +50,8 @@ public sealed class YamlPolicyLoader : IPolicyLoader
                 document.Rules.ToDictionary(pair => pair.Key, pair => (DiagnosticSeverity)pair.Value, StringComparer.Ordinal),
                 new GatePolicy((DiagnosticSeverity)document.FailOn),
                 document.EntityFrameworkCore is { } entityFrameworkCore
-                    ? new EntityFrameworkCorePolicy(entityFrameworkCore.PersistenceLayers, entityFrameworkCore.ForbiddenApis) : null);
+                    ? new EntityFrameworkCorePolicy(entityFrameworkCore.PersistenceLayers, entityFrameworkCore.ForbiddenApis) : null,
+                document.Abp is { } abp ? new AbpPolicy(abp.RepositoryLayers, abp.TenantFilterBypassLayers) : null);
         }
         catch (PolicyReadException exception)
         {

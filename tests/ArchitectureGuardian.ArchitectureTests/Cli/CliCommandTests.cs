@@ -15,6 +15,8 @@ public sealed class CliCommandTests
     [InlineData("AG004")]
     [InlineData("AG005")]
     [InlineData("AG006")]
+    [InlineData("ABP001")]
+    [InlineData("ABP005")]
     public async Task Explain_resolves_canonical_catalog(string id)
     {
         using var output = new StringWriter();
@@ -61,6 +63,7 @@ public sealed class CliCommandTests
     [InlineData("explain")]
     [InlineData("explain", "ag001")]
     [InlineData("explain", "AG007")]
+    [InlineData("explain", "ABP006")]
     [InlineData("scan", "input.csproj", "--policy")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--unknown")]
     [InlineData("scan", "input.csproj", "--policy", "policy.yaml", "--policy", "other.yaml")]

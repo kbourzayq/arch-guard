@@ -214,11 +214,14 @@ internal sealed class PolicyComposer
                 result.Remove(key);
             }
 
-            // Removing a layer also removes it from the pack's EF Core persistence layers, keeping references valid.
-            var persistenceLayers = PolicySlotKey.EntityFrameworkCore("persistenceLayers");
-            if (removedKind == PolicySlotKey.SlotKind.Layer && result.TryGetValue(persistenceLayers, out var layersSlot))
+            // Removing a layer also removes it from the pack's EF Core and ABP layer lists, keeping references valid.
+            foreach (var layerList in new[] { PolicySlotKey.EntityFrameworkCore("persistenceLayers"), PolicySlotKey.Abp("repositoryLayers"),
+                         PolicySlotKey.Abp("tenantFilterBypassLayers") })
             {
-                result[persistenceLayers] = layersSlot.Without(target => target == id);
+                if (removedKind == PolicySlotKey.SlotKind.Layer && result.TryGetValue(layerList, out var layersSlot))
+                {
+                    result[layerList] = layersSlot.Without(target => target == id);
+                }
             }
 
             // Removing a declaration also removes the pack's permissions that target it, keeping references valid.
@@ -258,9 +261,10 @@ internal sealed class PolicyComposer
 
         ValidatePermissions(modules, layers, slots);
         var entityFrameworkCore = EntityFrameworkCore(root, layers, rules.Keys, slots);
+        var abp = Abp(root, layers, rules.Keys, slots);
         try
         {
-            return new PolicyDocument(modules, layers, rules, failOn, root.Root.SourcePath, root.Locations, entityFrameworkCore);
+            return new PolicyDocument(modules, layers, rules, failOn, root.Root.SourcePath, root.Locations, entityFrameworkCore, abp);
         }
         catch (ArgumentException exception)
         {
@@ -315,6 +319,26 @@ internal sealed class PolicyComposer
         {
             var origin = exception.Message.StartsWith("entityFrameworkCore.persistenceLayers", StringComparison.Ordinal)
                 ? layersSlot?.Origin : apisSlot?.Origin;
+            throw (origin ?? root.Root).Error(exception.Message, exception);
+        }
+    }
+
+    /// <summary>Builds the effective ABP settings, reporting invalid references at the field that supplied them.</summary>
+    private static AbpPolicy? Abp(PolicyFragment root, LayerPolicy[] layers, IEnumerable<string> rules, Dictionary<PolicySlotKey, PolicySlot> slots)
+    {
+        slots.TryGetValue(PolicySlotKey.Abp("repositoryLayers"), out var repositorySlot);
+        slots.TryGetValue(PolicySlotKey.Abp("tenantFilterBypassLayers"), out var bypassSlot);
+        var policy = repositorySlot is null && bypassSlot is null ? null
+            : new AbpPolicy(repositorySlot?.Strings ?? [], bypassSlot?.Strings ?? []);
+        try
+        {
+            AbpPolicy.Validate(policy, layers.Select(layer => layer.Id), rules);
+            return policy;
+        }
+        catch (ArgumentException exception)
+        {
+            var origin = exception.Message.StartsWith("abp.tenantFilterBypassLayers", StringComparison.Ordinal)
+                ? bypassSlot?.Origin : repositorySlot?.Origin;
             throw (origin ?? root.Root).Error(exception.Message, exception);
         }
     }

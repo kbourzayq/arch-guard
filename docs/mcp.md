@@ -315,7 +315,7 @@ case-sensitive IDs; unknown IDs are errors.
 
 ### `list_rules`
 
-Arguments: required `policyPath`; optional `ruleId` (AG001–AG006, ASP001–ASP005 or EF001–EF003). Example:
+Arguments: required `policyPath`; optional `ruleId` (AG001–AG006, ASP001–ASP005, EF001–EF003 or ABP001–ABP005). Example:
 
 ```json
 {"policyPath":"architecture.guardian.yaml","ruleId":"AG001"}
@@ -325,7 +325,7 @@ The response has `schemaVersion: 1`, `status: "completed"`, `scope: "policy"`,
 root-relative `policyPath`, `inventoryStatus: "not-loaded"`, and `rules: Rule[]`.
 Completion means the policy document passed the same YAML/Core validation as CLI.
 Project selectors have **not** been resolved; no workspace coverage or clean scan is
-claimed. `rules` includes all fourteen canonical rules (AG001–AG006, ASP001–ASP005, EF001–EF003) by default, including deselected
+claimed. `rules` includes all nineteen canonical rules (AG001–AG006, ASP001–ASP005, EF001–EF003, ABP001–ABP005) by default, including deselected
 ones. `ruleId` narrows it to one entry.
 
 | `Rule` field | Type and meaning |
@@ -472,7 +472,7 @@ Required: `policyPath` and **exactly one** of `ruleId` or `diagnosticId`.
 Both modes return deterministic guidance from policy and shared rule semantics;
 no LLM or remote service is used.
 
-For **rule guidance**, use a canonical case-sensitive AG001–AG006, ASP001–ASP005 or EF001–EF003 ID:
+For **rule guidance**, use a canonical case-sensitive AG001–AG006, ASP001–ASP005, EF001–EF003 or ABP001–ABP005 ID:
 
 ```json
 {"policyPath":"architecture.guardian.yaml","ruleId":"AG004"}

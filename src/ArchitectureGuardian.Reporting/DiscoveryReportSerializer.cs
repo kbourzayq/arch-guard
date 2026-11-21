@@ -52,19 +52,37 @@ public static class DiscoveryReportSerializer
         }, Options) + "\n";
     }
 
-    private static object PolicyDocument(ArchitecturePolicy policy) => new
+    /// <summary>Projects a candidate policy; ABP settings appear only when declared, keeping other reports unchanged.</summary>
+    private static Dictionary<string, object?> PolicyDocument(ArchitecturePolicy policy)
     {
-        version = 1,
-        modules = policy.Modules.Select(module => new
+        var document = new Dictionary<string, object?>
         {
-            module.Id,
-            projects = module.Projects.Select(pattern => pattern.Value),
-            contracts = module.Contracts.Select(contract => new { contract.Id, projects = contract.Projects.Select(pattern => pattern.Value) }),
-            module.AllowedDependencies,
-            module.ForbiddenAssemblies,
-            module.ForbiddenNamespaces,
-        }),
-        layers = policy.Layers.Select(layer =>
+            ["version"] = 1,
+            ["modules"] = Modules(policy),
+            ["layers"] = Layers(policy),
+            ["rules"] = policy.SeverityPolicy.RuleSeverities.OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .ToDictionary(pair => pair.Key, pair => pair.Value.ToString().ToLowerInvariant(), StringComparer.Ordinal),
+            ["gate"] = new { failOn = policy.Gate.FailOn.ToString().ToLowerInvariant() },
+        };
+        if (policy.Abp is { } abp)
+        {
+            document["abp"] = new { abp.RepositoryLayers, abp.TenantFilterBypassLayers };
+        }
+
+        return document;
+    }
+
+    private static object Modules(ArchitecturePolicy policy) => policy.Modules.Select(module => new
+    {
+        module.Id,
+        projects = module.Projects.Select(pattern => pattern.Value),
+        contracts = module.Contracts.Select(contract => new { contract.Id, projects = contract.Projects.Select(pattern => pattern.Value) }),
+        module.AllowedDependencies,
+        module.ForbiddenAssemblies,
+        module.ForbiddenNamespaces,
+    });
+
+    private static object Layers(ArchitecturePolicy policy) => policy.Layers.Select(layer =>
         {
             var document = new Dictionary<string, object>
             {
@@ -79,9 +97,6 @@ public static class DiscoveryReportSerializer
                 document.Add("domainInfrastructure", new { restrictions.ForbiddenAssemblies, restrictions.ForbiddenNamespaces, restrictions.AllowedNamespaces });
             }
             return document;
-        }),
-        rules = policy.SeverityPolicy.RuleSeverities.OrderBy(pair => pair.Key, StringComparer.Ordinal)
-            .ToDictionary(pair => pair.Key, pair => pair.Value.ToString().ToLowerInvariant(), StringComparer.Ordinal),
-        gate = new { failOn = policy.Gate.FailOn.ToString().ToLowerInvariant() },
-    };
+        });
+
 }

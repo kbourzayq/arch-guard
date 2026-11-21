@@ -77,6 +77,9 @@
     },
     "entityFrameworkCore": {
       "$ref": "architecture.guardian.v1.schema.json#/properties/entityFrameworkCore"
+    },
+    "abp": {
+      "$ref": "architecture.guardian.v1.schema.json#/properties/abp"
     }
   }
 }

@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Core.Frameworks.Abp;
 using ArchitectureGuardian.Core.Frameworks.AspNetCore;
 using ArchitectureGuardian.Core.Frameworks.EntityFrameworkCore;
 using System.ComponentModel;
@@ -28,14 +29,14 @@ internal sealed class ArchitectureTools(WorkspaceFiles files, IOptions<Workspace
         [Description(
             "YAML policy path relative to Workspace:Root (or absolute inside it), at most 4096 characters and 262144 file bytes.")]
         string policyPath,
-        [Description("Optional exact case-sensitive canonical rule ID (AG001–AG006, ASP001–ASP005 or EF001–EF003).")]
+        [Description("Optional exact case-sensitive canonical rule ID (AG001–AG006, ASP001–ASP005, EF001–EF003 or ABP001–ABP005).")]
         string? ruleId = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (ruleId is not null && RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).Concat(EntityFrameworkCoreRuleCatalog.All).All(rule => rule.Id != ruleId))
+        if (ruleId is not null && RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).Concat(EntityFrameworkCoreRuleCatalog.All).Concat(AbpRuleCatalog.All).All(rule => rule.Id != ruleId))
         {
-            throw new McpException("Unknown ruleId. Use a canonical case-sensitive ID: AG001–AG006, ASP001–ASP005 or EF001–EF003.");
+            throw new McpException("Unknown ruleId. Use a canonical case-sensitive ID: AG001–AG006, ASP001–ASP005, EF001–EF003 or ABP001–ABP005.");
         }
 
         var path = files.Resolve(policyPath);
@@ -153,7 +154,7 @@ internal sealed class ArchitectureTools(WorkspaceFiles files, IOptions<Workspace
     internal static RuleContext[] Rules(ArchitecturePolicy policy)
     {
         var available = SolutionRules.All.Select(rule => rule.Descriptor.Id).ToHashSet(StringComparer.Ordinal);
-        return RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).Concat(EntityFrameworkCoreRuleCatalog.All).Select(rule => new RuleContext(rule.Id, rule.Title, rule.DocumentationUrl.AbsoluteUri,
+        return RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).Concat(EntityFrameworkCoreRuleCatalog.All).Concat(AbpRuleCatalog.All).Select(rule => new RuleContext(rule.Id, rule.Title, rule.DocumentationUrl.AbsoluteUri,
             policy.SeverityPolicy.RuleSeverities.ContainsKey(rule.Id),
             policy.SeverityPolicy.RuleSeverities.TryGetValue(rule.Id, out var severity)
                 ? severity.ToString().ToLowerInvariant()

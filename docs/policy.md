@@ -301,9 +301,29 @@ an unknown layer is an error. Selecting EF002 or EF003 without its list is an er
 than a scan that reports everything or nothing. EF001 needs no settings. The settings do
 not select rules, and rule packs may supply each list separately.
 
+## ABP Framework layers (ABP003, ABP005)
+
+The optional top-level `abp` object configures the
+[ABP Framework rules](rule-catalog.md#abp-framework-rules-abp001abp005). The built-in
+[`abp` pack](packs/abp.md) supplies it; set it yourself only to scope the conventions:
+
+```yaml
+abp:
+  repositoryLayers: [Application, Domain, Persistence, Tests]
+  tenantFilterBypassLayers: [Host]
+```
+
+`repositoryLayers` contains declared layer IDs whose projects may use ABP repositories
+(ABP003). `tenantFilterBypassLayers` contains layer IDs whose projects may disable the
+`IMultiTenant` data filter or switch to the host (ABP005). Both lists reject duplicates
+and unknown layers. Selecting ABP003 without a repository layer is an error.
+`tenantFilterBypassLayers` may be empty. ABP001, ABP002 and ABP004 need no settings.
+Rule packs may supply each list separately, and an extending policy replaces one list
+without restating the other.
+
 ## Rule selection, severity and gates
 
-The `rules` mapping explicitly selects canonical IDs AG001–AG006, ASP001–ASP005 (the [ASP.NET Core rules](rule-catalog.md#aspnet-core-rules-asp001asp005), which need no extra settings) and EF001–EF003 (the [EF Core rules](rule-catalog.md#ef-core-rules-ef001ef003)). Omitted IDs are
+The `rules` mapping explicitly selects canonical IDs AG001–AG006, ASP001–ASP005 (the [ASP.NET Core rules](rule-catalog.md#aspnet-core-rules-asp001asp005), which need no extra settings), EF001–EF003 (the [EF Core rules](rule-catalog.md#ef-core-rules-ef001ef003)) and ABP001–ABP005 (the [ABP Framework rules](rule-catalog.md#abp-framework-rules-abp001abp005)). Omitted IDs are
 not selected. Every selected ID has exactly one severity: `info`, `warning` or
 `error`. Selection is separate from reporting severity; `off` and `none` are invalid
 severities. The [rule catalog](rule-catalog.md) describes each identity.

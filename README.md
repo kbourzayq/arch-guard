@@ -245,7 +245,42 @@ adjusting instructions that reference it.
 | AG006 | Selected layers avoid configured technology dependencies, with namespace exceptions. |
 
 Start from a built-in [rule pack](docs/rule-packs.md) for Clean Architecture,
-Modular Monolith or Vertical Slice conventions, then override only what differs.
+Modular Monolith, Vertical Slice or ABP Framework conventions, then override only what
+differs. Framework rules check what project references cannot show:
+
+| Rules | Checks |
+| --- | --- |
+| ASP001–ASP005 | ASP.NET Core controllers, endpoints, authorization declarations and service lifetimes |
+| EF001–EF003 | EF Core DbContext ownership, persistence layers and forbidden APIs |
+| ABP001–ABP005 | ABP module `[DependsOn]` declarations, DTO boundaries, repository layers, application service authorization and tenant isolation |
+
+### ABP Framework
+
+The [`abp` pack](docs/packs/abp.md) maps ABP's layered solution template (`Domain.Shared`,
+`Domain`, `Application.Contracts`, `Application`, `EntityFrameworkCore`, `HttpApi`,
+`HttpApi.Client`, host and tests) and enforces its dependency directions. It also catches
+ABP mistakes that compile cleanly but fail or leak at runtime: a module missing a
+`[DependsOn]`, an entity returned from an application service, a page reading a repository
+directly, an exposed method without authorization, or a disabled multi-tenant filter. Security
+findings are classified as `potential` and state their runtime limits. `init --discover`
+recognizes ABP solutions and proposes a policy that extends the pack:
+
+```yaml
+version: 1
+extends:
+  - pack: abp
+    version: 1.0.0
+modules:
+  - id: BookStore
+    projects: ["src/**/*.csproj", "test/**/*.csproj"]
+layers:
+  - id: Host
+    projects: ["src/Acme.BookStore.Web/*.csproj"]
+  - id: Tests
+    projects: ["test/**/*.csproj"]
+```
+
+The framework rules and the `abp` pack are on `main` and ship in the release after 0.4.1.
 
 Findings retain evidence, locations when available, deterministic identities and
 remediation. Analysis does not infer runtime dependencies through reflection or

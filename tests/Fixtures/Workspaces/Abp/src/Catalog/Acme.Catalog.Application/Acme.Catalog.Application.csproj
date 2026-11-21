@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.Ddd.Application" Version="10.7.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Acme.Catalog.Domain/Acme.Catalog.Domain.csproj" />
+    <ProjectReference Include="../Acme.Catalog.Application.Contracts/Acme.Catalog.Application.Contracts.csproj" />
+  </ItemGroup>
+</Project>

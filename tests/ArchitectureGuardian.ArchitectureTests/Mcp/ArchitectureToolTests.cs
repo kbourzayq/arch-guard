@@ -38,7 +38,8 @@ public sealed class ArchitectureToolTests
             Assert.Equal("policy", result.GetProperty("scope").GetString());
             Assert.Equal("not-loaded", result.GetProperty("inventoryStatus").GetString());
             var rules = result.GetProperty("rules").EnumerateArray().ToArray();
-            Assert.Equal(14, rules.Length);
+            Assert.Equal(19, rules.Length);
+            Assert.Equal(["ABP001", "ABP002", "ABP003", "ABP004", "ABP005"], rules.Select(rule => rule.GetProperty("id").GetString()!).Where(id => id.StartsWith("ABP", StringComparison.Ordinal)));
             Assert.Equal(["EF001", "EF002", "EF003"], rules.Select(rule => rule.GetProperty("id").GetString()!).Where(id => id.StartsWith("EF", StringComparison.Ordinal)));
             var policy = await new YamlPolicyLoader().LoadAsync(Path.Combine(fixture.Root, "policy.yaml"), token);
             Assert.All(rules, rule =>

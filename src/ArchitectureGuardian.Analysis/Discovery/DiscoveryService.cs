@@ -45,7 +45,10 @@ public sealed class DiscoveryService
             if (proposal.Policy is { } policy && observations.Inventory is { } inventory && observations.Graph is { } graph)
             {
                 var repository = new RepositoryModel(inventory.Id, policy, inventory.Projects);
-                var context = new DependencyBuildResult(repository, graph.Aggregate(repository), observations.Status, observations.Issues);
+                // Framework rules selected by the candidate, such as an ABP pack's, need their facts to report real compliance.
+                var abp = await DependencyGraphBuilder.ExtractAbpAsync(workspace.Solution!, repository, root, policy, observations.Status,
+                    observations.Issues, cancellationToken).ConfigureAwait(false);
+                var context = new DependencyBuildResult(repository, graph.Aggregate(repository), abp.Status, abp.Issues, abp: abp.Facts);
                 compliance = await new AnalysisService<DependencyBuildResult>(policy.SelectRules(SolutionRules.All)).AnalyzeAsync(
                     new(context, policy.SeverityPolicy), cancellationToken).ConfigureAwait(false);
             }

@@ -60,6 +60,7 @@ public sealed class DoctorService
                             // ASP rules need solution-wide endpoint and registration facts, so no compiler diagnostic exists for them.
                             : rule.Key.StartsWith("ASP", StringComparison.Ordinal) ? $"{rule.Key} runs only in solution scans; the compiler analyzer does not report ASP.NET Core rules."
                             : rule.Key.StartsWith("EF", StringComparison.Ordinal) ? $"{rule.Key} runs only in solution scans; the compiler analyzer does not report EF Core rules."
+                            : rule.Key.StartsWith("ABP", StringComparison.Ordinal) ? $"{rule.Key} runs only in solution scans; the compiler analyzer does not report ABP Framework rules."
                             : "Compiler overrides apply only to selected rules; solution scans use YAML severity."));
                 }
             }
