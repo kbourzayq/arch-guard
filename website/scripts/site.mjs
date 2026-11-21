@@ -39,6 +39,10 @@ export const sourceGroups = [
       title: 'BenchmarkDotNet results',
       description: 'Published latency, allocation and GC results, with hardware/runtime context and confidence intervals.',
     }],
+    ['benchmarks/reports/discovery-report-macos-arm64.md', 'discovery-report-benchmark-results', 'Discovery report benchmark results', {
+      title: 'Discovery report benchmark results',
+      description: 'Buffered and streamed write timings and managed allocations for reports with 5,000 and 200,000 evidence locations.',
+    }],
     ['docs/performance.md', 'performance', 'Performance & telemetry'],
     ['docs/workspace-loading.md', 'workspace-loading', 'Workspace loading'],
     ['docs/troubleshooting.md', 'troubleshooting', 'Troubleshooting'],

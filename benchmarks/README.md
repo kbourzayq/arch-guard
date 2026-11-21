@@ -88,6 +88,8 @@ compares each output against the expected size and SHA-256 after every iteration
 This suite runs without the MSBuild workload fixtures. Use its BenchmarkDotNet
 report for write latency and managed allocation traffic per operation. It does not
 measure peak working set or the time spent loading and analyzing a solution.
+See the [published before-and-after comparison](../docs/benchmarks.md#discovery-report-writing-before-and-after)
+and the [native Markdown report](reports/discovery-report-macos-arm64.md).
 
 ## Latest results
 
@@ -112,23 +114,24 @@ restoring inputs:
 dotnet run --project benchmarks/ArchitectureGuardian.Benchmarks.csproj --configuration Release --no-restore -- --list flat
 ```
 
-The repository keeps the [latest report](reports/analysis-macos-arm64.md) as an
-unmodified BenchmarkDotNet Markdown export. Replace it after an intentional new
-measurement; keep before/after comparisons with the performance optimization
-issue that produces them. Copy the generated report for review:
+The repository keeps unmodified BenchmarkDotNet Markdown exports in
+[`benchmarks/reports/`](reports/). The [published benchmark page](../docs/benchmarks.md)
+summarizes the results. After an intentional new measurement, copy the generated
+report for the suite you ran:
 
 ```sh
 cp artifacts/performance/results/ArchitectureGuardian.Benchmarks.AnalysisBenchmarks-report-github.md benchmarks/reports/analysis-macos-arm64.md
+cp artifacts/performance/results/ArchitectureGuardian.Benchmarks.DiscoveryReportBenchmarks-report-github.md benchmarks/reports/discovery-report-macos-arm64.md
 ```
 
 On PowerShell use `Copy-Item` with the same source and destination paths. Use a
-separate report filename for another OS/architecture. Refresh the companion SVG
-from that same report when published measurements change, using its `Mean`, `Error`
-and `Allocated` columns and the units described above. Its metadata records the
-source report's SHA-256 for verification. The SVG is a documentation illustration;
-the benchmark command exports the native measurement reports. Publish the Markdown
-and SVG with the corresponding code change; leave generated HTML, CSV, logs, build
-outputs and copied inputs ignored. There is no automatic upload or custom regression gate.
+separate report filename for another OS/architecture. Refresh the analysis SVG
+when the analysis measurements change, using the source report's `Mean`, `Error`
+and `Allocated` columns and the units described above. The SVG metadata records
+the source report's SHA-256 for verification. Publish the Markdown report and
+updated summary with the corresponding code change. Generated HTML, CSV, logs,
+build outputs and copied inputs stay ignored. There is no automatic upload or
+custom regression gate.
 CI builds, formats and discovers this project on Linux, Windows and macOS, without collecting timings.
 Compare reports on matching hardware/OS/runtime with heavy background work stopped,
 then review performance changes alongside the normal correctness tests.
