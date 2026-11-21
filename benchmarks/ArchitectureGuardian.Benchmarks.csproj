@@ -6,5 +6,6 @@
     <PackageReference Include="BenchmarkDotNet" />
     <ProjectReference Include="../src/ArchitectureGuardian.Analysis/ArchitectureGuardian.Analysis.csproj" />
     <ProjectReference Include="../src/ArchitectureGuardian.Configuration/ArchitectureGuardian.Configuration.csproj" />
+    <ProjectReference Include="../src/ArchitectureGuardian.Reporting/ArchitectureGuardian.Reporting.csproj" />
   </ItemGroup>
 </Project>

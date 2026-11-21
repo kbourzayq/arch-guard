@@ -1,9 +1,9 @@
 # Benchmarks and measured performance
 
-Use published measurements to understand where scan time and allocations go, then
-measure your own repository before choosing CI capacity or deadlines. The current
-benchmarks cover CLI/MCP's solution-analysis pipeline, with all six rules selected.
-They do not measure compiler-analyzer latency in an IDE.
+Use published measurements to understand scan and discovery-report costs, then
+measure your own repository before choosing CI capacity or deadlines. The scan
+benchmarks cover CLI/MCP's solution-analysis pipeline with all six rules selected.
+IDE analyzer performance is outside the scope of these measurements.
 
 ## Published results
 
@@ -20,6 +20,28 @@ The OS declined high-priority scheduling and some short iterations triggered
 minimum-iteration-time warnings. Inspect the variation and measurement scope
 alongside the chart. These are observations from that environment, not a latency
 promise for other hardware or repositories.
+
+## Discovery report writing before and after
+
+The benchmark compares the former buffered write with its streamed JSON
+replacement. Both paths produced byte-identical reports. Timing includes the
+file write and close, with graph construction performed before measurement.
+[Issue #111](https://github.com/kbourzayq/arch-guard/issues/111)
+
+| Evidence locations | Report size (bytes) | Mean write time, before → after (ms) | Managed allocations, before → after (KiB/write) |
+| ---: | ---: | ---: | ---: |
+| 5,000 | 4,421,810 | 9.390 → 9.442 | 17,281.83 → 53.84 |
+| 200,000 | 173,092,210 | 205.321 → 138.913 | 676,150.58 → 1,479.86 |
+
+Measured on 21 November 2026 with BenchmarkDotNet 0.15.8, Apple M5, macOS 27.2.1,
+.NET 10.0.13 and SDK 10.0.402 at normal process priority. The smaller fixture ran
+below the recommended iteration duration, and its two latency confidence
+intervals overlap. Allocations measure managed allocation traffic during report
+writing. Peak working set with the streamed CLI remains unverified on the
+reported Windows solution.
+
+See the [unmodified discovery benchmark report](../benchmarks/reports/discovery-report-macos-arm64.md)
+and the [benchmark instructions](../benchmarks/README.md#discovery-report-writing).
 
 ## What was measured
 
@@ -50,10 +72,11 @@ larger measured input. Before attributing a slow scan to rules, check its restor
 context, SDK selection, generators and project inventory. The
 [local telemetry guide](performance.md) can identify which phase dominates your run.
 
-The runs use warm, prepared inputs. They exclude process startup, policy parsing,
-normal package restore and report rendering. Git change analysis performs two
-full scans plus snapshot/cache-only restore work and is not directly benchmarked.
-Cycle-heavy graph performance is not established by these acyclic inputs.
+The solution-analysis runs use warm, prepared inputs. They exclude process
+startup, policy parsing, normal package restore and report rendering. Git change
+analysis performs two full scans plus snapshot/cache-only restore work and is not
+directly benchmarked. Cycle-heavy graph performance is not established by these
+acyclic inputs.
 
 `Allocated` is managed allocation traffic per operation. It is not retained heap,
 native memory, child MSBuild memory or peak process RAM. BenchmarkDotNet's GC counts

@@ -9,6 +9,7 @@ namespace ArchitectureGuardian.Reporting;
 /// <summary>Projects reusable discovery evidence and review intentions into a versioned deterministic JSON report.</summary>
 public static class DiscoveryReportSerializer
 {
+    private static readonly byte[] FinalNewLine = "\n"u8.ToArray();
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -20,12 +21,29 @@ public static class DiscoveryReportSerializer
     /// <summary>Serializes observations separately from inferences, proposal validity and architecture compliance.</summary>
     /// <param name="result">Discovery outcome, including incomplete or cancelled evidence.</param>
     /// <returns>One JSON v1 document with LF newlines and no timestamps or checkout root.</returns>
-    public static string Serialize(DiscoveryResult result)
+    public static string Serialize(DiscoveryResult result) => JsonSerializer.Serialize(Document(result), Options) + "\n";
+
+    /// <summary>Streams one JSON v1 discovery report as UTF-8 without a BOM, including its trailing LF.</summary>
+    /// <param name="destination">Writable stream that remains open for the caller.</param>
+    /// <param name="result">Discovery outcome, including incomplete or cancelled evidence.</param>
+    /// <param name="cancellationToken">Cooperative cancellation of serialization and writes.</param>
+    /// <returns>A task that completes after the report and trailing LF are written.</returns>
+    /// <exception cref="OperationCanceledException">The write was cancelled and may have left partial content in the stream.</exception>
+    /// <exception cref="IOException">The destination write failed and may have left partial content in the stream.</exception>
+    public static async Task SerializeAsync(Stream destination, DiscoveryResult result, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        cancellationToken.ThrowIfCancellationRequested();
+        await JsonSerializer.SerializeAsync(destination, Document(result), Options, cancellationToken).ConfigureAwait(false);
+        await destination.WriteAsync(FinalNewLine, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static object Document(DiscoveryResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
         var policy = result.Proposal.Policy;
         var ready = result.Status == AnalysisStatus.Completed && policy is not null;
-        return JsonSerializer.Serialize(new
+        return new
         {
             schemaVersion = 1,
             kind = "architecture-discovery",
@@ -49,7 +67,7 @@ public static class DiscoveryReportSerializer
                 result.Compliance.Diagnostics,
                 result.Compliance.Issues,
             },
-        }, Options) + "\n";
+        };
     }
 
     /// <summary>Projects a candidate policy; ABP settings appear only when declared, keeping other reports unchanged.</summary>

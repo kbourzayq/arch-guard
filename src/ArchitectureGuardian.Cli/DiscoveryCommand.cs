@@ -4,6 +4,7 @@ using ArchitectureGuardian.Analysis.Discovery;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Configuration.Yaml;
 using ArchitectureGuardian.Core.Analysis;
+using ArchitectureGuardian.Core.Discovery;
 using ArchitectureGuardian.Reporting;
 
 namespace ArchitectureGuardian.Cli;
@@ -59,7 +60,7 @@ internal static class DiscoveryCommand
             var ready = discovery.Status == AnalysisStatus.Completed && discovery.Proposal.Policy is not null;
             var yaml = ready ? ProposedPolicyYaml.Serialize(discovery.Proposal, token) : null;
             // Even cooperative analysis cancellation retains an explicit cancelled report. No proposal is written.
-            await WriteAsync(reportPath, DiscoveryReportSerializer.Serialize(discovery), proposalPath, yaml);
+            await WriteAsync(reportPath, discovery, proposalPath, yaml);
             output.WriteLine($"Discovery coverage: {discovery.Status.ToString().ToLowerInvariant()}; report: {reportPath}");
             foreach (var issue in discovery.Observations.Issues.Concat(discovery.Compliance?.Issues ?? []).Distinct())
             {
@@ -79,13 +80,16 @@ internal static class DiscoveryCommand
         return command;
     }
 
-    private static async Task WriteAsync(string reportPath, string report, string proposalPath, string? yaml)
+    private static async Task WriteAsync(string reportPath, DiscoveryResult discovery, string proposalPath, string? yaml)
     {
         var temporaryReport = reportPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         var temporaryProposal = proposalPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            await File.WriteAllTextAsync(temporaryReport, report, new UTF8Encoding(false));
+            await using (var stream = new FileStream(temporaryReport, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
+            {
+                await DiscoveryReportSerializer.SerializeAsync(stream, discovery);
+            }
             if (yaml is not null) { await File.WriteAllTextAsync(temporaryProposal, yaml, new UTF8Encoding(false)); }
             // Create-only moves also protect files created after preflight. A retained report remains useful
             // if a concurrent proposal collision prevents the second move; the command reports that failure.
