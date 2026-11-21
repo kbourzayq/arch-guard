@@ -154,8 +154,10 @@ policy format. `compliance` holds canonical rule findings against that candidate
 
 Identical completed contexts yield byte-identical YAML/JSON independently of
 enumeration and checkout roots. Outputs use UTF-8 without BOM, LF newlines,
-ordinal identities/order and no timestamps or absolute checkout root. Operational
-failure messages may contain environment paths: these are non-semantic diagnostic
+ordinal identities/order and no timestamps or absolute checkout root. Discovery
+writes JSON incrementally and retains every observed evidence location. Report
+size grows with the evidence volume, so allow disk space for the full report.
+Operational failure messages may contain environment paths in the diagnostic
 metadata for unavailable contexts. Coverage verifies only the explored snapshot
 and context. Neutral contracts and the reusable service support other onboarding
 hosts without depending on agents or an LLM.

@@ -226,7 +226,7 @@
       "architectureguardian.analysis": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Core": "[0.2.0, )",
+          "ArchitectureGuardian.Core": "[0.4.1, )",
           "Microsoft.Build.Locator": "[1.11.2, )",
           "Microsoft.CodeAnalysis.CSharp.Workspaces": "[5.9.0, )",
           "Microsoft.CodeAnalysis.Workspaces.MSBuild": "[5.9.0, )"
@@ -235,8 +235,8 @@
       "architectureguardian.configuration": {
         "type": "Project",
         "dependencies": {
-          "ArchitectureGuardian.Core": "[0.2.0, )",
-          "ArchitectureGuardian.Policy": "[0.2.0, )"
+          "ArchitectureGuardian.Core": "[0.4.1, )",
+          "ArchitectureGuardian.Policy": "[0.4.1, )"
         }
       },
       "architectureguardian.core": {
@@ -246,6 +246,12 @@
         "type": "Project",
         "dependencies": {
           "YamlDotNet": "[18.1.0, )"
+        }
+      },
+      "architectureguardian.reporting": {
+        "type": "Project",
+        "dependencies": {
+          "ArchitectureGuardian.Core": "[0.4.1, )"
         }
       },
       "Microsoft.Build.Locator": {

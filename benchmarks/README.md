@@ -1,8 +1,9 @@
 # Architecture Guardian benchmarks
 
 This development-only .NET project measures workspace loading, graph extraction,
-rule evaluation and full analysis with BenchmarkDotNet 0.15.8. It is outside the
-shipping solution and adds no dependency to the CLI, MCP or analyzer packages.
+rule evaluation, full analysis and discovery report writing with BenchmarkDotNet
+0.15.8. It is outside the shipping solution and adds no dependency to the CLI,
+MCP or analyzer packages.
 
 From the repository root, using the SDK pinned by `global.json`:
 
@@ -62,6 +63,31 @@ already available; do not sum independently measured phases to estimate cold
 startup. Git comparison's two scans and snapshot/restore work are not directly
 benchmarked. The [performance guide](../docs/performance.md) explains runtime
 telemetry, measurement scope and limitations.
+
+## Discovery report writing
+
+After the locked restore, run the opt-in serializer benchmark from the benchmark
+project directory:
+
+```sh
+cd benchmarks
+dotnet run --configuration Release --no-restore -- --discovery-report
+```
+
+If BenchmarkDotNet finds a duplicate project in generated documentation sources,
+a temporary copy of the root `global.json` in `benchmarks/` scopes project discovery
+to that directory. Remove the temporary copy when the run finishes.
+
+The suite uses two synthetic discovery results with 5,000 and 200,000 distinct
+source locations spread across 100 type edges. `BufferedFile` serializes the full
+JSON string and writes it as UTF-8. `StreamedFile` writes the same JSON directly to
+an asynchronous file stream. Both timings include creation and closing of the
+file. The harness builds the graph outside timing, prints the file size, and
+compares each output against the expected size and SHA-256 after every iteration.
+
+This suite runs without the MSBuild workload fixtures. Use its BenchmarkDotNet
+report for write latency and managed allocation traffic per operation. It does not
+measure peak working set or the time spent loading and analyzing a solution.
 
 ## Latest results
 

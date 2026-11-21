@@ -8,15 +8,23 @@ internal static class Program
 {
     private static async Task<int> Main(string[] args)
     {
+        const string discoveryOption = "--discovery-report";
+        var discoveryReport = args.Contains(discoveryOption, StringComparer.Ordinal);
+        args = args.Where(argument => argument != discoveryOption).ToArray();
         var repository = BenchmarkInputs.FindRepository();
         var config = ManualConfig.Create(DefaultConfig.Instance)
             .WithArtifactsPath(Path.Combine(repository, "artifacts", "performance"));
-        var switcher = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly);
+        var switcher = BenchmarkSwitcher.FromTypes(discoveryReport ? [typeof(DiscoveryReportBenchmarks)] : [typeof(AnalysisBenchmarks)]);
         if (args.Any(argument => argument is "--help" or "-h" or "--list"))
         {
+            if (!discoveryReport && args.Contains("--list", StringComparer.Ordinal))
+            {
+                switcher = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly);
+            }
             switcher.Run(args, config);
             return 0;
         }
+        if (discoveryReport) { return Run(switcher, args, config); }
 
         using var cancellation = new CancellationTokenSource();
         ConsoleCancelEventHandler cancel = (_, signal) => { signal.Cancel = true; cancellation.Cancel(); };
@@ -41,11 +49,16 @@ internal static class Program
             try
             {
                 Environment.SetEnvironmentVariable(BenchmarkInputs.EnvironmentVariable, inputs.DirectoryPath);
-                var summaries = switcher.Run(args.Length == 0 ? ["--filter", "*"] : args, config).ToArray();
-                return summaries.Length > 0 && summaries.All(summary => !summary.HasCriticalValidationErrors
-                    && summary.Reports.Any() && summary.Reports.All(report => report.Success && report.ResultStatistics is not null)) ? 0 : 2;
+                return Run(switcher, args, config);
             }
             finally { Environment.SetEnvironmentVariable(BenchmarkInputs.EnvironmentVariable, previous); }
         }
+    }
+
+    private static int Run(BenchmarkSwitcher switcher, string[] args, IConfig config)
+    {
+        var summaries = switcher.Run(args.Length == 0 ? ["--filter", "*"] : args, config).ToArray();
+        return summaries.Length > 0 && summaries.All(summary => !summary.HasCriticalValidationErrors
+            && summary.Reports.Any() && summary.Reports.All(report => report.Success && report.ResultStatistics is not null)) ? 0 : 2;
     }
 }
