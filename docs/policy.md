@@ -283,9 +283,27 @@ not waive these restrictions. Select AG006 to execute it; declaring the object a
 does not select it. Exceptions do not override AG002 or AG005; see the
 [overlap policy](rule-catalog.md#ag006-domain-infrastructure).
 
+## EF Core persistence (EF002, EF003)
+
+The optional top-level `entityFrameworkCore` object configures the
+[EF Core rules](rule-catalog.md#ef-core-rules-ef001ef003):
+
+```yaml
+entityFrameworkCore:
+  persistenceLayers: [Infrastructure]
+  forbiddenApis: [IgnoreQueryFilters, FromSqlRaw]
+```
+
+`persistenceLayers` contains declared layer IDs whose projects may use EF Core types
+(EF002). `forbiddenApis` contains EF Core method names, as C# identifiers without type
+names, signatures or wildcards (EF003). Both lists default to empty and reject duplicates;
+an unknown layer is an error. Selecting EF002 or EF003 without its list is an error rather
+than a scan that reports everything or nothing. EF001 needs no settings. The settings do
+not select rules, and rule packs may supply each list separately.
+
 ## Rule selection, severity and gates
 
-The `rules` mapping explicitly selects canonical IDs AG001–AG006 and ASP001–ASP005 (the [ASP.NET Core rules](rule-catalog.md#aspnet-core-rules-asp001asp005), which need no extra settings). Omitted IDs are
+The `rules` mapping explicitly selects canonical IDs AG001–AG006, ASP001–ASP005 (the [ASP.NET Core rules](rule-catalog.md#aspnet-core-rules-asp001asp005), which need no extra settings) and EF001–EF003 (the [EF Core rules](rule-catalog.md#ef-core-rules-ef001ef003)). Omitted IDs are
 not selected. Every selected ID has exactly one severity: `info`, `warning` or
 `error`. Selection is separate from reporting severity; `off` and `none` are invalid
 severities. The [rule catalog](rule-catalog.md) describes each identity.

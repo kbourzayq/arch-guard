@@ -4,7 +4,7 @@ A rule pack is a versioned, reusable fragment of an architecture policy: default
 layers, modules, public contracts, technology restrictions, rule selections and a
 gate. A repository policy opts in to packs with `extends`, then overrides only the
 settings that differ in that repository. Packs never change rule semantics; they
-configure the same AG001–AG006 rules (and may select ASP001–ASP005) described in the [rule catalog](rule-catalog.md).
+configure the same AG001–AG006 rules (and may select ASP001–ASP005 and EF001–EF003, including `entityFrameworkCore` settings) described in the [rule catalog](rule-catalog.md).
 
 Built-in packs:
 

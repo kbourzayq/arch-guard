@@ -48,7 +48,9 @@ public sealed class YamlPolicyLoader : IPolicyLoader
                     restrictions.ForbiddenNamespaces, restrictions.AllowedNamespaces) : null));
             return new ArchitecturePolicy(modules, layers,
                 document.Rules.ToDictionary(pair => pair.Key, pair => (DiagnosticSeverity)pair.Value, StringComparer.Ordinal),
-                new GatePolicy((DiagnosticSeverity)document.FailOn));
+                new GatePolicy((DiagnosticSeverity)document.FailOn),
+                document.EntityFrameworkCore is { } entityFrameworkCore
+                    ? new EntityFrameworkCorePolicy(entityFrameworkCore.PersistenceLayers, entityFrameworkCore.ForbiddenApis) : null);
         }
         catch (PolicyReadException exception)
         {

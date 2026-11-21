@@ -12,6 +12,7 @@
     <Compile Include="../ArchitectureGuardian.Core/Policies/LayerPolicy.cs" Link="Documents/LayerPolicy.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/ContractPolicy.cs" Link="Documents/ContractPolicy.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/DomainInfrastructurePolicy.cs" Link="Documents/DomainInfrastructurePolicy.cs" />
+    <Compile Include="../ArchitectureGuardian.Core/Policies/EntityFrameworkCorePolicy.cs" Link="Documents/EntityFrameworkCorePolicy.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/PolicyData.cs" Link="Documents/PolicyData.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/ProjectPattern.cs" Link="Documents/ProjectPattern.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Rules/ForbiddenReferenceSemantics.cs" Link="Validation/ForbiddenReferenceSemantics.cs" />

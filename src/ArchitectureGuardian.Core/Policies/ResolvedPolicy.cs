@@ -63,6 +63,9 @@ public sealed class ResolvedPolicy
         Projects = new ReadOnlyDictionary<string, ProjectPolicyMapping>(mappings);
     }
 
+    /// <summary>Gets the validated policy whose selectors were resolved.</summary>
+    public ArchitecturePolicy Policy => _policy;
+
     /// <summary>Gets the immutable, ordinally ordered project mappings.</summary>
     public IReadOnlyDictionary<string, ProjectPolicyMapping> Projects { get; }
 

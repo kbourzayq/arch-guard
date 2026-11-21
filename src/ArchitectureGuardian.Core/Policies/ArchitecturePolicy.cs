@@ -1,5 +1,6 @@
 using ArchitectureGuardian.Core.Diagnostics;
 using ArchitectureGuardian.Core.Frameworks.AspNetCore;
+using ArchitectureGuardian.Core.Frameworks.EntityFrameworkCore;
 using ArchitectureGuardian.Core.Rules;
 
 namespace ArchitectureGuardian.Core.Policies;
@@ -12,9 +13,13 @@ public sealed class ArchitecturePolicy
     /// <param name="layers">At least one architectural layer.</param>
     /// <param name="rules">Selected canonical rule IDs and their reporting severities; omitted IDs are not selected.</param>
     /// <param name="gate">The quality gate, or null for the error threshold.</param>
-    /// <exception cref="ArgumentException">Required definitions are empty, identities repeat, a rule/severity is unknown or a permission is unresolved.</exception>
+    /// <param name="entityFrameworkCore">EF Core persistence settings, or null when no EF setting is declared.</param>
+    /// <exception cref="ArgumentException">
+    /// Required definitions are empty, identities repeat, a rule/severity is unknown, a permission or persistence layer is
+    /// unresolved, or a selected EF rule lacks its required setting.
+    /// </exception>
     public ArchitecturePolicy(IEnumerable<ModulePolicy> modules, IEnumerable<LayerPolicy> layers,
-        IReadOnlyDictionary<string, DiagnosticSeverity> rules, GatePolicy? gate = null)
+        IReadOnlyDictionary<string, DiagnosticSeverity> rules, GatePolicy? gate = null, EntityFrameworkCorePolicy? entityFrameworkCore = null)
     {
         Modules = PolicyData.Unique(modules, module => module.Id, "module");
         Layers = PolicyData.Unique(layers, layer => layer.Id, "layer");
@@ -26,9 +31,9 @@ public sealed class ArchitecturePolicy
 
         foreach (var ruleId in rules.Keys)
         {
-            if (RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).All(rule => rule.Id != ruleId))
+            if (RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).Concat(EntityFrameworkCoreRuleCatalog.All).All(rule => rule.Id != ruleId))
             {
-                throw new ArgumentException($"rules.{ruleId}: Unknown rule ID; supported IDs are AG001–AG006 and ASP001–ASP005 (case-sensitive).");
+                throw new ArgumentException($"rules.{ruleId}: Unknown rule ID; supported IDs are AG001–AG006, ASP001–ASP005 and EF001–EF003 (case-sensitive).");
             }
         }
 
@@ -58,6 +63,9 @@ public sealed class ArchitecturePolicy
                 }
             }
         }
+
+        EntityFrameworkCorePolicy.Validate(entityFrameworkCore, Layers.Select(layer => layer.Id), rules.Keys);
+        EntityFrameworkCore = entityFrameworkCore;
     }
 
     /// <summary>Gets the supported policy schema version.</summary>
@@ -74,6 +82,9 @@ public sealed class ArchitecturePolicy
 
     /// <summary>Gets the independent quality-gate settings.</summary>
     public GatePolicy Gate { get; }
+
+    /// <summary>Gets the EF Core persistence settings used by EF002 and EF003, or null when none are declared.</summary>
+    public EntityFrameworkCorePolicy? EntityFrameworkCore { get; }
 
     /// <summary>Selects configured rules and rejects missing implementations before any evaluation occurs.</summary>
     /// <typeparam name="TContext">The neutral context consumed by the available rules.</typeparam>

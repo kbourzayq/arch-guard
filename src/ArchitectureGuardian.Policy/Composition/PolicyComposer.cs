@@ -214,6 +214,13 @@ internal sealed class PolicyComposer
                 result.Remove(key);
             }
 
+            // Removing a layer also removes it from the pack's EF Core persistence layers, keeping references valid.
+            var persistenceLayers = PolicySlotKey.EntityFrameworkCore("persistenceLayers");
+            if (removedKind == PolicySlotKey.SlotKind.Layer && result.TryGetValue(persistenceLayers, out var layersSlot))
+            {
+                result[persistenceLayers] = layersSlot.Without(target => target == id);
+            }
+
             // Removing a declaration also removes the pack's permissions that target it, keeping references valid.
             foreach (var key in result.Keys.Where(key => key.Field == "allowedDependencies").ToArray())
             {
@@ -250,9 +257,10 @@ internal sealed class PolicyComposer
         }
 
         ValidatePermissions(modules, layers, slots);
+        var entityFrameworkCore = EntityFrameworkCore(root, layers, rules.Keys, slots);
         try
         {
-            return new PolicyDocument(modules, layers, rules, failOn, root.Root.SourcePath, root.Locations);
+            return new PolicyDocument(modules, layers, rules, failOn, root.Root.SourcePath, root.Locations, entityFrameworkCore);
         }
         catch (ArgumentException exception)
         {
@@ -285,6 +293,29 @@ internal sealed class PolicyComposer
                 throw slots[PolicySlotKey.Layer(layer.Id, "allowedDependencies")].Origin.Error(
                     $"layers.{layer.Id}.allowedDependencies: Unknown layer '{unknown}'; declare the layer first.");
             }
+        }
+    }
+
+    /// <summary>Builds the effective EF Core settings, reporting invalid references at the field that supplied them.</summary>
+    private static EntityFrameworkCorePolicy? EntityFrameworkCore(PolicyFragment root, LayerPolicy[] layers, IEnumerable<string> rules,
+        Dictionary<PolicySlotKey, PolicySlot> slots)
+    {
+        var layersKey = PolicySlotKey.EntityFrameworkCore("persistenceLayers");
+        var apisKey = PolicySlotKey.EntityFrameworkCore("forbiddenApis");
+        slots.TryGetValue(layersKey, out var layersSlot);
+        slots.TryGetValue(apisKey, out var apisSlot);
+        var policy = layersSlot is null && apisSlot is null ? null
+            : new EntityFrameworkCorePolicy(layersSlot?.Strings ?? [], apisSlot?.Strings ?? []);
+        try
+        {
+            EntityFrameworkCorePolicy.Validate(policy, layers.Select(layer => layer.Id), rules);
+            return policy;
+        }
+        catch (ArgumentException exception)
+        {
+            var origin = exception.Message.StartsWith("entityFrameworkCore.persistenceLayers", StringComparison.Ordinal)
+                ? layersSlot?.Origin : apisSlot?.Origin;
+            throw (origin ?? root.Root).Error(exception.Message, exception);
         }
     }
 
