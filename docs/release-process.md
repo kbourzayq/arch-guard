@@ -1,5 +1,9 @@
 # Release engineering
 
+Use [`$release-arch-guard`](../.agents/skills/release-arch-guard/SKILL.md) to
+prepare a release PR or publish a stable release through the verified merge,
+tag, NuGet, and GitHub Pages workflow.
+
 ## Build and verify packages
 
 Run from the checkout root with Git, Python 3.10+, the pinned SDK and the Python
