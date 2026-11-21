@@ -1,3 +1,19 @@
+## v0.5.0 (2026-11-21)
+
+### Feat
+
+- **rule-packs**: add the ABP Framework rule pack (#110)
+- **rule-packs**: add EF Core rules EF001–EF003 (#109)
+- **rule-packs**: add ASP.NET Core rules ASP001–ASP005
+- **rule-packs**: add the Vertical Slice rule pack
+- **rule-packs**: add the Modular Monolith rule pack
+- **rule-packs**: add the Clean Architecture rule pack
+- **policy**: add versioned rule packs and extends composition
+
+### Fix
+
+- **cli**: stream discovery reports to disk (#112)
+
 ## v0.4.1 (2026-11-20)
 
 ### Fix

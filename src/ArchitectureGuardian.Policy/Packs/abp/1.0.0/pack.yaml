@@ -6,7 +6,7 @@ version: 1.0.0
 description: ABP Framework layered solutions following the startup template's Domain.Shared, Domain, Application.Contracts, Application, EntityFrameworkCore, HttpApi and HttpApi.Client layers.
 requires:
   policySchema: 1
-  engine: 0.4.1
+  engine: 0.5.0
 rules:
   AG002: error
   AG006: error

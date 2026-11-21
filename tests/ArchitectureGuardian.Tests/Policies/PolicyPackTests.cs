@@ -49,10 +49,10 @@ public sealed class PolicyPackTests
     /// <param name="label">The embedded pack label.</param>
     /// <param name="sha256">The released manifest hash with LF line endings.</param>
     [Theory]
-    [InlineData("abp@1.0.0", "a0c38f24ce50070df1d95432653336c3be1a1c620037c21453ccf9bb87db194d")]
-    [InlineData("clean-architecture@1.0.0", "d679701da3268e99bacc25c22c206405a6c1ef7596fba67bd64df4f9da7d5469")]
-    [InlineData("modular-monolith@1.0.0", "98b39da2956301f66d0921b2dc4635e4c3169c8bc7051d1e5ab0ae0837de544e")]
-    [InlineData("vertical-slice@1.0.0", "d239e7125409ed1501a49bd4dcda21e67e0805eaa8ebc560e666f9b78d14bf2b")]
+    [InlineData("abp@1.0.0", "75525cd14d5565e3575c9bfb3753dcc916bad55b3870c862dbb389664b6ed1ac")]
+    [InlineData("clean-architecture@1.0.0", "d4d4dfe76ee40ab6a0ee5e38ba25c4202254e55493dc96688d7271df845aca22")]
+    [InlineData("modular-monolith@1.0.0", "b9686b9cbd14680876dc7bf677ce376659bed338db62a22d9cb0d92bd275161d")]
+    [InlineData("vertical-slice@1.0.0", "a4dcb3f9cf0376624535d994f10da5d4da06858f65913bec418173b828c85b74")]
     public void Released_built_in_packs_are_immutable(string label, string sha256)
     {
         var parts = label.Split('@');

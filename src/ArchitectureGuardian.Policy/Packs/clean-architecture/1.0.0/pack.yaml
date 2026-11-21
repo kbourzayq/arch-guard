@@ -6,7 +6,7 @@ version: 1.0.0
 description: Domain, Application, Infrastructure and Api layers whose dependencies point toward Domain.
 requires:
   policySchema: 1
-  engine: 0.4.1
+  engine: 0.5.0
 rules:
   AG002: error
   AG006: error

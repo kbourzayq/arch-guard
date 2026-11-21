@@ -131,7 +131,7 @@ version: 2.1.0
 description: Company-wide technology restrictions.
 requires:
   policySchema: 1      # the policy schema version the fragment uses
-  engine: 0.4.1        # minimum Architecture Guardian version
+  engine: 0.5.0        # minimum Architecture Guardian version
 rules:                 # rule IDs this pack selects, with default severities
   AG005: error
 layers:

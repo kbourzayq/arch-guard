@@ -6,7 +6,7 @@ version: 1.0.0
 description: Feature slices isolated from each other's implementation, sharing only a shared kernel and declared slice contracts.
 requires:
   policySchema: 1
-  engine: 0.4.1
+  engine: 0.5.0
 rules:
   AG001: error
   AG002: error

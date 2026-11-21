@@ -75,7 +75,7 @@ def verify(directory, tag=None, manifest=True):
             assert metadata.findtext("version") == version
             assert metadata.findtext("authors") == "Khalid BOURZAYQ"
             assert metadata.findtext("description")
-            assert metadata.findtext("projectUrl") == "https://github.com/kbourzayq/arch-guard"
+            assert metadata.findtext("projectUrl") == "https://kbourzayq.github.io/arch-guard/"
             assert metadata.find("license").attrib == {"type": "expression"}
             assert metadata.findtext("license") == "MIT"
             assert metadata.findtext("readme") == "README.md" and "README.md" in paths
