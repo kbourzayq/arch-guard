@@ -42,12 +42,15 @@ internal sealed class PolicySlotKey : IEquatable<PolicySlotKey>, IComparable<Pol
 
         /// <summary>A top-level EF Core persistence setting.</summary>
         EntityFrameworkCore,
+
+        /// <summary>A top-level ABP Framework layer setting.</summary>
+        Abp,
     }
 
     /// <summary>Gets the declaration kind.</summary>
     internal SlotKind Kind { get; }
 
-    /// <summary>Gets the module, layer or rule identity; empty for the gate and EF Core settings.</summary>
+    /// <summary>Gets the module, layer or rule identity; empty for the gate and EF Core or ABP settings.</summary>
     internal string Id { get; }
 
     /// <summary>Gets the contract identity for contract settings.</summary>
@@ -64,6 +67,7 @@ internal sealed class PolicySlotKey : IEquatable<PolicySlotKey>, IComparable<Pol
         SlotKind.Layer => Suffix("layers." + Id),
         SlotKind.Rule => "rules." + Id,
         SlotKind.EntityFrameworkCore => "entityFrameworkCore." + Field,
+        SlotKind.Abp => "abp." + Field,
         _ => "gate.failOn",
     };
 
@@ -100,6 +104,11 @@ internal sealed class PolicySlotKey : IEquatable<PolicySlotKey>, IComparable<Pol
     /// <param name="field">The setting name.</param>
     /// <returns>The key.</returns>
     internal static PolicySlotKey EntityFrameworkCore(string field) => new(SlotKind.EntityFrameworkCore, string.Empty, null, field);
+
+    /// <summary>Creates a top-level ABP Framework setting key, such as repositoryLayers.</summary>
+    /// <param name="field">The setting name.</param>
+    /// <returns>The key.</returns>
+    internal static PolicySlotKey Abp(string field) => new(SlotKind.Abp, string.Empty, null, field);
 
     /// <inheritdoc />
     public bool Equals(PolicySlotKey? other) => other is not null && string.Equals(_canonical, other._canonical, StringComparison.Ordinal);

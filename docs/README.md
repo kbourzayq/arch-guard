@@ -14,6 +14,7 @@ findings, and share a policy across your editor, CI pipeline and coding agents.
 | Understand the model before writing YAML | [Architecture as code](concepts/architecture-as-code.md), then [modules, layers and contracts](concepts/modules-and-layers.md) |
 | Learn the configuration language | [Write a YAML policy](yaml-guide.md), then use the [complete reference](policy.md) |
 | Start from a Clean Architecture, Modular Monolith or Vertical Slice convention | [Extend a built-in rule pack](rule-packs.md) |
+| Enforce ABP Framework layering and conventions | [ABP Framework pack](packs/abp.md) |
 | Get IDE/build feedback | [Install the Roslyn analyzer](compiler-analyzer.md#install-and-distribute-policy) |
 | Check pull requests in CI | [Add an independent quality gate](ci.md) |
 | Give an AI agent architecture context | [Configure MCP](mcp.md#configure-your-client), then [use the agent workflow](agent-workflow.md) |
@@ -58,7 +59,7 @@ tools and downloadable samples do not require an Architecture Guardian source ch
 Use the [CLI](cli.md), [MCP](mcp.md), [analyzer](compiler-analyzer.md) and
 [CI](ci.md) guides for integration. Exact contracts are in the [YAML reference](policy.md),
 [rule packs](rule-packs.md),
-[AG001–AG006, ASP001–ASP005 and EF001–EF003 catalog](rule-catalog.md), [JSON/SARIF reports](reports.md),
+[AG001–AG006, ASP001–ASP005, EF001–EF003 and ABP001–ABP005 catalog](rule-catalog.md), [JSON/SARIF reports](reports.md),
 [baselines](baselines.md), [Git comparison](changes.md), and [compatibility policy](releases.md).
 Operational guidance covers [workspace loading](workspace-loading.md),
 [performance and telemetry](performance.md) and [troubleshooting](troubleshooting.md).

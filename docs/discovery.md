@@ -84,6 +84,28 @@ consumers can suggest shared abstractions; review the entire API. Schema v1 owns
 whole projects: namespace/feature slices and runtime/reflection dependencies remain
 explicit limitations.
 
+### ABP Framework solutions
+
+When evaluated projects reference `Volo.Abp.*` assemblies, discovery reports an
+`ABP Framework` style with high confidence and the referenced versions as evidence. It then
+classifies projects by the ABP startup template's names instead of the generic roles:
+`*.Domain.Shared`, `*.Domain`, `*.Application.Contracts`, `*.Application`,
+`*.EntityFrameworkCore` or `*.MongoDB`, `*.HttpApi`, `*.HttpApi.Client`, hosts (`*.Web`,
+`*.HttpApi.Host`, `*.Blazor*`, `*.AuthServer`, `*.DbMigrator`) and tests (`*.Tests`,
+`*.TestBase`, `*.TestApp`). The name before the layer suffix is the candidate module, such
+as `Acme.BookStore`. `Application.Contracts` and `Domain.Shared` projects with public types
+become each module's `api` contract. A project that follows none of these names leaves an
+unresolved question and no YAML, as for other solutions.
+
+The proposed YAML extends the built-in [`abp` pack](packs/abp.md) instead of restating its
+layers. It lists modules, the host and test projects, AG001, AG003 and AG004, and excludes
+pack layers that no project supplies. A `rule-pack` inference names `abp@1.0.0` and each
+exclusion. Before writing the pack form, discovery composes it with the shared policy reader
+and checks that it resolves every project to the same module, layer and contract, with the
+same permissions, restrictions, rules and `abp` settings. If it does not, the complete
+standalone policy is written instead. Candidate compliance evaluates the pack's ABP rules
+with extracted facts. For ABP versions other than 10.x, a question asks you to review findings.
+
 Layer directions are conventional review intentions: Application → Domain/Contracts,
 Infrastructure → Application/Domain/Contracts, Host → those inner layers, and
 Tests → production layers. Reverse directions remain denied. Cross-module

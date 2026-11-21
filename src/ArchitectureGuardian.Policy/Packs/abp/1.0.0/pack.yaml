@@ -1,0 +1,65 @@
+# ABP Framework rule pack. Released versions are immutable; documentation: docs/packs/abp.md
+# yaml-language-server: $schema=../../../../../docs/schema/rule-pack.v1.schema.json
+manifest: 1
+id: abp
+version: 1.0.0
+description: ABP Framework layered solutions following the startup template's Domain.Shared, Domain, Application.Contracts, Application, EntityFrameworkCore, HttpApi and HttpApi.Client layers.
+requires:
+  policySchema: 1
+  engine: 0.4.1
+rules:
+  AG002: error
+  AG006: error
+  ABP001: error
+  ABP002: error
+  ABP003: error
+  ABP004: warning
+  ABP005: warning
+layers:
+  # Constants, enums and localization shared by every layer; it depends on no other layer.
+  - id: DomainShared
+    projects: ["**/*.Domain.Shared.csproj"]
+    domainInfrastructure:
+      forbiddenNamespaces: [Microsoft.AspNetCore.Mvc, Microsoft.EntityFrameworkCore, MongoDB, Volo.Abp.AspNetCore.Mvc, Volo.Abp.EntityFrameworkCore, Volo.Abp.MongoDB]
+  # Entities, aggregate roots, domain services and repository interfaces; independent of the database provider.
+  - id: Domain
+    projects: ["**/*.Domain.csproj"]
+    allowedDependencies: [DomainShared]
+    domainInfrastructure:
+      forbiddenNamespaces: [Microsoft.AspNetCore.Mvc, Microsoft.EntityFrameworkCore, MongoDB, Volo.Abp.AspNetCore.Mvc, Volo.Abp.EntityFrameworkCore, Volo.Abp.MongoDB]
+  # Application service interfaces and DTOs; clients depend on this layer, never on Domain.
+  - id: ApplicationContracts
+    projects: ["**/*.Application.Contracts.csproj"]
+    allowedDependencies: [DomainShared]
+    domainInfrastructure:
+      forbiddenNamespaces: [Microsoft.AspNetCore.Mvc, Microsoft.EntityFrameworkCore, MongoDB, Volo.Abp.AspNetCore.Mvc, Volo.Abp.EntityFrameworkCore, Volo.Abp.MongoDB]
+  # Application service implementations that orchestrate the domain.
+  - id: Application
+    projects: ["**/*.Application.csproj"]
+    allowedDependencies: [ApplicationContracts, Domain, DomainShared]
+    domainInfrastructure:
+      forbiddenNamespaces: [Microsoft.AspNetCore.Mvc, Microsoft.EntityFrameworkCore, MongoDB, Volo.Abp.AspNetCore.Mvc, Volo.Abp.EntityFrameworkCore, Volo.Abp.MongoDB]
+  # Database provider integration. For MongoDB, override projects with ["**/*.MongoDB.csproj"].
+  - id: Persistence
+    projects: ["**/*.EntityFrameworkCore.csproj"]
+    allowedDependencies: [Domain, DomainShared]
+  # HTTP API controllers, which depend only on application service contracts.
+  - id: HttpApi
+    projects: ["**/*.HttpApi.csproj"]
+    allowedDependencies: [ApplicationContracts, DomainShared]
+    domainInfrastructure:
+      forbiddenNamespaces: [Microsoft.EntityFrameworkCore, MongoDB, Volo.Abp.EntityFrameworkCore, Volo.Abp.MongoDB]
+  # Dynamic or static C# client proxies for the HTTP API.
+  - id: HttpApiClient
+    projects: ["**/*.HttpApi.Client.csproj"]
+    allowedDependencies: [ApplicationContracts, DomainShared]
+    domainInfrastructure:
+      forbiddenNamespaces: [Microsoft.EntityFrameworkCore, MongoDB, Volo.Abp.EntityFrameworkCore, Volo.Abp.MongoDB]
+  # Composition roots such as *.Web, *.HttpApi.Host, *.Blazor, *.AuthServer and *.DbMigrator. Policies list their projects.
+  - id: Host
+    allowedDependencies: [Application, ApplicationContracts, Domain, DomainShared, HttpApi, HttpApiClient, Persistence]
+  # Test projects. Policies list their projects, or exclude layer:Tests.
+  - id: Tests
+    allowedDependencies: [Application, ApplicationContracts, Domain, DomainShared, Host, HttpApi, HttpApiClient, Persistence]
+abp:
+  repositoryLayers: [Application, Domain, Persistence, Tests]

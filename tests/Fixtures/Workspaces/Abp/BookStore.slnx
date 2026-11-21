@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="src/Acme.BookStore.Web/Acme.BookStore.Web.csproj" />
+  <Project Path="src/Catalog/Acme.Catalog.Application.Contracts/Acme.Catalog.Application.Contracts.csproj" />
+  <Project Path="src/Catalog/Acme.Catalog.Application/Acme.Catalog.Application.csproj" />
+  <Project Path="src/Catalog/Acme.Catalog.Domain.Shared/Acme.Catalog.Domain.Shared.csproj" />
+  <Project Path="src/Catalog/Acme.Catalog.Domain/Acme.Catalog.Domain.csproj" />
+  <Project Path="src/Catalog/Acme.Catalog.EntityFrameworkCore/Acme.Catalog.EntityFrameworkCore.csproj" />
+  <Project Path="src/Catalog/Acme.Catalog.HttpApi.Client/Acme.Catalog.HttpApi.Client.csproj" />
+  <Project Path="src/Catalog/Acme.Catalog.HttpApi/Acme.Catalog.HttpApi.csproj" />
+  <Project Path="src/Ordering/Acme.Ordering.Application.Contracts/Acme.Ordering.Application.Contracts.csproj" />
+  <Project Path="src/Ordering/Acme.Ordering.Application/Acme.Ordering.Application.csproj" />
+  <Project Path="src/Ordering/Acme.Ordering.Domain/Acme.Ordering.Domain.csproj" />
+</Solution>

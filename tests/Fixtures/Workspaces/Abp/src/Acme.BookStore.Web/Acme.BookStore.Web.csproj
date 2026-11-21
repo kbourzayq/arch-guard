@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Volo.Abp.AspNetCore.Mvc" Version="10.7.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Catalog/Acme.Catalog.Application/Acme.Catalog.Application.csproj" />
+    <ProjectReference Include="../Catalog/Acme.Catalog.EntityFrameworkCore/Acme.Catalog.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../Catalog/Acme.Catalog.HttpApi/Acme.Catalog.HttpApi.csproj" />
+    <ProjectReference Include="../Ordering/Acme.Ordering.Application/Acme.Ordering.Application.csproj" />
+  </ItemGroup>
+</Project>

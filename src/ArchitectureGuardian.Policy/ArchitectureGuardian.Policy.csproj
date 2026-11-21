@@ -13,12 +13,14 @@
     <Compile Include="../ArchitectureGuardian.Core/Policies/ContractPolicy.cs" Link="Documents/ContractPolicy.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/DomainInfrastructurePolicy.cs" Link="Documents/DomainInfrastructurePolicy.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/EntityFrameworkCorePolicy.cs" Link="Documents/EntityFrameworkCorePolicy.cs" />
+    <Compile Include="../ArchitectureGuardian.Core/Policies/AbpPolicy.cs" Link="Documents/AbpPolicy.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/PolicyData.cs" Link="Documents/PolicyData.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Policies/ProjectPattern.cs" Link="Documents/ProjectPattern.cs" />
     <Compile Include="../ArchitectureGuardian.Core/Rules/ForbiddenReferenceSemantics.cs" Link="Validation/ForbiddenReferenceSemantics.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- Built-in rule packs: one immutable manifest per released pack version, shared by both analysis engines. -->
+    <EmbeddedResource Include="Packs/abp/1.0.0/pack.yaml" LogicalName="packs/abp/1.0.0/pack.yaml" />
     <EmbeddedResource Include="Packs/clean-architecture/1.0.0/pack.yaml" LogicalName="packs/clean-architecture/1.0.0/pack.yaml" />
     <EmbeddedResource Include="Packs/modular-monolith/1.0.0/pack.yaml" LogicalName="packs/modular-monolith/1.0.0/pack.yaml" />
     <EmbeddedResource Include="Packs/vertical-slice/1.0.0/pack.yaml" LogicalName="packs/vertical-slice/1.0.0/pack.yaml" />

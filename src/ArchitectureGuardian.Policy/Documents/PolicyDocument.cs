@@ -7,7 +7,8 @@ public sealed class PolicyDocument
 {
     internal PolicyDocument(IEnumerable<ModulePolicy> modules, IEnumerable<LayerPolicy> layers,
         IReadOnlyDictionary<string, PolicySeverity> rules, PolicySeverity failOn, string sourcePath,
-        IDictionary<string, PolicyPosition> locations, EntityFrameworkCorePolicy? entityFrameworkCore = null)
+        IDictionary<string, PolicyPosition> locations, EntityFrameworkCorePolicy? entityFrameworkCore = null,
+        AbpPolicy? abp = null)
     {
         Modules = PolicyData.Unique(modules, module => module.Id, "module");
         Layers = PolicyData.Unique(layers, layer => layer.Id, "layer");
@@ -39,6 +40,8 @@ public sealed class PolicyDocument
         }
         EntityFrameworkCorePolicy.Validate(entityFrameworkCore, Layers.Select(layer => layer.Id), rules.Keys);
         EntityFrameworkCore = entityFrameworkCore;
+        AbpPolicy.Validate(abp, Layers.Select(layer => layer.Id), rules.Keys);
+        Abp = abp;
         Rules = new ReadOnlyDictionary<string, PolicySeverity>(rules.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal));
         FailOn = failOn;
         SourcePath = sourcePath;
@@ -53,6 +56,8 @@ public sealed class PolicyDocument
     public IReadOnlyDictionary<string, PolicySeverity> Rules { get; }
     /// <summary>Gets the EF Core persistence settings, or null when the policy declares none.</summary>
     public EntityFrameworkCorePolicy? EntityFrameworkCore { get; }
+    /// <summary>Gets the ABP Framework layer settings, or null when the policy declares none.</summary>
+    public AbpPolicy? Abp { get; }
     /// <summary>Gets the solution gate threshold.</summary>
     public PolicySeverity FailOn { get; }
     /// <summary>Gets the source document path.</summary>

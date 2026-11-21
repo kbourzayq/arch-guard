@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Analysis.Abp;
 using ArchitectureGuardian.Analysis.AspNetCore;
 using ArchitectureGuardian.Analysis.EntityFrameworkCore;
 using ArchitectureGuardian.Analysis.Repositories;
@@ -45,8 +46,33 @@ public sealed class DependencyGraphBuilder
         var aspNetCore = await ExtractAspNetCoreAsync(solution, repository, policyDirectory, policy, result, cancellationToken).ConfigureAwait(false);
         var entityFrameworkCore = await ExtractEntityFrameworkCoreAsync(solution, repository, policyDirectory, policy,
             aspNetCore.Status, aspNetCore.Issues, cancellationToken).ConfigureAwait(false);
-        return new(repository, result.Graph?.Aggregate(repository), entityFrameworkCore.Status, entityFrameworkCore.Issues, aspNetCore.Facts,
-            entityFrameworkCore.Facts);
+        var abp = await ExtractAbpAsync(solution, repository, policyDirectory, policy, entityFrameworkCore.Status, entityFrameworkCore.Issues,
+            cancellationToken).ConfigureAwait(false);
+        return new(repository, result.Graph?.Aggregate(repository), abp.Status, abp.Issues, aspNetCore.Facts, entityFrameworkCore.Facts, abp.Facts);
+    }
+
+    /// <summary>Extracts ABP Framework facts only when a selected rule needs them, keeping other scans unchanged.</summary>
+    /// <param name="solution">The loaded solution.</param>
+    /// <param name="repository">The normalized repository supplying project identities.</param>
+    /// <param name="policyDirectory">The directory defining project and evidence path identities.</param>
+    /// <param name="policy">The policy whose selected rules decide whether extraction runs.</param>
+    /// <param name="status">Coverage so far; failed or cancelled work is never extended.</param>
+    /// <param name="issues">Issues so far, which extraction issues are appended to.</param>
+    /// <param name="cancellationToken">Cooperative extraction cancellation.</param>
+    /// <returns>The combined coverage, issues and facts, or null facts when no ABP rule is selected.</returns>
+    internal static async Task<(AnalysisStatus Status, IReadOnlyList<AnalysisIssue> Issues, Core.Frameworks.Abp.AbpFacts? Facts)>
+        ExtractAbpAsync(Solution solution, RepositoryModel repository, string policyDirectory, ArchitecturePolicy policy,
+            AnalysisStatus status, IReadOnlyList<AnalysisIssue> issues, CancellationToken cancellationToken)
+    {
+        if (status is AnalysisStatus.Failed or AnalysisStatus.Cancelled
+            || !policy.SeverityPolicy.RuleSeverities.Keys.Any(id => id.StartsWith("ABP", StringComparison.Ordinal)))
+        {
+            return (status, issues, null);
+        }
+
+        var (facts, extracted) = await AbpFactExtractor.ExtractAsync(solution, repository.Projects, policyDirectory, cancellationToken).ConfigureAwait(false);
+        var all = issues.Concat(extracted).ToArray();
+        return (status == AnalysisStatus.Completed && all.Length > 0 ? AnalysisStatus.Incomplete : status, all, facts);
     }
 
     /// <summary>Extracts EF Core facts only when a selected rule needs them, keeping other scans unchanged.</summary>

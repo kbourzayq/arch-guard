@@ -72,6 +72,21 @@
         },
         "EF003": {
           "$ref": "#/$defs/severity"
+        },
+        "ABP001": {
+          "$ref": "#/$defs/severity"
+        },
+        "ABP002": {
+          "$ref": "#/$defs/severity"
+        },
+        "ABP003": {
+          "$ref": "#/$defs/severity"
+        },
+        "ABP004": {
+          "$ref": "#/$defs/severity"
+        },
+        "ABP005": {
+          "$ref": "#/$defs/severity"
         }
       }
     },
@@ -108,6 +123,29 @@
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
           },
           "description": "EF Core method names that source must not reference (EF003), such as IgnoreQueryFilters or FromSqlRaw."
+        }
+      }
+    },
+    "abp": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "ABP Framework settings for ABP003 and ABP005. Each list merges independently with rule packs; selecting ABP003 requires repositoryLayers to be nonempty.",
+      "properties": {
+        "repositoryLayers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "description": "Declared layer IDs whose projects may use ABP repositories (ABP003)."
+        },
+        "tenantFilterBypassLayers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "description": "Declared layer IDs whose projects may disable the IMultiTenant data filter or switch to the host (ABP005)."
         }
       }
     }
@@ -385,7 +423,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^((layer|module):[A-Za-z][A-Za-z0-9_.-]*|rule:(AG00[1-6]|ASP00[1-5]))$"
+            "pattern": "^((layer|module):[A-Za-z][A-Za-z0-9_.-]*|rule:(AG00[1-6]|ASP00[1-5]|EF00[1-3]|ABP00[1-5]))$"
           }
         }
       }

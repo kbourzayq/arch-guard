@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=../../../../docs/schema/architecture.guardian.v1.schema.json
+version: 1
+extends:
+  - pack: abp
+    version: 1.0.0
+    # This solution has no test projects; excluding the layer also removes it from abp.repositoryLayers.
+    exclude: [layer:Tests]
+modules:
+  # Catalog is fully compliant; Ordering and the host seed one violation per ABP rule.
+  - id: Catalog
+    projects: ["src/Catalog/**/*.csproj"]
+    contracts:
+      - id: api
+        # ABP DTOs use Domain.Shared enums and constants, so both projects form the public contract.
+        projects: ["src/Catalog/Acme.Catalog.Application.Contracts/*.csproj", "src/Catalog/Acme.Catalog.Domain.Shared/*.csproj"]
+  - id: Ordering
+    projects: ["src/Ordering/**/*.csproj"]
+    allowedDependencies: ["contract:Catalog/api"]
+  - id: Host
+    projects: ["src/Acme.BookStore.Web/*.csproj"]
+    allowedDependencies: ["module:Catalog", "module:Ordering"]
+layers:
+  # The pack declares the Host layer's permissions; the policy names its composition root.
+  - id: Host
+    projects: ["src/Acme.BookStore.Web/*.csproj"]
+rules:
+  # Module permissions are checked alongside the pack's layer and ABP rules.
+  AG001: error

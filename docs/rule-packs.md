@@ -4,12 +4,13 @@ A rule pack is a versioned, reusable fragment of an architecture policy: default
 layers, modules, public contracts, technology restrictions, rule selections and a
 gate. A repository policy opts in to packs with `extends`, then overrides only the
 settings that differ in that repository. Packs never change rule semantics; they
-configure the same AG001–AG006 rules (and may select ASP001–ASP005 and EF001–EF003, including `entityFrameworkCore` settings) described in the [rule catalog](rule-catalog.md).
+configure the same AG001–AG006 rules (and may select ASP001–ASP005, EF001–EF003 and ABP001–ABP005, including `entityFrameworkCore` and `abp` settings) described in the [rule catalog](rule-catalog.md).
 
 Built-in packs:
 
 | Pack | Version | Use it for | Guide |
 | --- | --- | --- | --- |
+| `abp` | `1.0.0` | ABP Framework layered solutions: the startup template's layers plus ABP module, DTO, repository, authorization and multi-tenancy conventions | [ABP Framework pack](packs/abp.md) |
 | `clean-architecture` | `1.0.0` | Domain/Application/Infrastructure/Api layers pointing inward | [Clean Architecture pack](packs/clean-architecture.md) |
 | `modular-monolith` | `1.0.0` | Multi-project logical modules talking through contract projects | [Modular Monolith pack](packs/modular-monolith.md) |
 | `vertical-slice` | `1.0.0` | Feature slices isolated from each other, sharing a kernel | [Vertical Slice pack](packs/vertical-slice.md) |
@@ -38,7 +39,7 @@ Each `extends` entry has these fields:
 | `pack` | Yes | Pack identity: lowercase letters, digits and single hyphens, at most 64 characters |
 | `version` | Yes | The exact `MAJOR.MINOR.PATCH` version. Ranges, wildcards and prerelease labels are rejected |
 | `path` | No | Directory of a **local** pack, relative to the root policy directory. Omit it for a built-in pack |
-| `exclude` | No | Declarations or rules removed from this pack's contribution: `layer:ID`, `module:ID` or `rule:AG00N` |
+| `exclude` | No | Declarations or rules removed from this pack's contribution: `layer:ID`, `module:ID` or `rule:ID`, such as `rule:AG006` or `rule:ABP004` |
 
 When a policy has `extends`, `modules`, `layers` and `rules` become optional in the
 document itself, and an entry may name only an `id` plus the fields it overrides.
@@ -56,8 +57,9 @@ Composition is deterministic for the same policy, packs and engine version.
    a diamond (two packs extending the same base) reuses it.
 2. **Exclusions.** `exclude` removes a declaration and its fields from that pack's
    contribution. Removing a layer also removes it from the pack's layer
-   `allowedDependencies`; removing a module removes `module:ID` and `contract:ID/*`
-   permissions. Excluding something the pack does not supply is an error.
+   `allowedDependencies`, `entityFrameworkCore.persistenceLayers` and `abp` layer
+   lists; removing a module removes `module:ID` and `contract:ID/*` permissions.
+   Excluding something the pack does not supply is an error.
 3. **Siblings.** Packs listed in the same `extends` array have equal precedence.
    Different declarations combine. If two siblings set the **same setting** to
    different values, composition fails and names both packs and the setting, unless
@@ -65,7 +67,8 @@ Composition is deterministic for the same policy, packs and engine version.
 4. **Overrides.** The extending document replaces inherited settings **field by
    field**: a module or layer's `projects`, `allowedDependencies`,
    `forbiddenAssemblies`, `forbiddenNamespaces`, `domainInfrastructure` (as one
-   object), each contract's `projects`, each rule severity and `gate.failOn`.
+   object), each contract's `projects`, each rule severity, `gate.failOn`, and each
+   `entityFrameworkCore` and `abp` list.
    Lists are replaced, not appended. Fields you do not mention remain inherited.
 5. **Validation.** The composed policy is validated: unique identities, known
    permission targets, selectors and names. Errors point to the document and field
@@ -137,7 +140,7 @@ layers:
 ```
 
 `manifest`, `id`, `version`, `requires` and a nonempty `rules` map are required.
-`description`, `extends`, `modules`, `layers` and `gate` are optional; module and
+`description`, `extends`, `modules`, `layers`, `gate`, `entityFrameworkCore` and `abp` are optional; module and
 layer entries use the policy fields and may be partial. The
 [manifest schema](schema/rule-pack.v1.schema.json) supports editor validation.
 

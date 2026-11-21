@@ -1,10 +1,10 @@
 # Rule catalog
 
 Architecture Guardian implements six canonical architecture rules (AG001–AG006),
-five ASP.NET Core rules (ASP001–ASP005) and three EF Core rules (EF001–EF003). CLI and
-MCP solution scans can evaluate all of them; compiler analysis implements AG001, AG002,
-AG004, AG005 and AG006 against its host compilation. Only the solution engine checks
-module cycles and the ASP and EF rules.
+five ASP.NET Core rules (ASP001–ASP005), three EF Core rules (EF001–EF003) and five
+ABP Framework rules (ABP001–ABP005). CLI and MCP solution scans can evaluate all of them;
+compiler analysis implements AG001, AG002, AG004, AG005 and AG006 against its host
+compilation. Only the solution engine checks module cycles and the ASP, EF and ABP rules.
 
 | Rule | Check |
 | --- | --- |
@@ -22,6 +22,11 @@ module cycles and the ASP and EF rules.
 | [EF001](#ef001-dbcontext-ownership) | DbContext use outside its owning module |
 | [EF002](#ef002-persistence-layers) | EF Core use outside the declared persistence layers |
 | [EF003](#ef003-forbidden-persistence-apis) | References to forbidden EF Core APIs |
+| [ABP001](#abp001-module-dependency-declarations) | ABP modules that do not declare the modules of projects they reference |
+| [ABP002](#abp002-application-service-dto-boundaries) | Application services exposing entities instead of DTOs |
+| [ABP003](#abp003-repository-access-layers) | Repository use outside the declared repository layers |
+| [ABP004](#abp004-application-service-authorization) | Exposable application service methods without declared authorization |
+| [ABP005](#abp005-tenant-isolation-bypass) | Code that disables multi-tenant isolation |
 
 Choose rules and severities in your [YAML policy](policy.md#rule-selection-severity-and-gates).
 Use CLI `explain <rule-id>` for local metadata. The
@@ -583,6 +588,122 @@ filter and the data at runtime. Confirm tenant isolation with tests.
 
 **Blind spots:** global query filter contents and query results; SQL executed outside EF Core.
 
+## ABP Framework rules ABP001–ABP005
+
+The ABP rules check the conventions of [ABP Framework](https://abp.io) solutions. Select
+them with the built-in [`abp` pack](packs/abp.md), which also maps the startup template's
+layers, or individually under `rules`. They run only in the solution engine (`scan`,
+`baseline update`, the MCP tools and discovery's candidate compliance). Facts are extracted
+from bound symbols, so the analyzed projects need ABP references but Architecture Guardian
+does not. ABP identities must come from referenced `Volo.Abp.*` assemblies; a source type
+that copies an ABP name is not treated as the framework. A selected ABP rule whose facts are
+unavailable yields an incomplete result (`abp-facts-unavailable`), never a clean one.
+
+ABP003 and ABP005 read the top-level [`abp` policy object](policy.md#abp-framework-layers-abp003-abp005).
+Diagnostics carry the same `classification` as the [ASP rules](#aspnet-core-rules-asp001asp005).
+The two security heuristics, ABP004 and ABP005, are always `potential`: they point to code
+for review and never claim that an endpoint is unprotected or that data is exposed.
+
+| Rule | Confidence | Main runtime limitation |
+| --- | --- | --- |
+| ABP001 | `proven` | Modules added at runtime, such as plug-ins, are not seen |
+| ABP002 | `proven` | Values typed as `object` or `dynamic` are not followed |
+| ABP003 | `proven` | Repositories resolved through `IServiceProvider` or reflection are not seen |
+| ABP004 | `potential` | Conventional-controller configuration and global policies are runtime |
+| ABP005 | `potential` | Which tenant's data is read depends on runtime data |
+
+The rules were verified against ABP 10.0.0 and 10.7.1. Supported cases and blind spots are published by
+`AbpRuleCatalog.Support` and returned by MCP rule guidance. See the
+[support matrix](packs/abp.md#support-matrix) for framework versions.
+
+## ABP001: Module dependency declarations
+
+ABP builds its module graph from `[DependsOn]`, not from project references. A project
+whose `AbpModule` class references another solution project's module without reaching it
+through its transitive `[DependsOn]` closure is `proven`: ABP never configures or
+initializes that module for it, so its services and options can be missing at runtime.
+Inherited and transitive declarations count, because ABP loads them. A reference that another
+referenced module project also has is checked at that project, so each gap is reported once
+by the closest module; a path through a project without a module does not hide a gap.
+
+**Blind spots:** package references are not checked, only solution project references;
+modules added at runtime; projects without a module class are skipped.
+
+```csharp
+// Invalid: Acme.Ordering.Application references Acme.Catalog.Application.Contracts.
+[DependsOn(typeof(AbpDddApplicationModule), typeof(OrderingDomainModule))]
+public class OrderingApplicationModule : AbpModule;
+// Valid: the referenced module is declared.
+[DependsOn(typeof(AbpDddApplicationModule), typeof(OrderingDomainModule), typeof(CatalogApplicationContractsModule))]
+public class OrderingApplicationModule : AbpModule;
+```
+
+## ABP002: Application service DTO boundaries
+
+Public methods of classes and interfaces implementing `IApplicationService` must not take or
+return entities (`IEntity`). Wrappers such as `Task<T>`, `List<T>` and `PagedResultDto<T>`,
+generic arguments and arrays are followed, and so are the public properties of source DTO
+types up to four levels deep. Each service and entity pair is one `proven` finding, with
+every exposing member as evidence.
+
+**Blind spots:** values typed as `object` or `dynamic`; entities in inherited ABP base-class
+signatures, such as `CrudAppService` type arguments.
+
+```csharp
+// Invalid: the Order entity crosses the application boundary.
+public Task<Order> GetAsync(Guid id);
+// Valid: a DTO from the Application.Contracts layer does.
+public Task<OrderDto> GetAsync(Guid id);
+```
+
+## ABP003: Repository access layers
+
+Projects outside `abp.repositoryLayers` must not use ABP repositories: `IRepository<,>`,
+`IReadOnlyRepository<>`, `IBasicRepository<>`, custom repository interfaces and their
+implementations, anything implementing `Volo.Abp.Domain.Repositories.IRepository`. A host,
+UI or HTTP API that reads repositories directly skips the application layer's authorization,
+validation and DTO mapping. Each using type and repository pair is one `proven` finding.
+
+**Blind spots:** repositories resolved through `IServiceProvider`, `LazyServiceProvider` or
+reflection. Data reached through another abstraction, such as a domain service, is allowed.
+
+## ABP004: Application service authorization
+
+ABP's conventional controllers can publish application service methods as HTTP endpoints.
+Each public instance method of a public, non-generic, concrete application service, including
+methods inherited from source base classes and ABP CRUD base classes, must declare
+authorization through one of these:
+
+- `[Authorize]` or `[AllowAnonymous]` on the method, a method it overrides, its class or a base class;
+- an `AuthorizationService.CheckAsync`, `IsGrantedAsync`, `AuthorizeAsync` or `CheckPolicyAsync`
+  call in the method body;
+- for inherited CRUD methods, the matching policy name, such as `GetListPolicyName`, assigned in
+  source. Assigning or returning a constant `null` or empty name supplies no policy.
+
+Services marked `[RemoteService(false)]` or `[IntegrationService]` (on the class, a base class
+or an interface) are skipped, because ABP does not expose them as public HTTP endpoints by
+default. Each overload is a separate finding, identified by its parameter types, so a
+[baseline](baselines.md) entry for one overload never covers another. A missing declaration is
+`potential`. Static analysis cannot see conventional-controller configuration, global
+authorization policies or middleware, which may still protect the method.
+
+**Blind spots:** attributes on interfaces are not counted, because ABP's authorization
+interceptor reads the implementation; checks in called helper methods are not followed.
+Confirm effective authorization with integration tests.
+
+## ABP005: Tenant isolation bypass
+
+Code outside `abp.tenantFilterBypassLayers` must not call `DataFilter.Disable<IMultiTenant>()`
+(or `IDataFilter<IMultiTenant>.Disable()`), which returns every tenant's rows, or
+`CurrentTenant.Change(null)`, which switches to the host. The tenant ID is matched by parameter,
+so named arguments in any order are classified correctly. Findings are `potential`: the call
+is policy evidence for review and does not prove that another tenant's data is exposed,
+because that depends on the data the code reads and returns. Changing to a specific tenant,
+as data seeders do, and disabling other filters such as `ISoftDelete` are not reported.
+
+**Blind spots:** filters disabled through configuration such as `AbpDataFilterOptions`; the
+data a query returns. Confirm tenant isolation with tests.
+
 ## Compiler scope
 
 The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002/AG004 for bound semantic
@@ -590,6 +711,6 @@ uses between assemblies present in its supplied policy and ownership metadata. A
 explicit restrictions on all bound target assemblies. The adapter shares Core's
 IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
 spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable
-compiler configuration and is an operational adapter diagnostic, outside AG001–AG006. ASP001–ASP005 and
-EF001–EF003 are solution-only: the compiler adapter does not evaluate them.
+compiler configuration and is an operational adapter diagnostic, outside AG001–AG006. ASP001–ASP005,
+EF001–EF003 and ABP001–ABP005 are solution-only: the compiler adapter does not evaluate them.
 Compiler results do not establish whole-solution coverage or cycle compliance.

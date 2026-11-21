@@ -32,6 +32,12 @@ public sealed class PolicyProposalBuilder
         var ownership = new List<DiscoveryOwnership>();
         var inferences = new List<DiscoveryInference>();
         var questions = new List<string>();
+        var abp = AbpEvidence(observations);
+        if (abp.Count > 0)
+        {
+            return BuildAbp(observations, abp, cancellationToken);
+        }
+
         foreach (var project in observations.Inventory?.Projects ?? [])
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -124,6 +130,89 @@ public sealed class PolicyProposalBuilder
         _ = new ResolvedPolicy(policy, observations.Inventory.Projects.Select(project => project.Id));
         return new(policy, ownership, inferences, questions);
     }
+
+    /// <summary>Finds solution projects that reference ABP Framework assemblies, with the referenced ABP version.</summary>
+    private static IReadOnlyDictionary<string, string> AbpEvidence(DependencyInventoryResult observations)
+    {
+        var projects = observations.Inventory?.Projects.Select(project => project.Id).ToHashSet(StringComparer.Ordinal) ?? [];
+        return (observations.Graph?.Edges ?? [])
+            .Where(edge => edge.Source.Kind == DependencyKind.Assembly && edge.Source.ProjectPath is { } path && projects.Contains(path)
+                && edge.Target.ProjectPath is null && edge.Target.Name.StartsWith("Volo.Abp.", StringComparison.Ordinal))
+            .GroupBy(edge => edge.Source.ProjectPath!, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Select(edge => edge.Target.Name).Order(StringComparer.Ordinal).First(), StringComparer.Ordinal);
+    }
+
+    /// <summary>Proposes ownership by the ABP startup template's naming convention and a policy equivalent to extending the abp pack.</summary>
+    private static PolicyProposal BuildAbp(DependencyInventoryResult observations, IReadOnlyDictionary<string, string> abp, CancellationToken cancellationToken)
+    {
+        var ownership = new List<DiscoveryOwnership>();
+        var inferences = new List<DiscoveryInference>();
+        var questions = new List<string>();
+        foreach (var project in observations.Inventory?.Projects ?? [])
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var name = project.Id.Split('/')[^1][..^".csproj".Length];
+            if (name != project.Assembly.Name)
+            {
+                inferences.Add(new("naming-inconsistency", project.Id, "high", [$"Project filename: {name}", $"Evaluated assembly: {project.Assembly.Name}"]));
+            }
+
+            if (AbpSolutionTemplate.Classify(name) is not { } candidate || !ValidId(candidate.Module))
+            {
+                questions.Add($"{project.Id}: review ownership; the name follows no ABP startup-template layer (Domain.Shared, Domain, Application.Contracts, Application, EntityFrameworkCore, MongoDB, HttpApi, HttpApi.Client, a host or tests). Supply explicit module/layer mappings manually.");
+                continue;
+            }
+
+            // ABP modules publish Application.Contracts and Domain.Shared to other modules; DTOs use Domain.Shared enums and constants.
+            var contract = candidate.Layer is "ApplicationContracts" or "DomainShared"
+                && project.Assembly.Namespaces.SelectMany(ns => ns.Types).Any(type => type.IsPublic) ? "api" : null;
+            ownership.Add(new(project.Id, candidate.Module, candidate.Layer, contract));
+            inferences.Add(new("ownership", project.Id, "high", [$"ABP startup-template name: {name}", $"Candidate: module {candidate.Module}, layer {candidate.Layer}"]));
+            if (contract is not null)
+            {
+                inferences.Add(new("contract", project.Id, "medium", ["ABP modules expose Application.Contracts and Domain.Shared to other modules; review the entire project's public API before adoption."]));
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var version = abp.Values.Select(AbpVersion).OfType<Version>().DefaultIfEmpty().Max();
+        inferences.Add(new("style", "ABP Framework", "high", abp.Select(pair => $"{pair.Key}: references {pair.Value}")));
+        if (version is not null && version.Major != 10)
+        {
+            questions.Add($"The solution references ABP {version.ToString(3)}; abp@{AbpSolutionTemplate.PackVersion} was verified against ABP {Frameworks.Abp.AbpRuleCatalog.VerifiedVersions}. Review findings for framework API differences.");
+        }
+
+        questions.Add("Review module ownership, public contracts and the abp pack's layer permissions; observed edges never authorize access.");
+        questions.Add("ABP004 and ABP005 are security heuristics classified as potential; confirm authorization and tenant isolation with integration tests.");
+        if (observations.Status != AnalysisStatus.Completed)
+        {
+            questions.Add("Complete the selected configuration/framework inventory before generating a policy proposal; restore prerequisites and resolve every coverage issue.");
+            return new(null, ownership, inferences, questions);
+        }
+
+        if (observations.Inventory is null || ownership.Count == 0 || ownership.Count != observations.Inventory.Projects.Count)
+        {
+            return new(null, ownership, inferences, questions);
+        }
+
+        var modules = ownership.Select(item => item.Module).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Select(id =>
+            new ModulePolicy(id, ownership.Where(item => item.Module == id).Select(item => item.ProjectPath),
+                ownership.Where(item => item.Module == id && item.Contract is not null).GroupBy(item => item.Contract!)
+                    .Select(group => new ContractPolicy(group.Key, group.Select(item => item.ProjectPath)))));
+        var layers = ownership.GroupBy(item => item.Layer, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Select(item => item.ProjectPath).ToArray(), StringComparer.Ordinal);
+        var (policy, pack) = AbpSolutionTemplate.Build(modules, layers);
+        inferences.Add(new("rule-pack", $"{pack.Id}@{pack.Version}", "high", pack.Exclusions.Select(item => "Exclude unused pack declaration: " + item)
+            .Append("Candidate policy extends the built-in ABP Framework pack; layers follow the ABP startup template.")));
+        // Resolve every exact selector now, independently of whether any architecture rule passes.
+        _ = new ResolvedPolicy(policy, observations.Inventory.Projects.Select(project => project.Id));
+        return new(policy, ownership, inferences, questions, pack);
+    }
+
+    /// <summary>Reads the version from an assembly identity such as "Volo.Abp.Core, Version=10.7.1.0, ...".</summary>
+    private static Version? AbpVersion(string identity) => identity.Split(',').Select(part => part.Trim())
+        .FirstOrDefault(part => part.StartsWith("Version=", StringComparison.Ordinal)) is { } value
+        && Version.TryParse(value["Version=".Length..], out var parsed) ? parsed : null;
 
     private static string? ModulePrefix(string name)
     {

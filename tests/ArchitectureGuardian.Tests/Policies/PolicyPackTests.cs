@@ -32,11 +32,13 @@ public sealed class PolicyPackTests
     [Fact]
     public void Built_in_packs_are_versioned_and_compose()
     {
-        Assert.Equal(["clean-architecture@1.0.0", "modular-monolith@1.0.0", "vertical-slice@1.0.0"], BuiltInPolicyPacks.Available);
+        Assert.Equal(["abp@1.0.0", "clean-architecture@1.0.0", "modular-monolith@1.0.0", "vertical-slice@1.0.0"], BuiltInPolicyPacks.Available);
         foreach (var label in BuiltInPolicyPacks.Available)
         {
             var parts = label.Split('@');
             var yaml = $"version: 1\nextends:\n  - pack: {parts[0]}\n    version: {parts[1]}\nmodules:\n  - id: App\n    projects: [\"app/*.csproj\"]\n";
+            // The abp pack leaves its host and test layers' projects to the extending policy.
+            yaml += parts[0] == "abp" ? "layers:\n  - id: Host\n    projects: [\"host/*.csproj\"]\n  - id: Tests\n    projects: [\"test/*.csproj\"]\n" : "";
             var document = Read(yaml);
             Assert.NotEmpty(document.Layers);
             Assert.NotEmpty(document.Rules);
@@ -47,6 +49,7 @@ public sealed class PolicyPackTests
     /// <param name="label">The embedded pack label.</param>
     /// <param name="sha256">The released manifest hash with LF line endings.</param>
     [Theory]
+    [InlineData("abp@1.0.0", "a0c38f24ce50070df1d95432653336c3be1a1c620037c21453ccf9bb87db194d")]
     [InlineData("clean-architecture@1.0.0", "d679701da3268e99bacc25c22c206405a6c1ef7596fba67bd64df4f9da7d5469")]
     [InlineData("modular-monolith@1.0.0", "98b39da2956301f66d0921b2dc4635e4c3169c8bc7051d1e5ab0ae0837de544e")]
     [InlineData("vertical-slice@1.0.0", "d239e7125409ed1501a49bd4dcda21e67e0805eaa8ebc560e666f9b78d14bf2b")]

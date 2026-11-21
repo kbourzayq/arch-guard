@@ -1,3 +1,4 @@
+using ArchitectureGuardian.Core.Frameworks.Abp;
 using ArchitectureGuardian.Core.Frameworks.AspNetCore;
 using ArchitectureGuardian.Core.Frameworks.EntityFrameworkCore;
 using ArchitectureGuardian.Core.Policies;
@@ -68,6 +69,13 @@ internal sealed record RuleGuidance(
                 [new("rule:" + ruleId, "staticSupport", support.SupportedCases),
                     new("entityFrameworkCore", "persistenceLayers", policy.EntityFrameworkCore?.PersistenceLayers ?? []),
                     new("entityFrameworkCore", "forbiddenApis", policy.EntityFrameworkCore?.ForbiddenApis ?? [])], []),
+            _ when AbpRuleCatalog.Support.SingleOrDefault(item => item.RuleId == ruleId) is { } support => new RuleGuidance(
+                $"Static ABP Framework analysis, verified against ABP {AbpRuleCatalog.VerifiedVersions}. Confidence: {support.Confidence} Supported: "
+                    + string.Join(" ", support.SupportedCases) + " Runtime blind spots: " + string.Join(" ", support.RuntimeBlindSpots),
+                "Diagnostics are classified as Proven, Potential or RuntimeValidationRequired; confirm security findings (ABP004, ABP005) with integration tests.",
+                [new("rule:" + ruleId, "staticSupport", support.SupportedCases),
+                    new("abp", "repositoryLayers", policy.Abp?.RepositoryLayers ?? []),
+                    new("abp", "tenantFilterBypassLayers", policy.Abp?.TenantFilterBypassLayers ?? [])], []),
             _ => throw new ArgumentOutOfRangeException(nameof(ruleId)),
         };
         if (guidance.PublicContracts.Length > 0)

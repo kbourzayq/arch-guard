@@ -57,7 +57,7 @@ internal static class DiscoveryCommand
             var request = new WorkspaceLoadRequest(input, result.GetValue(trusted), result.GetValue(configuration) ?? "Debug", result.GetValue(framework));
             var discovery = await new DiscoveryService().DiscoverAsync(request, root, token);
             var ready = discovery.Status == AnalysisStatus.Completed && discovery.Proposal.Policy is not null;
-            var yaml = ready ? ProposedPolicyYaml.Serialize(discovery.Proposal.Policy!, token) : null;
+            var yaml = ready ? ProposedPolicyYaml.Serialize(discovery.Proposal, token) : null;
             // Even cooperative analysis cancellation retains an explicit cancelled report. No proposal is written.
             await WriteAsync(reportPath, DiscoveryReportSerializer.Serialize(discovery), proposalPath, yaml);
             output.WriteLine($"Discovery coverage: {discovery.Status.ToString().ToLowerInvariant()}; report: {reportPath}");
