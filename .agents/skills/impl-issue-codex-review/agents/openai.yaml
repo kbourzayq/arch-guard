@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement Issue with Codex Review"
+  short_description: "Implement an issue, review with Codex (sol), fix and prove each finding"
+  default_prompt: "Use $impl-issue-codex-review to implement the supplied issue, review the changes once with Codex using the sol model, fix every valid finding with a test that proves it, then stop with a verified local change."

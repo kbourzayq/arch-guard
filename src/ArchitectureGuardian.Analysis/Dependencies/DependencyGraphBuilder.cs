@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Analysis.AspNetCore;
+using ArchitectureGuardian.Analysis.EntityFrameworkCore;
 using ArchitectureGuardian.Analysis.Repositories;
 using ArchitectureGuardian.Analysis.Telemetry;
 using ArchitectureGuardian.Analysis.Workspaces;
@@ -42,7 +43,26 @@ public sealed class DependencyGraphBuilder
         var result = await ExtractAsync(solution, new RepositoryInventory(repository.Id, repository.Projects),
             policyDirectory, normalized.Status, normalized.Issues, cancellationToken).ConfigureAwait(false);
         var aspNetCore = await ExtractAspNetCoreAsync(solution, repository, policyDirectory, policy, result, cancellationToken).ConfigureAwait(false);
-        return new(repository, result.Graph?.Aggregate(repository), aspNetCore.Status, aspNetCore.Issues, aspNetCore.Facts);
+        var entityFrameworkCore = await ExtractEntityFrameworkCoreAsync(solution, repository, policyDirectory, policy,
+            aspNetCore.Status, aspNetCore.Issues, cancellationToken).ConfigureAwait(false);
+        return new(repository, result.Graph?.Aggregate(repository), entityFrameworkCore.Status, entityFrameworkCore.Issues, aspNetCore.Facts,
+            entityFrameworkCore.Facts);
+    }
+
+    /// <summary>Extracts EF Core facts only when a selected rule needs them, keeping other scans unchanged.</summary>
+    private static async Task<(AnalysisStatus Status, IReadOnlyList<AnalysisIssue> Issues, Core.Frameworks.EntityFrameworkCore.EntityFrameworkCoreFacts? Facts)>
+        ExtractEntityFrameworkCoreAsync(Microsoft.CodeAnalysis.Solution solution, RepositoryModel repository, string policyDirectory,
+            ArchitecturePolicy policy, AnalysisStatus status, IReadOnlyList<AnalysisIssue> issues, CancellationToken cancellationToken)
+    {
+        if (status is AnalysisStatus.Failed or AnalysisStatus.Cancelled
+            || !policy.SeverityPolicy.RuleSeverities.Keys.Any(id => id.StartsWith("EF", StringComparison.Ordinal)))
+        {
+            return (status, issues, null);
+        }
+
+        var (facts, extracted) = await EntityFrameworkCoreFactExtractor.ExtractAsync(solution, repository.Projects, policyDirectory, cancellationToken).ConfigureAwait(false);
+        var all = issues.Concat(extracted).ToArray();
+        return (status == AnalysisStatus.Completed && all.Length > 0 ? AnalysisStatus.Incomplete : status, all, facts);
     }
 
     /// <summary>Extracts ASP.NET Core facts only when a selected rule needs them, keeping other scans unchanged.</summary>

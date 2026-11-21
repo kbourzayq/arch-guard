@@ -1,5 +1,6 @@
 using ArchitectureGuardian.Core.Analysis;
 using ArchitectureGuardian.Core.Frameworks.AspNetCore;
+using ArchitectureGuardian.Core.Frameworks.EntityFrameworkCore;
 using ArchitectureGuardian.Core.Repositories;
 
 namespace ArchitectureGuardian.Core.Dependencies;
@@ -13,8 +14,9 @@ public sealed class DependencyBuildResult
     /// <param name="status">The combined coverage outcome.</param>
     /// <param name="issues">Operational issues explaining unfinished coverage.</param>
     /// <param name="aspNetCore">ASP.NET Core facts, or null when no selected rule required them.</param>
+    /// <param name="entityFrameworkCore">EF Core facts, or null when no selected rule required them.</param>
     public DependencyBuildResult(RepositoryModel? repository, DependencyGraph? graph, AnalysisStatus status, IEnumerable<AnalysisIssue>? issues = null,
-        AspNetCoreFacts? aspNetCore = null)
+        AspNetCoreFacts? aspNetCore = null, EntityFrameworkCoreFacts? entityFrameworkCore = null)
     {
         var coverage = new AnalysisResult(status, issues: issues);
         if (status == AnalysisStatus.Completed && (graph is null || repository is null))
@@ -25,6 +27,7 @@ public sealed class DependencyBuildResult
         Repository = repository;
         Graph = graph;
         AspNetCore = aspNetCore;
+        EntityFrameworkCore = entityFrameworkCore;
         Status = coverage.Status;
         Issues = coverage.Issues;
     }
@@ -35,6 +38,8 @@ public sealed class DependencyBuildResult
     public DependencyGraph? Graph { get; }
     /// <summary>Gets the extracted ASP.NET Core facts, or null when no selected rule needed them.</summary>
     public AspNetCoreFacts? AspNetCore { get; }
+    /// <summary>Gets the extracted EF Core facts, or null when no selected rule needed them.</summary>
+    public EntityFrameworkCoreFacts? EntityFrameworkCore { get; }
     /// <summary>Gets combined workspace, normalization and extraction coverage.</summary>
     public AnalysisStatus Status { get; }
     /// <summary>Gets immutable operational issues in canonical order.</summary>

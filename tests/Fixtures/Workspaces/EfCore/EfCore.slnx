@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Billing/Billing.Infrastructure/Billing.Infrastructure.csproj" />
+  <Project Path="Host/Host.csproj" />
+  <Project Path="Orders/Orders.Application/Orders.Application.csproj" />
+  <Project Path="Orders/Orders.Domain/Orders.Domain.csproj" />
+  <Project Path="Orders/Orders.Infrastructure/Orders.Infrastructure.csproj" />
+</Solution>

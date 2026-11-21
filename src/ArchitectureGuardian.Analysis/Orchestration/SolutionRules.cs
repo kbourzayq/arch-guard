@@ -1,5 +1,6 @@
 using ArchitectureGuardian.Core.Dependencies;
 using ArchitectureGuardian.Core.Frameworks.AspNetCore;
+using ArchitectureGuardian.Core.Frameworks.EntityFrameworkCore;
 using ArchitectureGuardian.Core.Rules;
 
 namespace ArchitectureGuardian.Analysis.Orchestration;
@@ -12,5 +13,5 @@ public static class SolutionRules
         Array.AsReadOnly<IArchitectureRule<DependencyBuildResult>>([new ModuleDependenciesRule(), new LayerDependenciesRule(),
             new ModuleCyclesRule(), new ImplementationBoundariesRule(), new ForbiddenReferencesRule(), new DomainInfrastructureRule(),
             new ControllerPersistenceRule(), new DeclaredAuthorizationRule(), new ServiceLifetimesRule(), new ApiPersistenceRule(),
-            new ApplicationAbstractionsRule()]);
+            new ApplicationAbstractionsRule(), new DbContextOwnershipRule(), new PersistenceLayersRule(), new ForbiddenPersistenceApisRule()]);
 }

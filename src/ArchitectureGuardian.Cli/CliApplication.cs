@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Core.Frameworks.AspNetCore;
+using ArchitectureGuardian.Core.Frameworks.EntityFrameworkCore;
 using System.CommandLine;
 using ArchitectureGuardian.Analysis.Workspaces;
 using ArchitectureGuardian.Configuration.Validation;
@@ -22,15 +23,15 @@ internal static class CliApplication
         root.Add(baseline);
         root.Add(WorkspaceCommand("inspect", "List resolved modules, contracts, layers and policy constraints.", renderer));
         root.Add(WorkspaceCommand("load", "Validate workspace coverage without evaluating architecture rules.", renderer));
-        var ruleId = new Argument<string>("rule-id") { Description = "Canonical, case-sensitive rule ID (AG001–AG006 or ASP001–ASP005)." };
+        var ruleId = new Argument<string>("rule-id") { Description = "Canonical, case-sensitive rule ID (AG001–AG006, ASP001–ASP005 or EF001–EF003)." };
         var explain = new Command("explain", "Show canonical rule metadata and its documentation URL.") { ruleId };
         explain.SetAction(result =>
         {
             var id = result.GetValue(ruleId);
-            var descriptor = RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).SingleOrDefault(rule => rule.Id == id);
+            var descriptor = RuleCatalog.All.Concat(AspNetCoreRuleCatalog.All).Concat(EntityFrameworkCoreRuleCatalog.All).SingleOrDefault(rule => rule.Id == id);
             if (descriptor is null)
             {
-                error.WriteLine($"Unknown rule ID '{id}'. Use a canonical ID: AG001–AG006 or ASP001–ASP005 (case-sensitive).");
+                error.WriteLine($"Unknown rule ID '{id}'. Use a canonical ID: AG001–AG006, ASP001–ASP005 or EF001–EF003 (case-sensitive).");
                 return 2;
             }
 

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Orders.Application/Orders.Application.csproj" />
+    <ProjectReference Include="../../Billing/Billing.Infrastructure/Billing.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

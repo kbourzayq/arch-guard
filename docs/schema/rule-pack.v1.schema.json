@@ -74,6 +74,9 @@
     },
     "gate": {
       "$ref": "architecture.guardian.v1.schema.json#/properties/gate"
+    },
+    "entityFrameworkCore": {
+      "$ref": "architecture.guardian.v1.schema.json#/properties/entityFrameworkCore"
     }
   }
 }

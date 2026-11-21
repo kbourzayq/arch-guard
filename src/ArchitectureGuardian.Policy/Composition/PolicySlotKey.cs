@@ -39,12 +39,15 @@ internal sealed class PolicySlotKey : IEquatable<PolicySlotKey>, IComparable<Pol
 
         /// <summary>The quality-gate severity threshold.</summary>
         Gate,
+
+        /// <summary>A top-level EF Core persistence setting.</summary>
+        EntityFrameworkCore,
     }
 
     /// <summary>Gets the declaration kind.</summary>
     internal SlotKind Kind { get; }
 
-    /// <summary>Gets the module, layer or rule identity; empty for the gate.</summary>
+    /// <summary>Gets the module, layer or rule identity; empty for the gate and EF Core settings.</summary>
     internal string Id { get; }
 
     /// <summary>Gets the contract identity for contract settings.</summary>
@@ -60,6 +63,7 @@ internal sealed class PolicySlotKey : IEquatable<PolicySlotKey>, IComparable<Pol
         SlotKind.Contract => Suffix("modules." + Id + ".contracts." + Contract),
         SlotKind.Layer => Suffix("layers." + Id),
         SlotKind.Rule => "rules." + Id,
+        SlotKind.EntityFrameworkCore => "entityFrameworkCore." + Field,
         _ => "gate.failOn",
     };
 
@@ -91,6 +95,11 @@ internal sealed class PolicySlotKey : IEquatable<PolicySlotKey>, IComparable<Pol
     /// <summary>Creates the quality-gate key.</summary>
     /// <returns>The key.</returns>
     internal static PolicySlotKey Gate() => new(SlotKind.Gate, string.Empty, null, Declaration);
+
+    /// <summary>Creates a top-level EF Core setting key, such as persistenceLayers.</summary>
+    /// <param name="field">The setting name.</param>
+    /// <returns>The key.</returns>
+    internal static PolicySlotKey EntityFrameworkCore(string field) => new(SlotKind.EntityFrameworkCore, string.Empty, null, field);
 
     /// <inheritdoc />
     public bool Equals(PolicySlotKey? other) => other is not null && string.Equals(_canonical, other._canonical, StringComparison.Ordinal);

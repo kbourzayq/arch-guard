@@ -1,9 +1,10 @@
 # Rule catalog
 
-Architecture Guardian implements six canonical architecture rules (AG001–AG006) and
-five ASP.NET Core rules (ASP001–ASP005). CLI and MCP solution scans can evaluate all
-of them; compiler analysis implements AG001, AG002, AG004, AG005 and AG006 against its
-host compilation. Only the solution engine checks module cycles and the ASP rules.
+Architecture Guardian implements six canonical architecture rules (AG001–AG006),
+five ASP.NET Core rules (ASP001–ASP005) and three EF Core rules (EF001–EF003). CLI and
+MCP solution scans can evaluate all of them; compiler analysis implements AG001, AG002,
+AG004, AG005 and AG006 against its host compilation. Only the solution engine checks
+module cycles and the ASP and EF rules.
 
 | Rule | Check |
 | --- | --- |
@@ -18,6 +19,9 @@ host compilation. Only the solution engine checks module cycles and the ASP rule
 | [ASP003](#asp003-service-lifetime-mismatches) | Singletons capturing scoped services |
 | [ASP004](#asp004-minimal-api-persistence-access) | Minimal API handlers using persistence technology directly |
 | [ASP005](#asp005-application-abstraction-dependencies) | Endpoints injecting concrete services from other projects |
+| [EF001](#ef001-dbcontext-ownership) | DbContext use outside its owning module |
+| [EF002](#ef002-persistence-layers) | EF Core use outside the declared persistence layers |
+| [EF003](#ef003-forbidden-persistence-apis) | References to forbidden EF Core APIs |
 
 Choose rules and severities in your [YAML policy](policy.md#rule-selection-severity-and-gates).
 Use CLI `explain <rule-id>` for local metadata. The
@@ -497,6 +501,88 @@ class parameters are not treated as injected because their binding is inferred a
 Persistence types are reported by ASP001/ASP004 only.
 **Blind spots:** which concrete type the container supplies for an abstraction.
 
+## EF Core rules EF001–EF003
+
+The EF rules run only in the solution engine (`scan`, `baseline update` and the MCP
+tools). Facts are extracted from bound symbols when an EF rule is selected; the analyzed
+projects need EF Core references, Architecture Guardian does not. EF Core types are types
+from, derived from or implementing types from the `Microsoft.EntityFrameworkCore`
+namespace and its descendants in referenced assemblies. A source type that only uses that
+namespace name is not EF Core. A selected EF rule whose facts are unavailable yields an
+incomplete result (`efcore-facts-unavailable`), never a clean one.
+
+EF002 and EF003 read the top-level `entityFrameworkCore` policy object:
+
+```yaml
+entityFrameworkCore:
+  persistenceLayers: [Infrastructure]
+  forbiddenApis: [IgnoreQueryFilters, FromSqlRaw, ExecuteSqlRaw]
+rules:
+  EF001: error
+  EF002: error
+  EF003: warning
+```
+
+`persistenceLayers` lists declared layer IDs and `forbiddenApis` lists EF Core method
+names. Both default to empty, but selecting EF002 requires a persistence layer and
+selecting EF003 requires a forbidden API. Each list merges independently in
+[rule packs](rule-packs.md), and excluding a pack's layer also removes it from
+`persistenceLayers`. Diagnostics carry the same `classification` as the
+[ASP rules](#aspnet-core-rules-asp001asp005).
+
+Registering a context is composition, not data access. The type arguments of
+`AddDbContext`, `AddDbContextPool`, `AddDbContextFactory` and `AddPooledDbContextFactory`,
+and EF Core option configuration in their callbacks, are therefore not reported by EF001
+or EF002, so a host may register and configure every module's context. A callback that
+uses a context is still data access and is reported. Code that depends on a repository interface involves
+no EF Core type and passes all three rules. Supported cases and blind spots are published by
+`EntityFrameworkCoreRuleCatalog.Support`.
+
+## EF001: DbContext ownership
+
+A DbContext subclass belongs to the module of the project that declares it. A type in
+another module that uses it, including through a method's return type, an indexer or generic
+arguments such as `IDbContextFactory<TContext>` (also behind a `using` alias), is
+`proven`. A type that uses the `DbContext` base type outside a DbContext subclass is
+`runtimeValidationRequired`, because the container decides which module's context it
+receives. Inherited members such as `SaveChanges` on a concrete context are attributed
+to that context, not to the base type.
+
+**Blind spots:** DbContext types from package or assembly references have no module
+owner. If two projects produce the same assembly identity, ownership is ambiguous and the
+result is incomplete (`efcore-dbcontext-owner-ambiguous`) rather than guessed. Access through another module's repository contract is allowed here; AG001 and
+AG004 check whether that contract may be used.
+
+```csharp
+// Invalid in module Orders: Billing owns BillingDbContext.
+public sealed class InvoiceReport(BillingDbContext billing) { }
+// Valid: depend on a contract that Billing publishes.
+public sealed class InvoiceReport(IInvoiceQueries invoices) { }
+```
+
+## EF002: Persistence layers
+
+Projects outside `persistenceLayers` must not use EF Core types: DbContext subclasses,
+`DbSet<T>`, configuration interfaces or EF Core extension methods such as `ToListAsync`.
+Each using type and EF Core type pair is one `proven` finding.
+
+**Blind spots:** persistence reached only through a non-EF abstraction; reflection and
+`dynamic`. Overlaps with AG005/AG006 restrictions are reported independently.
+
+## EF003: Forbidden persistence APIs
+
+References to EF Core methods named in `forbiddenApis`, including extension methods,
+method groups and methods that EF Core declares in other namespaces (such as
+`AddDbContext`), are `proven` policy violations. Registration arguments are exempt only
+from EF001 and EF002. Each finding records only its matched method as the violated
+constraint, so adding another API to `forbiddenApis` does not change existing
+[baseline](baselines.md) fingerprints. `IgnoreQueryFilters` is `potential`: a
+query that bypasses global filters is policy evidence for review. It does not prove that
+another tenant's data, or other filtered data, is exposed, because that depends on the
+filter and the data at runtime. Confirm tenant isolation with tests.
+
+**Blind spots:** global query filter contents and query results; SQL executed outside EF Core.
+
 ## Compiler scope
 
 The [compiler adapter](compiler-analyzer.md) evaluates AG001/AG002/AG004 for bound semantic
@@ -504,6 +590,6 @@ uses between assemblies present in its supplied policy and ownership metadata. A
 explicit restrictions on all bound target assemblies. The adapter shares Core's
 IDs, titles, help URLs and permission predicates. Its diagnostics carry per-use source
 spans; solution diagnostics aggregate project-pair evidence. AG000 reports unavailable
-compiler configuration and is an operational adapter diagnostic, outside AG001–AG006. ASP001–ASP005 are
-solution-only: the compiler adapter does not evaluate them.
+compiler configuration and is an operational adapter diagnostic, outside AG001–AG006. ASP001–ASP005 and
+EF001–EF003 are solution-only: the compiler adapter does not evaluate them.
 Compiler results do not establish whole-solution coverage or cycle compliance.

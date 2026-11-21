@@ -54,7 +54,7 @@ baseline identity), `ruleId`, effective `severity` (`info`, `warning`, `error`),
 `message`, `target`, nullable `location`, all `evidence`, `remediation`, and
 `documentationUrl`. It also retains `dependencyPath`, violated `constraints`,
 `publicContracts`, and the nullable `snapshotId` fallback used by fingerprints.
-ASP.NET Core rules (ASP001–ASP005) add `classification` (`proven`, `potential` or
+ASP.NET Core rules (ASP001–ASP005) and EF Core rules (EF001–EF003) add `classification` (`proven`, `potential` or
 `runtimeValidationRequired`); other rules omit it. `baselineState` is `existing` or `new` when a comparison is available, otherwise
 `null`. Baseline acceptance does not change severity or hide evidence.
 

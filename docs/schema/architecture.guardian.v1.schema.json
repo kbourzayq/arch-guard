@@ -63,6 +63,15 @@
         },
         "ASP005": {
           "$ref": "#/$defs/severity"
+        },
+        "EF001": {
+          "$ref": "#/$defs/severity"
+        },
+        "EF002": {
+          "$ref": "#/$defs/severity"
+        },
+        "EF003": {
+          "$ref": "#/$defs/severity"
         }
       }
     },
@@ -75,6 +84,30 @@
       "properties": {
         "failOn": {
           "$ref": "#/$defs/severity"
+        }
+      }
+    },
+    "entityFrameworkCore": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "EF Core settings for EF002 and EF003. Each list merges independently with rule packs; selecting EF002 or EF003 requires its list to be nonempty.",
+      "properties": {
+        "persistenceLayers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "description": "Declared layer IDs whose projects may use EF Core types (EF002)."
+        },
+        "forbiddenApis": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "description": "EF Core method names that source must not reference (EF003), such as IgnoreQueryFilters or FromSqlRaw."
         }
       }
     }

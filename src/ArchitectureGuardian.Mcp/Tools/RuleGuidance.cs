@@ -1,4 +1,5 @@
 using ArchitectureGuardian.Core.Frameworks.AspNetCore;
+using ArchitectureGuardian.Core.Frameworks.EntityFrameworkCore;
 using ArchitectureGuardian.Core.Policies;
 using ArchitectureGuardian.Core.Rules;
 
@@ -60,6 +61,13 @@ internal sealed record RuleGuidance(
                     + " Runtime blind spots: " + string.Join(" ", support.RuntimeBlindSpots),
                 "Diagnostics are classified as Proven, Potential or RuntimeValidationRequired; validate runtime blind spots with tests or container validation.",
                 [new("rule:" + ruleId, "staticSupport", support.SupportedCases)], []),
+            _ when EntityFrameworkCoreRuleCatalog.Support.SingleOrDefault(item => item.RuleId == ruleId) is { } support => new RuleGuidance(
+                "Static EF Core analysis. Supported: " + string.Join(" ", support.SupportedCases)
+                    + " Runtime blind spots: " + string.Join(" ", support.RuntimeBlindSpots),
+                "Diagnostics are classified as Proven, Potential or RuntimeValidationRequired; validate runtime blind spots, such as query filter behavior, with tests.",
+                [new("rule:" + ruleId, "staticSupport", support.SupportedCases),
+                    new("entityFrameworkCore", "persistenceLayers", policy.EntityFrameworkCore?.PersistenceLayers ?? []),
+                    new("entityFrameworkCore", "forbiddenApis", policy.EntityFrameworkCore?.ForbiddenApis ?? [])], []),
             _ => throw new ArgumentOutOfRangeException(nameof(ruleId)),
         };
         if (guidance.PublicContracts.Length > 0)
