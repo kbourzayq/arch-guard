@@ -86,7 +86,7 @@ def wait_for_packages(tag, timeout, interval):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("operation", choices=("notes", "wait-nuget"))
-    parser.add_argument("--tag", required=True, help="Release tag, for example v0.4.1")
+    parser.add_argument("--tag", required=True, help="Stable release tag in vMAJOR.MINOR.PATCH form")
     parser.add_argument("--run-url", help="Release workflow run that validated and published the tag")
     parser.add_argument("--timeout", type=int, default=2400, help="Seconds to wait for package listing")
     parser.add_argument("--interval", type=int, default=30, help="Seconds between package listing checks")

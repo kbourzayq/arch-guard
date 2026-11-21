@@ -9,12 +9,12 @@
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <!-- Synchronized from .cz.toml by Commitizen's version_files setting. -->
-    <Version>0.4.1</Version>
+    <Version>0.5.0</Version>
     <!-- Only the CLI, MCP host and compiler adapter are distribution contracts. -->
     <IsPackable>false</IsPackable>
     <Authors>Khalid BOURZAYQ</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/kbourzayq/arch-guard</PackageProjectUrl>
+    <PackageProjectUrl>https://kbourzayq.github.io/arch-guard/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/kbourzayq/arch-guard</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

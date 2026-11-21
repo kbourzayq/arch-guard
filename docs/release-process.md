@@ -72,10 +72,10 @@ the tagged commit, the workflow run and package links. The job marks the release
 Latest only when the tag is the highest version, and leaves an existing release for
 that tag unchanged, so hand-written notes are never overwritten. Add compatibility or
 known-limitation sections by editing the published release. To create notes for an
-older tag by hand:
+existing tag by hand:
 
 ```sh
-python3 eng/release-notes.py notes --tag v0.4.1 --run-url <release workflow run URL>
+python3 eng/release-notes.py notes --tag v0.5.0 --run-url <release workflow run URL>
 ```
 
 See the [MVP release sign-off record](release-signoff-0.3.0.md) for candidate evidence,
